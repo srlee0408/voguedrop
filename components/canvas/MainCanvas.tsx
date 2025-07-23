@@ -1,0 +1,54 @@
+import { Plus, Pin } from "lucide-react"
+
+interface MainCanvasProps {
+  favorites: boolean[]
+  onToggleFavorite: (index: number) => void
+}
+
+export function MainCanvas({ favorites, onToggleFavorite }: MainCanvasProps) {
+  return (
+    <div className="flex-1 p-6 flex bg-black">
+      <div className="flex-1 flex flex-col items-center">
+        {/* Main Images */}
+        <div className="flex gap-4 w-full mb-4">
+          {[1, 2, 3].map((index) => (
+            <div key={index} className="flex-1 h-[640px] bg-gray-800 rounded-md overflow-hidden relative">
+              <button
+                className="absolute top-4 right-4 w-10 h-10 bg-white/90 backdrop-blur rounded-full flex items-center justify-center z-20 hover:bg-white transition-colors"
+                onClick={() => onToggleFavorite(index - 1)}
+              >
+                <Pin
+                  className={`w-5 h-5 ${favorites[index - 1] ? "text-primary fill-current" : "text-black/80"}`}
+                />
+              </button>
+              <img
+                src={`/placeholder.svg?height=640&width=405&query=fashion lookbook photo ${index}`}
+                alt={`Lookbook ${index}`}
+                className="w-full h-full object-cover"
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Right Thumbnails */}
+      <div className="w-24 flex flex-col items-center space-y-2 ml-4">
+        <button className="w-20 h-20 bg-black/10 rounded-md flex items-center justify-center border border-black/20">
+          <Plus className="w-6 h-6 text-white/60" />
+        </button>
+        {[1, 2, 3, 4].map((index) => (
+          <div
+            key={index}
+            className={`w-20 h-20 bg-black/10 rounded-md overflow-hidden ${index === 2 ? "border-2 border-primary" : ""}`}
+          >
+            <img
+              src={`/placeholder.svg?height=80&width=80&query=generated fashion image ${index}`}
+              alt={`Generated Image ${index}`}
+              className="w-full h-full object-cover"
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
