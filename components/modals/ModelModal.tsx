@@ -23,42 +23,42 @@ const modelOptions: ModelOption[] = [
     id: "model-1",
     name: "Classic Male",
     description: "Athletic build, 180cm",
-    imageUrl: "/placeholder.svg?height=300&width=200&query=male-model-1",
+    imageUrl: "https://readdy.ai/api/search-image?query=Professional male fashion model with athletic build in modern clothing&width=200&height=300&seq=31&orientation=portrait",
     category: "male"
   },
   {
     id: "model-2",
     name: "Urban Female",
     description: "Contemporary style, 170cm",
-    imageUrl: "/placeholder.svg?height=300&width=200&query=female-model-1",
+    imageUrl: "https://readdy.ai/api/search-image?query=Contemporary female fashion model with urban style in trendy outfit&width=200&height=300&seq=32&orientation=portrait",
     category: "female"
   },
   {
     id: "model-3",
     name: "Fashion Forward",
     description: "Androgynous look, 175cm",
-    imageUrl: "/placeholder.svg?height=300&width=200&query=unisex-model-1",
+    imageUrl: "https://readdy.ai/api/search-image?query=Fashion forward androgynous model with minimalist styling&width=200&height=300&seq=33&orientation=portrait",
     category: "unisex"
   },
   {
     id: "model-4",
     name: "Street Style Male",
     description: "Casual aesthetic, 185cm",
-    imageUrl: "/placeholder.svg?height=300&width=200&query=male-model-2",
+    imageUrl: "https://readdy.ai/api/search-image?query=Street style male model with casual aesthetic in urban fashion&width=200&height=300&seq=34&orientation=portrait",
     category: "male"
   },
   {
     id: "model-5",
     name: "Elegant Female",
     description: "Sophisticated look, 168cm",
-    imageUrl: "/placeholder.svg?height=300&width=200&query=female-model-2",
+    imageUrl: "https://readdy.ai/api/search-image?query=Elegant female fashion model with sophisticated look in haute couture&width=200&height=300&seq=35&orientation=portrait",
     category: "female"
   },
   {
     id: "model-6",
     name: "Minimalist",
     description: "Clean aesthetic, 178cm",
-    imageUrl: "/placeholder.svg?height=300&width=200&query=unisex-model-2",
+    imageUrl: "https://readdy.ai/api/search-image?query=Minimalist unisex model with clean aesthetic in contemporary fashion&width=200&height=300&seq=36&orientation=portrait",
     category: "unisex"
   }
 ]

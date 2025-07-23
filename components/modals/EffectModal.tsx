@@ -33,7 +33,7 @@ export function EffectModal({ isOpen, onClose, effects }: EffectModalProps) {
         {effects.map((effect, index) => (
           <div key={index} className="aspect-[3/4] rounded-xl overflow-hidden relative group cursor-pointer">
             <img
-              src={effect.image || "/placeholder.svg"}
+              src={effect.image || "https://readdy.ai/api/search-image?query=Abstract visual effect for fashion editing&width=300&height=400&seq=99&orientation=portrait"}
               alt={effect.name}
               className="w-full h-full object-cover"
             />

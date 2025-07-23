@@ -27,7 +27,7 @@ export default function VideoEditorPage() {
     setShowSoundLibrary(true);
   };
 
-  const handleAddToTimeline = (videoId: string) => {
+  const handleAddToTimeline = () => {
     const newClip = {
       id: `clip-${Date.now()}`,
       duration: 160,
@@ -38,7 +38,7 @@ export default function VideoEditorPage() {
   };
 
   return (
-    <div className="bg-black text-white min-h-screen">
+    <div className="bg-background text-foreground min-h-screen">
       <div className="flex flex-col h-screen">
         <Header />
         

@@ -1,10 +1,10 @@
 "use client"
 
 import type React from "react"
-import { useState, useRef } from "react"
+import { useState } from "react"
 import { Header } from "@/components/layout/Header"
 import { LeftPanel } from "@/components/canvas/LeftPanel"
-import { CanvasArea } from "@/components/canvas/CanvasArea"
+import { Canvas } from "@/components/canvas/Canvas"
 import { LibraryModal } from "@/components/modals/LibraryModal"
 import { EffectModal } from "@/components/modals/EffectModal"
 import { PromptModal } from "@/components/modals/PromptModal"
@@ -23,16 +23,15 @@ export default function CanvasPage() {
   const [promptText, setPromptText] = useState("")
   const [negativePrompt, setNegativePrompt] = useState("")
   const [brushSize, setBrushSize] = useState(20)
-  const [selectedResolution, setSelectedResolution] = useState("1:1")
-  const [selectedSize, setSelectedSize] = useState("1024×1024")
-  const [favorites, setFavorites] = useState<boolean[]>([false, false, false])
+  const [selectedResolution] = useState("1:1")
+  const [selectedSize] = useState("1024×1024")
   const [selectedModelId, setSelectedModelId] = useState<string>("")
 
   const effects = [
-    { name: "RGB Split", image: "/placeholder.svg?height=400&width=300" },
-    { name: "Wave Flow", image: "/placeholder.svg?height=400&width=300" },
-    { name: "Holo Prism", image: "/placeholder.svg?height=400&width=300" },
-    { name: "Light Trail", image: "/placeholder.svg?height=400&width=300" },
+    { name: "RGB Split", image: "https://images.unsplash.com/photo-1518709268805-4e9042af2176?w=300&h=400&fit=crop" },
+    { name: "Wave Flow", image: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=300&h=400&fit=crop" },
+    { name: "Holo Prism", image: "https://images.unsplash.com/photo-1557804506-669a67965ba0?w=300&h=400&fit=crop" },
+    { name: "Light Trail", image: "https://images.unsplash.com/photo-1518709268805-4e9042af2176?w=300&h=400&fit=crop" },
   ]
 
   const libraryClips = [
@@ -40,26 +39,21 @@ export default function CanvasPage() {
       title: "Evening Elegance",
       date: "2025-07-15",
       duration: "01:24",
-      image: "/placeholder.svg?height=640&width=360",
+      image: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=360&h=640&fit=crop",
     },
-    { title: "Urban Vibes", date: "2025-07-14", duration: "02:15", image: "/placeholder.svg?height=360&width=840" },
+    { title: "Urban Vibes", date: "2025-07-14", duration: "02:15", image: "https://readdy.ai/api/search-image?query=Urban street fashion photography with modern city backdrop&width=840&height=360&seq=6&orientation=landscape" },
     {
       title: "Avant-garde Vision",
       date: "2025-07-13",
       duration: "03:42",
-      image: "/placeholder.svg?height=640&width=360",
+      image: "https://readdy.ai/api/search-image?query=Avant-garde fashion editorial with experimental styling&width=360&height=640&seq=7&orientation=portrait",
     },
-    { title: "Luxury Details", date: "2025-07-12", duration: "02:56", image: "/placeholder.svg?height=400&width=400" },
+    { title: "Luxury Details", date: "2025-07-12", duration: "02:56", image: "https://readdy.ai/api/search-image?query=Luxury fashion detail shot with premium materials and elegant styling&width=400&height=400&seq=8&orientation=square" },
   ]
 
-  const toggleFavorite = (index: number) => {
-    const newFavorites = [...favorites]
-    newFavorites[index] = !newFavorites[index]
-    setFavorites(newFavorites)
-  }
 
   return (
-    <div className="min-h-screen flex flex-col bg-black text-white">
+    <div className="min-h-screen flex flex-col bg-background text-foreground">
       <Header onLibraryClick={() => setIsLibraryOpen(true)} />
 
       <div className="flex flex-1">
@@ -76,9 +70,7 @@ export default function CanvasPage() {
           onModelClick={() => setIsModelModalOpen(true)}
         />
 
-        <CanvasArea
-          favorites={favorites}
-          onToggleFavorite={toggleFavorite}
+        <Canvas
           selectedResolution={selectedResolution}
           selectedSize={selectedSize}
           brushSize={brushSize}
@@ -86,6 +78,7 @@ export default function CanvasPage() {
           onPromptModalOpen={() => setIsPromptModalOpen(true)}
           onBrushToggle={() => setIsBrushPopupOpen(!isBrushPopupOpen)}
           onBrushSizeChange={setBrushSize}
+          showControls={true}
         />
       </div>
 

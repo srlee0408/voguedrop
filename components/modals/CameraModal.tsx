@@ -1,5 +1,5 @@
 import { BaseModal } from "./BaseModal"
-import { Camera, Video, Upload, X } from "lucide-react"
+import { Camera, Video, Upload } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useState } from "react"
 

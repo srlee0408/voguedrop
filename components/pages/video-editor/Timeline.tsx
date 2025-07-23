@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 
 interface TimelineProps {
   clips: Array<{ id: string; duration: number; thumbnails: number }>;
