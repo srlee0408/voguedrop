@@ -1,19 +1,44 @@
-import { Play } from "lucide-react"
-
-interface GalleryItem {
-  title: string
-  type: string
-}
+import { Suspense } from "react"
+import { getGalleryItems } from "@/lib/api/gallery"
+import { GalleryItems } from "./GalleryItems"
 
 interface GallerySectionProps {
   texts: {
     title: string
     subtitle: string
-    items: GalleryItem[]
   }
 }
 
-export function GallerySection({ texts }: GallerySectionProps) {
+async function GalleryData() {
+  try {
+    const items = await getGalleryItems()
+    return <GalleryItems items={items} />
+  } catch {
+    return (
+      <div className="col-span-full text-center py-12">
+        <p className="text-red-400 mb-2">Failed to load gallery items</p>
+        <p className="text-sm text-gray-400">Please try again later</p>
+      </div>
+    )
+  }
+}
+
+function GalleryItemsLoading() {
+  return (
+    <>
+      {[...Array(8)].map((_, index) => (
+        <div
+          key={index}
+          className="relative aspect-[9/16] bg-gray-900 rounded-lg overflow-hidden animate-pulse"
+        >
+          <div className="w-full h-full bg-gray-800" />
+        </div>
+      ))}
+    </>
+  )
+}
+
+export async function GallerySection({ texts }: GallerySectionProps) {
   return (
     <section id="gallery" className="py-16 sm:py-24 md:py-32">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
@@ -27,24 +52,9 @@ export function GallerySection({ texts }: GallerySectionProps) {
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-          {texts.items.map((item, index) => (
-            <div
-              key={index}
-              className="group relative aspect-[9/16] bg-gray-900 rounded-lg overflow-hidden cursor-pointer"
-            >
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent z-10" />
-              <div className="absolute bottom-2 sm:bottom-4 left-2 sm:left-4 right-2 sm:right-4 z-20">
-                <h3 className="font-semibold mb-1 text-sm sm:text-base">{item.title}</h3>
-                <p className="text-xs sm:text-sm text-gray-300">{item.type}</p>
-              </div>
-              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-30">
-                <div className="w-12 sm:w-16 h-12 sm:h-16 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
-                  <Play className="w-5 sm:w-6 h-5 sm:h-6 ml-1" />
-                </div>
-              </div>
-              <div className="w-full h-full bg-gradient-to-br from-primary/20 to-secondary/20" />
-            </div>
-          ))}
+          <Suspense fallback={<GalleryItemsLoading />}>
+            <GalleryData />
+          </Suspense>
         </div>
       </div>
     </section>
