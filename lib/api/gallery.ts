@@ -8,10 +8,7 @@ export async function getGalleryItems(): Promise<CreationWithMedia[]> {
       .select(`
         *,
         category:categories!category_id(*),
-        product:media_assets!product_id(*),
-        creation_media_links(
-          media:media_assets!media_id(*)
-        )
+        product:media_assets!product_id(*)
       `)
       .order('created_at', { ascending: false })
 
@@ -30,8 +27,7 @@ export async function getGalleryItems(): Promise<CreationWithMedia[]> {
       return {
         ...item,
         category: item.category,
-        product: item.product,
-        media_links: item.creation_media_links?.map((link: { media: unknown }) => link.media) || []
+        product: item.product
       }
     })
 

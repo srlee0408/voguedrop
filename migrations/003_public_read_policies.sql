@@ -6,7 +6,6 @@
 DROP POLICY IF EXISTS "Public read access" ON public.creations;
 DROP POLICY IF EXISTS "Public read access" ON public.categories;
 DROP POLICY IF EXISTS "Public read access" ON public.media_assets;
-DROP POLICY IF EXISTS "Public read access" ON public.creation_media_links;
 
 -- Create public read access policies
 CREATE POLICY "Public read access" ON public.creations
@@ -18,9 +17,5 @@ FOR SELECT TO anon
 USING (true);
 
 CREATE POLICY "Public read access" ON public.media_assets
-FOR SELECT TO anon
-USING (true);
-
-CREATE POLICY "Public read access" ON public.creation_media_links
 FOR SELECT TO anon
 USING (true);

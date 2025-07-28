@@ -11,7 +11,6 @@
 ALTER TABLE public.creations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.media_assets ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.creation_media_links ENABLE ROW LEVEL SECURITY;
 ```
 
 ## Public Read Access 정책
@@ -51,17 +50,6 @@ FOR SELECT TO anon
 USING (true);
 ```
 
-### 4. creation_media_links 테이블
-```sql
--- Drop existing policy if exists
-DROP POLICY IF EXISTS "Public read access" ON public.creation_media_links;
-
--- Create new policy
-CREATE POLICY "Public read access" ON public.creation_media_links
-FOR SELECT TO anon
-USING (true);
-```
-
 ## 모든 정책을 한 번에 실행
 
 다음 SQL을 복사하여 Supabase SQL Editor에서 실행하세요:
@@ -71,13 +59,11 @@ USING (true);
 ALTER TABLE public.creations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.media_assets ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.creation_media_links ENABLE ROW LEVEL SECURITY;
 
 -- Drop existing policies if they exist
 DROP POLICY IF EXISTS "Public read access" ON public.creations;
 DROP POLICY IF EXISTS "Public read access" ON public.categories;
 DROP POLICY IF EXISTS "Public read access" ON public.media_assets;
-DROP POLICY IF EXISTS "Public read access" ON public.creation_media_links;
 
 -- Create public read access policies
 CREATE POLICY "Public read access" ON public.creations
@@ -89,10 +75,6 @@ FOR SELECT TO anon
 USING (true);
 
 CREATE POLICY "Public read access" ON public.media_assets
-FOR SELECT TO anon
-USING (true);
-
-CREATE POLICY "Public read access" ON public.creation_media_links
 FOR SELECT TO anon
 USING (true);
 ```
