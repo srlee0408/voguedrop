@@ -1,5 +1,7 @@
 'use client';
 
+import Image from 'next/image';
+
 interface VideoLibraryModalProps {
   onClose: () => void;
   onAddToTimeline: (videoId: string) => void;
@@ -49,10 +51,12 @@ export default function VideoLibraryModal({ onClose, onAddToTimeline }: VideoLib
                 className="aspect-[7/8] bg-gray-900 rounded-lg overflow-hidden group cursor-pointer hover:ring-2 hover:ring-[#38f47cf9]"
               >
                 <div className="relative h-full">
-                  <img 
+                  <Image 
                     src={video.imageUrl} 
                     alt="Video thumbnail" 
                     className="w-full h-full object-cover"
+                    fill
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                   />
                   <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all flex items-center justify-center">
                     <button 

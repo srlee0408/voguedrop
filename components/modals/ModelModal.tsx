@@ -2,6 +2,7 @@ import { BaseModal } from "./BaseModal"
 import { User, Users, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useState } from "react"
+import Image from "next/image"
 
 interface ModelOption {
   id: string
@@ -140,14 +141,16 @@ export function ModelModal({ isOpen, onClose, onSelectModel, selectedModelId }: 
                   : "border-gray-200 hover:border-gray-300"
               }`}
             >
-              <div className="relative">
-                <img
+              <div className="relative h-48">
+                <Image
                   src={model.imageUrl}
                   alt={model.name}
-                  className="w-full h-48 object-cover"
+                  className="w-full h-full object-cover"
+                  fill
+                  sizes="(max-width: 768px) 50vw, 33vw"
                 />
                 {selectedModel === model.id && (
-                  <div className="absolute top-2 right-2 w-6 h-6 bg-primary rounded-full flex items-center justify-center">
+                  <div className="absolute top-2 right-2 w-6 h-6 bg-primary rounded-full flex items-center justify-center z-10">
                     <Check className="w-4 h-4 text-black" />
                   </div>
                 )}

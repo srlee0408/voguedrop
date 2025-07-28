@@ -1,4 +1,5 @@
 import { Plus, Pin } from "lucide-react";
+import Image from "next/image";
 import { CanvasControls } from "./CanvasControls";
 import { useCanvas } from "@/hooks/useCanvas";
 
@@ -55,10 +56,13 @@ export function Canvas({
                   }`}
                 />
               </button>
-              <img
+              <Image
                 src={image.url}
                 alt={`Canvas image ${index + 1}`}
                 className="w-full h-full object-cover"
+                fill
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                priority={index === 0}
               />
             </div>
           ))}
@@ -100,10 +104,12 @@ export function Canvas({
             }`}
             aria-label={`Select image ${index + 1}`}
           >
-            <img
+            <Image
               src={thumbnail.url}
               alt={`Thumbnail ${index + 1}`}
               className="w-full h-full object-cover"
+              fill
+              sizes="80px"
             />
           </button>
         ))}

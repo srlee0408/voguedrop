@@ -1,4 +1,5 @@
 import { X } from "lucide-react";
+import Image from "next/image";
 
 export interface Effect {
   name: string;
@@ -20,10 +21,12 @@ export function EffectsSection({ effects, onEffectRemove }: EffectsSectionProps)
             key={index}
             className="group relative aspect-[3/4] rounded-lg overflow-hidden border border-border hover:border-primary transition-all duration-300"
           >
-            <img
+            <Image
               src={effect.image || "/placeholder.svg"}
               alt={effect.name}
               className="w-full h-full object-cover"
+              fill
+              sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-background/0 to-background/0">
               <div className="absolute bottom-0 w-full p-3 flex items-center justify-between">

@@ -1,3 +1,5 @@
+import Image from "next/image";
+
 interface QuickAction {
   id: string;
   label: string;
@@ -48,11 +50,13 @@ export function QuickActionsBar({
           onClick={action.onClick}
           aria-label={action.label}
         >
-          <div className="w-12 h-12 rounded-lg overflow-hidden ring-0 ring-primary transition-all group-hover:ring-2">
-            <img
+          <div className="w-12 h-12 rounded-lg overflow-hidden ring-0 ring-primary transition-all group-hover:ring-2 relative">
+            <Image
               src={action.image}
               alt={action.label}
               className="w-full h-full object-cover"
+              fill
+              sizes="48px"
             />
           </div>
           <span className="text-xs text-foreground">{action.label}</span>

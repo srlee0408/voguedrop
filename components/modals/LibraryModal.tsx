@@ -1,5 +1,6 @@
 import { X, Info, Search, Play, Download, Pin } from "lucide-react"
 import { Input } from "@/components/ui/input"
+import Image from "next/image"
 
 interface LibraryClip {
   title: string
@@ -65,10 +66,12 @@ export function LibraryModal({ isOpen, onClose, clips }: LibraryModalProps) {
               className={`bg-gray-700 rounded-lg overflow-hidden ${index === 0 || index === 2 ? "col-span-3 row-span-2" : index === 1 ? "col-span-6" : "col-span-4"}`}
             >
               <div className="relative group h-full">
-                <img
+                <Image
                   src={clip.image || "/placeholder.svg"}
                   alt={clip.title}
                   className="w-full h-full object-cover"
+                  fill
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                 />
                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                   <button className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center text-white">

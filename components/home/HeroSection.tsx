@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Play } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { HomeHeader } from "./HomeHeader";
 import { BackgroundEffects } from "./BackgroundEffects";
 
@@ -58,18 +59,24 @@ export function HeroSection({ texts }: HeroSectionProps) {
           
           <div className="flex gap-6 justify-center lg:justify-end">
             <div className="relative hero-image rounded-3xl aspect-[9/16] w-[200px] sm:w-[240px] lg:w-[280px] overflow-hidden animate-float">
-              <img 
+              <Image 
                 src="https://static.readdy.ai/image/6f7165cfe0b25edc582c9815e9f0cfd2/ffb51a9f9b523f1e494aea016a7d2899.png" 
                 alt="Fashion AI" 
                 className="w-full h-full object-cover rounded-3xl"
+                fill
+                sizes="(max-width: 640px) 200px, (max-width: 1024px) 240px, 280px"
+                priority
               />
               <div className="absolute inset-0 bg-gradient-to-t from-background/50 to-transparent rounded-3xl"></div>
             </div>
             <div className="relative hero-image rounded-3xl aspect-[9/16] w-[200px] sm:w-[240px] lg:w-[280px] overflow-hidden animate-float-reverse">
-              <img 
+              <Image 
                 src="https://static.readdy.ai/image/6f7165cfe0b25edc582c9815e9f0cfd2/a0eb3ad9c81f7aa80d8355d320ea7e96.png" 
                 alt="Fashion AI" 
                 className="w-full h-full object-cover rounded-3xl scale-110"
+                fill
+                sizes="(max-width: 640px) 200px, (max-width: 1024px) 240px, 280px"
+                priority
               />
               <div className="absolute inset-0 bg-gradient-to-t from-background/50 to-transparent rounded-3xl"></div>
             </div>

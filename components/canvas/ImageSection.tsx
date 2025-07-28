@@ -1,4 +1,5 @@
 import { Play, Pause } from "lucide-react";
+import Image from "next/image";
 
 interface ImageSectionProps {
   isPlaying: boolean;
@@ -24,19 +25,23 @@ export function ImageSection({ isPlaying, onPlayToggle, images = [] }: ImageSect
             <Play className="w-4 h-4 text-primary-foreground" />
           )}
         </button>
-        <div className="aspect-square bg-surface rounded-md overflow-hidden">
-          <img
+        <div className="aspect-square bg-surface rounded-md overflow-hidden relative">
+          <Image
             src={images[0] || defaultImage}
             alt="Reference 1"
             className="w-full h-full object-cover"
+            fill
+            sizes="(max-width: 768px) 25vw, (max-width: 1200px) 20vw, 15vw"
           />
         </div>
         {images.slice(1, 3).map((image, index) => (
-          <div key={index + 1} className="aspect-square bg-surface rounded-md overflow-hidden">
-            <img
+          <div key={index + 1} className="aspect-square bg-surface rounded-md overflow-hidden relative">
+            <Image
               src={image}
               alt={`Reference ${index + 2}`}
               className="w-full h-full object-cover"
+              fill
+              sizes="(max-width: 768px) 25vw, (max-width: 1200px) 20vw, 15vw"
             />
           </div>
         ))}
