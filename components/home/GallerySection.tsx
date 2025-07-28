@@ -2,6 +2,9 @@ import { Suspense } from "react"
 import { getGalleryItems } from "@/lib/api/gallery"
 import { GalleryItems } from "./GalleryItems"
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 interface GallerySectionProps {
   texts: {
     title: string

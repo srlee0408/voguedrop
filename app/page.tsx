@@ -6,6 +6,9 @@ import { CTASection } from "@/components/home/CTASection"
 import { Footer } from "@/components/home/Footer"
 import homeTexts from "@/locales/ko/home.json"
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-black text-white">
