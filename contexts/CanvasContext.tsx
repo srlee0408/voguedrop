@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode } from "react";
-import { CanvasImage, useCanvas } from "@/hooks/useCanvas";
+import { CanvasImage, useCanvas } from "@/app/canvas/_hooks/useCanvas";
 
 interface CanvasContextType {
   images: CanvasImage[];

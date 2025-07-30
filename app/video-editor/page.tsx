@@ -2,11 +2,11 @@
 
 import { useState } from 'react';
 import { Header } from '@/components/layout/Header';
-import VideoPreview from '@/components/pages/video-editor/VideoPreview';
-import Timeline from '@/components/pages/video-editor/Timeline';
-import ControlBar from '@/components/pages/video-editor/ControlBar';
-import VideoLibraryModal from '@/components/pages/video-editor/VideoLibraryModal';
-import SoundLibraryModal from '@/components/pages/video-editor/SoundLibraryModal';
+import VideoPreview from './_components/VideoPreview';
+import Timeline from './_components/Timeline';
+import ControlBar from './_components/ControlBar';
+import VideoLibraryModal from './_components/VideoLibraryModal';
+import SoundLibraryModal from './_components/SoundLibraryModal';
 
 export default function VideoEditorPage() {
   const [showVideoLibrary, setShowVideoLibrary] = useState(false);

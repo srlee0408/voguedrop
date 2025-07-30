@@ -1,7 +1,7 @@
 import { Plus, Pin } from "lucide-react";
 import Image from "next/image";
 import { CanvasControls } from "./CanvasControls";
-import { useCanvas } from "@/hooks/useCanvas";
+import { useCanvas } from "../_hooks/useCanvas";
 
 interface CanvasProps {
   selectedResolution?: string;
@@ -41,7 +41,7 @@ export function Canvas({
           {images.map((image, index) => (
             <div
               key={image.id}
-              className="flex-1 h-[640px] bg-surface-secondary rounded-lg overflow-hidden relative"
+              className="relative flex-1 h-[640px] bg-surface-secondary rounded-lg overflow-hidden"
             >
               <button
                 className="absolute top-4 right-4 w-10 h-10 bg-surface/90 backdrop-blur rounded-full flex items-center justify-center z-20 hover:bg-surface transition-colors"
@@ -97,7 +97,7 @@ export function Canvas({
           <button
             key={thumbnail.id}
             onClick={() => selectThumbnail(index)}
-            className={`w-20 h-20 bg-surface/10 rounded-md overflow-hidden transition-all ${
+            className={`relative w-20 h-20 bg-surface/10 rounded-md overflow-hidden transition-all ${
               index === selectedThumbnailIndex
                 ? "border-2 border-primary"
                 : "border border-transparent hover:border-border"

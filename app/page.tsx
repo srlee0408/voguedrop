@@ -1,9 +1,9 @@
-import { HeroSection } from "@/components/home/HeroSection"
-import { FeaturesSection } from "@/components/home/FeaturesSection"
-import { HowItWorksSection } from "@/components/home/HowItWorksSection"
-import { GallerySection } from "@/components/home/GallerySection"
-import { CTASection } from "@/components/home/CTASection"
-import { Footer } from "@/components/home/Footer"
+import { HeroSection } from "./(home)/_components/HeroSection"
+import { FeaturesSection } from "./(home)/_components/FeaturesSection"
+import { HowItWorksSection } from "./(home)/_components/HowItWorksSection"
+import { GallerySection } from "./(home)/_components/GallerySection"
+import { CTASection } from "./(home)/_components/CTASection"
+import { Footer } from "./(home)/_components/Footer"
 import homeTexts from "@/locales/ko/home.json"
 
 export const dynamic = 'force-dynamic'
