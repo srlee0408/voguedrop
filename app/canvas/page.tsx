@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Header } from "@/components/layout/Header"
 import { LeftPanel } from "./_components/LeftPanel"
 import { Canvas } from "./_components/Canvas"
@@ -10,6 +10,9 @@ import { EffectModal } from "@/components/modals/EffectModal"
 import { PromptModal } from "@/components/modals/PromptModal"
 import { CameraModal } from "@/components/modals/CameraModal"
 import { ModelModal } from "@/components/modals/ModelModal"
+import type { GeneratedVideo } from "@/types/canvas"
+import type { EffectTemplateWithMedia } from "@/types/database"
+import { useBeforeUnload } from "./_hooks/useBeforeUnload"
 
 export default function CanvasPage() {
   const [isLibraryOpen, setIsLibraryOpen] = useState(false)
@@ -19,20 +22,122 @@ export default function CanvasPage() {
   const [isModelModalOpen, setIsModelModalOpen] = useState(false)
   const [isPrompterOpen, setIsPrompterOpen] = useState(false)
   const [isBrushPopupOpen, setIsBrushPopupOpen] = useState(false)
-  const [isPlaying, setIsPlaying] = useState(true)
   const [promptText, setPromptText] = useState("")
   const [negativePrompt, setNegativePrompt] = useState("")
   const [brushSize, setBrushSize] = useState(20)
   const [selectedResolution] = useState("1:1")
   const [selectedSize] = useState("1024×1024")
   const [selectedModelId, setSelectedModelId] = useState<string>("")
+  const [, setUploadedImage] = useState<string | null>(null)
+  const [generatedVideos] = useState<GeneratedVideo[]>([])
+  const [isGenerating] = useState(false)
+  const [selectedEffects, setSelectedEffects] = useState<EffectTemplateWithMedia[]>([])
+  const [generationError, setGenerationError] = useState<string | null>(null)
+  const [selectedVideoId, setSelectedVideoId] = useState<number | null>(null)
+  
+  // 페이지 이탈 방지
+  useBeforeUnload(isGenerating, '영상 생성이 진행 중입니다. 페이지를 벗어나면 생성이 취소됩니다.')
+  
+  // 에러 메시지 자동 제거
+  useEffect(() => {
+    if (generationError) {
+      const timer = setTimeout(() => {
+        setGenerationError(null);
+      }, 5000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [generationError]);
 
-  const effects = [
-    { name: "RGB Split", image: "https://images.unsplash.com/photo-1518709268805-4e9042af2176?w=300&h=400&fit=crop" },
-    { name: "Wave Flow", image: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=300&h=400&fit=crop" },
-    { name: "Holo Prism", image: "https://images.unsplash.com/photo-1557804506-669a67965ba0?w=300&h=400&fit=crop" },
-    { name: "Light Trail", image: "https://images.unsplash.com/photo-1518709268805-4e9042af2176?w=300&h=400&fit=crop" },
-  ]
+  const handleEffectSelect = (effect: EffectTemplateWithMedia) => {
+    setSelectedEffects(prev => {
+      const isSelected = prev.some(e => e.id === effect.id);
+      if (isSelected) {
+        // 선택 해제
+        return prev.filter(e => e.id !== effect.id);
+      } else {
+        // 선택 추가
+        return [...prev, effect];
+      }
+    });
+  };
+
+  const handleVideoSelect = (video: GeneratedVideo) => {
+    setSelectedVideoId(video.id);
+    // TODO: 비디오 재생 로직 추가
+  };
+
+  // TODO: 영상 생성 기능 구현 예정
+  // const handleGenerateVideo = async () => {
+  //   if (!uploadedImage) {
+  //     setGenerationError('이미지를 먼저 업로드해주세요.');
+  //     return;
+  //   }
+
+  //   if (selectedEffects.length === 0) {
+  //     setGenerationError('최소 하나의 효과를 선택해주세요.');
+  //     return;
+  //   }
+
+  //   setIsGenerating(true);
+  //   setGenerationError(null);
+
+  //   try {
+  //     const response = await fetch('/api/canvas/generate', {
+  //       method: 'POST',
+  //       headers: {
+  //         'Content-Type': 'application/json',
+  //       },
+  //       body: JSON.stringify({
+  //         imageUrl: uploadedImage,
+  //         selectedEffects,
+  //         basePrompt: promptText,
+  //         modelType: 'seedance',
+  //       }),
+  //     });
+
+  //     const data = await response.json();
+
+  //     if (!response.ok) {
+  //       throw new Error(data.error || '영상 생성에 실패했습니다.');
+  //     }
+
+  //     // 생성된 영상을 목록에 추가
+  //     const newVideo: GeneratedVideo = {
+  //       id: data.generationId || Date.now(),
+  //       url: data.videoUrl,
+  //       thumbnail: uploadedImage,
+  //       createdAt: new Date(),
+  //     };
+
+  //     setGeneratedVideos(prev => {
+  //       // 최대 3개까지만 유지
+  //       const updated = [newVideo, ...prev].slice(0, 3);
+  //       return updated;
+  //     });
+      
+  //     // 성공 메시지와 에러 초기화
+  //     setGenerationError(null);
+  //     console.log('Video generated successfully:', data);
+      
+  //     // 생성된 비디오 선택
+  //     setSelectedVideoId(newVideo.id);
+      
+  //     // 성공 피드백 (간단한 토스트나 알림 - 옵션)
+  //     // toast.success('영상이 성공적으로 생성되었습니다!');
+      
+  //   } catch (error) {
+  //     console.error('Video generation error:', error);
+  //     setGenerationError(
+  //       error instanceof Error 
+  //         ? error.message 
+  //         : '영상 생성 중 오류가 발생했습니다.'
+  //     );
+  //   } finally {
+  //     setIsGenerating(false);
+  //   }
+  // };
+
 
   const libraryClips = [
     {
@@ -58,16 +163,15 @@ export default function CanvasPage() {
 
       <div className="flex flex-1">
         <LeftPanel
-          isPlaying={isPlaying}
-          onPlayToggle={() => setIsPlaying(!isPlaying)}
-          effects={effects}
           isPrompterOpen={isPrompterOpen}
           onPrompterToggle={() => setIsPrompterOpen(!isPrompterOpen)}
           promptText={promptText}
           onPromptChange={setPromptText}
-          onEffectClick={() => setIsEffectModalOpen(true)}
-          onCameraClick={() => setIsCameraModalOpen(true)}
-          onModelClick={() => setIsModelModalOpen(true)}
+          onImageUpload={setUploadedImage}
+          generatedVideos={generatedVideos}
+          isGenerating={isGenerating}
+          generationError={generationError}
+          onEffectModalOpen={() => setIsEffectModalOpen(true)}
         />
 
         <Canvas
@@ -79,12 +183,20 @@ export default function CanvasPage() {
           onBrushToggle={() => setIsBrushPopupOpen(!isBrushPopupOpen)}
           onBrushSizeChange={setBrushSize}
           showControls={true}
+          generatedVideos={generatedVideos}
+          selectedVideoId={selectedVideoId}
+          onVideoSelect={handleVideoSelect}
         />
       </div>
 
       <LibraryModal isOpen={isLibraryOpen} onClose={() => setIsLibraryOpen(false)} clips={libraryClips} />
       
-      <EffectModal isOpen={isEffectModalOpen} onClose={() => setIsEffectModalOpen(false)} effects={effects} />
+      <EffectModal 
+        isOpen={isEffectModalOpen} 
+        onClose={() => setIsEffectModalOpen(false)} 
+        onSelectEffect={handleEffectSelect}
+        selectedEffects={selectedEffects}
+      />
       
       <PromptModal
         isOpen={isPromptModalOpen}

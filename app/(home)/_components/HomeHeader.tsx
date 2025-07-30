@@ -53,6 +53,12 @@ export function HomeHeader({ texts = { login: "Login", getStarted: "Get Started"
               Gallery
             </Link>
             <Link
+              href="/canvas"
+              className="text-text-secondary hover:text-text-primary transition-colors"
+            >
+              Canvas
+            </Link>
+            <Link
               href="#contact"
               className="text-text-secondary hover:text-text-primary transition-colors"
             >

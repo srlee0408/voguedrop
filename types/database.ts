@@ -26,4 +26,5 @@ export interface EffectTemplate {
 export interface EffectTemplateWithMedia extends EffectTemplate {
   category: Category
   preview_media: MediaAsset | null
+  previewUrl?: string
 }

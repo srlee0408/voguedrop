@@ -1,50 +1,100 @@
-import { X } from "lucide-react";
-import Image from "next/image";
+import { useEffect, useState } from "react";
+import type { EffectTemplateWithMedia } from "@/types/database";
 
 export interface Effect {
+  id: string;
   name: string;
-  image: string;
+  image?: string;
+  type?: 'motion' | 'style' | 'filter';
 }
 
 interface EffectsSectionProps {
-  effects: Effect[];
-  onEffectRemove?: (index: number) => void;
+  onEffectClick?: () => void;
 }
 
-export function EffectsSection({ effects, onEffectRemove }: EffectsSectionProps) {
+export function EffectsSection({ onEffectClick }: EffectsSectionProps) {
+  const [loadedEffects, setLoadedEffects] = useState<EffectTemplateWithMedia[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchEffects = async () => {
+      try {
+        setIsLoading(true);
+        
+        // Fetch top items from all categories
+        const categories = ['effect', 'camera', 'model'];
+        const allEffects: EffectTemplateWithMedia[] = [];
+        
+        for (const category of categories) {
+          const response = await fetch(`/api/canvas/effects?category=${category}`);
+          
+          if (response.ok) {
+            const data = await response.json();
+            // Get only the first item from each category
+            if (data.effects && data.effects.length > 0) {
+              allEffects.push(data.effects[0]);
+            }
+          }
+        }
+        
+        setLoadedEffects(allEffects);
+      } catch (err) {
+        console.error('Error fetching effects:', err);
+        setError('Failed to load effects');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchEffects();
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="mb-4">
+        <h2 className="text-sm font-medium mb-3 text-foreground">Effects</h2>
+        <div className="grid grid-cols-2 gap-2">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="aspect-square bg-surface rounded-md animate-pulse" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="mb-4">
+        <h2 className="text-sm font-medium mb-3 text-foreground">Effects</h2>
+        <div className="text-sm text-destructive">{error}</div>
+      </div>
+    );
+  }
+
   return (
-    <div className="mt-4">
+    <div className="mb-4">
       <h2 className="text-sm font-medium mb-3 text-foreground">Effects</h2>
-      <div className="grid grid-cols-2 gap-2 max-h-[400px] overflow-y-auto pr-2 mb-4">
-        {effects.map((effect, index) => (
-          <div
-            key={index}
-            className="group relative aspect-[3/4] rounded-lg overflow-hidden border border-border hover:border-primary transition-all duration-300"
+      <div className="grid grid-cols-2 gap-2">
+        {loadedEffects.map((effect) => (
+          <button
+            key={effect.id}
+            onClick={onEffectClick}
+            className="aspect-square bg-surface rounded-md overflow-hidden relative group hover:ring-1 hover:ring-primary transition-all"
           >
-            <Image
-              src={effect.image || "/placeholder.svg"}
-              alt={effect.name}
-              className="w-full h-full object-cover"
-              fill
-              sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-background/0 to-background/0">
-              <div className="absolute bottom-0 w-full p-3 flex items-center justify-between">
-                <span className="text-[10px] font-medium text-foreground">
-                  {effect.name}
-                </span>
-                {onEffectRemove && (
-                  <button
-                    className="text-foreground/60 hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={() => onEffectRemove(index)}
-                    aria-label={`Remove ${effect.name} effect`}
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                )}
+            {effect.previewUrl ? (
+              <img 
+                src={effect.previewUrl} 
+                alt={effect.name}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center">
+                <span className="text-white text-xs font-medium px-2 text-center">{effect.name}</span>
               </div>
-            </div>
-          </div>
+            )}
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
+          </button>
         ))}
       </div>
     </div>

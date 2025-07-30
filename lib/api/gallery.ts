@@ -31,9 +31,13 @@ export async function getGalleryItems(): Promise<EffectTemplateWithMedia[]> {
         id: item.id,
         name: item.name,
         prompt: item.prompt,
+        category_id: item.category_id,
+        preview_media_id: item.preview_media_id,
+        is_active: item.is_active,
+        created_at: item.created_at,
+        display_order: item.display_order,
         category: item.category,
-        preview_media: item.preview_media,
-        display_order: item.display_order
+        preview_media: item.preview_media
       }
     })
 

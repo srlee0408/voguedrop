@@ -1,159 +1,198 @@
-# 디자인 파일 작성 규칙
+# CLAUDE.md
 
-1.  **Component**: 재사용되는 모든 UI 요소는 컴포넌트로 분리하고, 기능/역할별로 분류하여 관리하세요.
-2.  **Responsive**: 주요 기기(Mobile, Tablet, Desktop)의 Breakpoint를 정의하고, 그에 맞춘 반응형 레이아웃을 설계하세요.
-3.  **Theme**: 정의된 디자인 토큰(Color, Typography, Spacing 등)을 모든 디자인에 일관되게 적용하세요.
-4.  **Page**: 페이지는 중앙 라이브러리의 컴포넌트들을 조합하여 구성하세요.
-5.  **Content**: UI 텍스트는 디자인과 분리하여 관리하고, 텍스트 길이가 변해도 UI가 깨지지 않도록 설계하세요.
-6.  **Component-Based**: 모든 디자인과 개발은 재사용 가능한 '컴포넌트' 단위로 사고하고 실행합니다.
-7.  **Consistency**: 정의된 디자인 시스템을 통해 사용자에게 일관된 브랜드 경험을 제공합니다.
-8.  **Clear Communication**: 명확하게 정의된 컴포넌트와 규칙을 '공통 언어'로 사용하여 소통 오류를 최소화합니다.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## BMad-Method 개발 워크플로우
+## VogueDrop 개발 가이드
 
-이 프로젝트는 BMad-Method를 따라 개발됩니다. 크게 **계획**과 **개발** 두 단계로 진행됩니다.
+VogueDrop은 AI 기반 패션 콘텐츠 생성 플랫폼입니다. 패션 크리에이터들이 정적 이미지를 AI 영상으로 변환하고 편집할 수 있습니다.
 
-### 1단계: 계획 (Web UI 권장)
-아이디어를 구체적인 설계도로 만드는 과정입니다.
+## 핵심 문서 참조
+개발 시 다음 문서를 반드시 참고하세요:
+- `docs/prd.md` - 제품 요구사항과 Epic/Story 정의  
+- `docs/fullstack-architecture.md` - 기술 스택과 시스템 설계
+- `docs/frontend-architecture.md` - UI 구현 가이드
+- `docs/ui-ux-spec.md` - 디자인 시스템과 UX 패턴
 
-- **분석 및 기획**: `/BMad:agents:analyst`와 `/BMad:agents:pm`이 시장 조사, PRD 작성
-- **설계**: `/BMad:agents:architect`와 `/BMad:agents:ux-expert`가 시스템 아키텍처와 UI/UX 설계
-- **검증**: `/BMad:agents:po`가 모든 문서의 일관성과 완전성 검증
-
-### 2단계: 개발 (IDE 필수)
-계획 단계에서 완성된 문서들을 실제 코드로 구현하는 과정입니다.
-
-#### 문서 분할 (Sharding)
-- `/BMad:agents:po` 또는 `/BMad:agents:bmad-master`가 큰 문서를 개발 가능한 작은 단위로 분할
-- 주요 대상: `docs/prd.md`, `docs/fullstack-architecture.md`
-
-#### 핵심 개발 루프
-1. **스토리 생성**: `/BMad:agents:sm`이 다음 개발 작업에 대한 사용자 스토리 생성
-2. **구현**: `/BMad:agents:dev`가 승인된 스토리를 받아 코드 구현 및 테스트 작성
-3. **검토**: `/BMad:agents:qa`가 구현된 코드 검토 및 리팩토링
-
-### BMad 에이전트 역할
-
-#### 계획 단계 에이전트
-- **analyst**: 시장 조사, 경쟁사 분석, 사용자 니즈 파악
-- **pm**: 제품 요구사항 정의서(PRD) 작성
-- **architect**: 시스템 아키텍처 설계, 기술 스택 결정
-- **ux-expert**: UI/UX 설계, 와이어프레임 작성
-- **po**: 문서 검증, 일관성 확인, 스토리 분할
-
-#### 개발 단계 에이전트
-- **sm**: 스크럼 마스터, 스토리 생성 및 작업 계획
-- **dev**: 개발자, 코드 구현 및 단위 테스트 작성
-- **qa**: 품질 보증, 코드 리뷰 및 리팩토링
-
-#### 오케스트레이션 에이전트
-- **bmad-master**: 전체 프로세스 관리 및 조율
-- **bmad-orchestrator**: 에이전트 간 작업 조정
-
-### 에이전트 자기소개 규칙
-
-각 BMad 에이전트는 작업을 시작할 때 반드시 자신을 소개해야 합니다:
-
-1. **에이전트 이름과 역할** 명시
-2. **현재 수행할 작업** 설명
-3. **사용 가능한 명령어** 안내 (필요시)
-
-예시:
-```
-안녕하세요! 저는 James, Full Stack Developer입니다. 💻
-지금부터 Story 1.1의 구현을 진행하겠습니다.
-
-사용 가능한 명령어:
-- *help: 사용 가능한 명령어 보기
-- *run-tests: 테스트 실행
-- *explain: 방금 수행한 작업 설명
-- *exit: 개발자 모드 종료
-```
-
-### 사용 예시
+## 주요 개발 명령어
 ```bash
-# 계획 단계
-/BMad:agents:analyst    # 시장 조사 시작
-/BMad:agents:pm         # PRD 작성
-/BMad:agents:architect  # 아키텍처 설계
-/BMad:agents:ux-expert  # UI/UX 설계
+# 개발 서버 시작 (Turbopack 사용)
+npm run dev
 
-# 개발 단계
-/BMad:agents:po         # 문서 분할 및 검증
-/BMad:agents:sm         # 스토리 생성
-/BMad:agents:dev        # 코드 구현
-/BMad:agents:qa         # 코드 검토
+# 빌드
+npm run build
+
+# 프로덕션 서버 시작
+npm run start
+
+# 린트 검사
+npm run lint
+
+# 타입 체크 (package.json에 추가 필요)
+npm run type-check
 ```
 
-### 주요 작업(Tasks) 참조
-- `create-next-story.md`: 다음 개발 스토리 생성
-- `shard-doc.md`: 큰 문서를 작은 단위로 분할
-- `review-story.md`: 스토리 검토
-- `execute-checklist.md`: 체크리스트 실행
-- `validate-next-story.md`: 스토리 유효성 검증
+## 고수준 아키텍처
 
-각 에이전트와 작업에 대한 상세 내용은 `.claude/commands/BMad/` 디렉토리를 참조하세요.
+### 시스템 구조
+- **Monorepo**: 단일 저장소에서 프론트엔드와 백엔드 통합 관리
+- **Fullstack Framework**: Next.js 14+ App Router로 프론트엔드와 API 통합
+- **Serverless**: Vercel Functions로 자동 스케일링
+- **Database**: Supabase (PostgreSQL + Auth + Storage)
+- **AI Integration**: fal.ai API로 영상 생성
 
-### 스토리 완료 후 PR 워크플로우
+### 주요 워크플로우
+1. **AI 영상 생성**: 이미지 업로드 → 효과 선택 → fal.ai API 호출 → 영상 생성
+2. **사용자 인증**: Supabase Auth로 이메일/비밀번호 인증
+3. **데이터 저장**: 생성된 영상과 메타데이터를 Supabase에 저장
 
-각 스토리가 완료된 후 다음 단계를 따릅니다:
+## 프로젝트 구조 패턴
 
-#### 1. QA 검토
-```bash
-/BMad:agents:qa    # QA 에이전트가 코드 품질 검토 및 리팩토링
+### Feature-First Co-location
+```
+app/
+├── (feature)/           # 기능별 그룹화
+│   ├── _components/     # 해당 기능 전용 컴포넌트
+│   ├── _hooks/         # 해당 기능 전용 훅
+│   └── page.tsx        # 라우트 페이지
+├── api/                # API 라우트
+│   └── [feature]/      # 기능별 API 엔드포인트
+components/             # 공유 컴포넌트
+├── ui/                # 기본 UI 요소
+├── layout/            # 레이아웃 컴포넌트
+└── modals/            # 공유 모달
 ```
 
-#### 2. PR 생성 및 제출
+### 타입 정의 구조
+```
+types/
+├── database.ts        # Supabase 데이터베이스 타입
+├── api.ts            # API 요청/응답 타입
+└── [feature].ts      # 기능별 타입 (필요시)
+```
+
+## 코딩 표준
+
+### TypeScript 필수 규칙
+- `any` 타입 사용 금지
+- 모든 함수에 명시적 반환 타입 정의
+- interface로 props 정의, type은 유니온/인터섹션에 사용
+
+### 컴포넌트 패턴
+```typescript
+// 서버 컴포넌트 (기본)
+export default async function PageName() {
+  // 데이터 페칭
+  return <div>...</div>;
+}
+
+// 클라이언트 컴포넌트 (상태/이벤트 필요시)
+"use client";
+export function ComponentName({ prop }: ComponentProps) {
+  // 상태 관리
+  return <div>...</div>;
+}
+```
+
+### API 라우트 패턴
+```typescript
+// app/api/[feature]/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+
+export async function POST(request: NextRequest) {
+  const supabase = createRouteHandlerClient({ cookies });
+  // 인증 체크, 비즈니스 로직
+  return NextResponse.json(result);
+}
+```
+
+## 현재 개발 상태 (MVP)
+
+### 완료된 기능
+- 프로젝트 초기 설정
+- 기본 레이아웃 구조
+- 갤러리 아이템 컴포넌트
+
+### 진행 중인 Epic
+- **Epic 2**: Canvas AI Studio (Story 2.1 진행 중)
+  - 이미지 업로드 기능 구현 필요
+  - 효과 선택 UI 구현 필요
+  - AI 생성 API 연동 필요
+
+### 다음 단계
+1. Story 2.1: 이미지 업로드 완성
+2. Story 2.2: 효과 선택 UI
+3. Story 2.3: AI 영상 생성
+4. Story 2.4: 영상 미리보기 및 다운로드
+
+## 환경 변수 설정
 ```bash
-# 변경사항 확인
-git status
-git diff
+# .env.local
+NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 
-# 브랜치 생성 (main에서)
-git checkout -b feat/story-{번호}-{간단한-설명}
+# .env (서버 전용)
+SUPABASE_SERVICE_KEY=your-service-key
+FAL_API_KEY=your-fal-api-key
+```
 
-# 커밋 생성
-git add .
-git commit -m "feat: Story {번호} - {스토리 제목}
+## 개발 시 주의사항
 
-- {주요 변경사항 1}
-- {주요 변경사항 2}
-- {주요 변경사항 3}
+### MVP 집중
+- 2주 내 출시 목표: 핵심 기능만 구현
+- 데스크톱 우선: 1280x720 이상 해상도
+- 인증 전까지 anonymous 사용자 지원
+
+### 성능 최적화
+- 이미지는 Next.js Image 컴포넌트 사용
+- 동적 임포트로 코드 스플리팅
+- 서버 컴포넌트 우선 사용
+
+### 에러 처리
+- 모든 API 호출에 try-catch 필수
+- 사용자 친화적인 에러 메시지 표시
+- 로딩 상태 표시 필수
+
+## Git 워크플로우
+
+### 브랜치 전략
+```bash
+# 기능 브랜치
+feat/story-{epic}.{story}-{description}
+예: feat/story-2.1-image-upload
+
+# 버그 수정
+fix/{issue-description}
+
+# 리팩토링
+refactor/{description}
+```
+
+### 커밋 메시지 형식
+```
+{type}: Story {epic}.{story} - {description}
+
+- 상세 변경사항 1
+- 상세 변경사항 2
 
 🤖 Generated with Claude Code
 
-Co-Authored-By: Claude <noreply@anthropic.com>"
-
-# 원격 저장소에 푸시
-git push -u origin feat/story-{번호}-{간단한-설명}
-
-# GitHub CLI를 사용한 PR 생성
-gh pr create --title "feat: Story {번호} - {스토리 제목}" \
-  --body "## Summary
-- {구현한 주요 기능 요약}
-
-## Story Reference
-- Story: docs/stories/{번호}.story.md
-- Acceptance Criteria: {충족된 AC 목록}
-
-## Test plan
-- [ ] {테스트 항목 1}
-- [ ] {테스트 항목 2}
-- [ ] {테스트 항목 3}
-
-## Screenshots (if applicable)
-{UI 변경사항이 있는 경우 스크린샷 추가}
-
-🤖 Generated with Claude Code"
+Co-Authored-By: Claude <noreply@anthropic.com>
 ```
 
-#### 3. PR 머지 후 다음 스토리
-- PR이 승인되고 머지되면 main 브랜치로 체크아웃
-- 최신 변경사항 pull
-- 다음 스토리 작업 시작
+## 디버깅 팁
 
-```bash
-git checkout main
-git pull origin main
-/BMad:agents:sm    # 다음 스토리 생성
-```
+### Supabase 연결 문제
+- Supabase 대시보드에서 API 설정 확인
+- 환경 변수가 올바르게 설정되었는지 확인
+- RLS 정책이 MVP에서는 비활성화되어 있는지 확인
+
+### Next.js 라우팅 이슈
+- 파일명이 `page.tsx`인지 확인
+- 라우트 그룹 `()` 사용 시 URL에 영향 없음 확인
+- 미들웨어가 올바른 경로를 매칭하는지 확인
+
+### TypeScript 에러
+- `npm run dev`로 실시간 타입 체크
+- VS Code의 TypeScript 버전이 프로젝트와 일치하는지 확인
+- `types/` 폴더의 타입 정의 확인

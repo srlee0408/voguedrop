@@ -1,7 +1,9 @@
-import { Plus, Pin } from "lucide-react";
+import { Pin } from "lucide-react";
 import Image from "next/image";
 import { CanvasControls } from "./CanvasControls";
+import { CanvasHistoryPanel } from "./CanvasHistoryPanel";
 import { useCanvas } from "../_hooks/useCanvas";
+import type { GeneratedVideo } from "@/types/canvas";
 
 interface CanvasProps {
   selectedResolution?: string;
@@ -12,6 +14,9 @@ interface CanvasProps {
   onBrushToggle?: () => void;
   onBrushSizeChange?: (size: number) => void;
   showControls?: boolean;
+  generatedVideos?: GeneratedVideo[];
+  selectedVideoId?: number | null;
+  onVideoSelect?: (video: GeneratedVideo) => void;
 }
 
 export function Canvas({
@@ -23,14 +28,13 @@ export function Canvas({
   onBrushToggle,
   onBrushSizeChange,
   showControls = false,
+  generatedVideos = [],
+  selectedVideoId,
+  onVideoSelect,
 }: CanvasProps) {
   const {
     images,
-    thumbnails,
-    selectedThumbnailIndex,
     toggleFavorite,
-    selectThumbnail,
-    addNewImage,
   } = useCanvas();
 
   return (
@@ -84,36 +88,12 @@ export function Canvas({
         )}
       </div>
 
-      {/* Right Thumbnails */}
-      <div className="w-24 flex flex-col items-center space-y-2 ml-4">
-        <button
-          className="w-20 h-20 bg-surface/10 rounded-md flex items-center justify-center border border-border hover:bg-surface/20 transition-colors"
-          onClick={addNewImage}
-          aria-label="Add new image"
-        >
-          <Plus className="w-6 h-6 text-foreground/60" />
-        </button>
-        {thumbnails.map((thumbnail, index) => (
-          <button
-            key={thumbnail.id}
-            onClick={() => selectThumbnail(index)}
-            className={`relative w-20 h-20 bg-surface/10 rounded-md overflow-hidden transition-all ${
-              index === selectedThumbnailIndex
-                ? "border-2 border-primary"
-                : "border border-transparent hover:border-border"
-            }`}
-            aria-label={`Select image ${index + 1}`}
-          >
-            <Image
-              src={thumbnail.url}
-              alt={`Thumbnail ${index + 1}`}
-              className="w-full h-full object-cover"
-              fill
-              sizes="80px"
-            />
-          </button>
-        ))}
-      </div>
+      {/* Right History Panel */}
+      <CanvasHistoryPanel
+        generatedVideos={generatedVideos}
+        selectedVideoId={selectedVideoId}
+        onVideoSelect={onVideoSelect}
+      />
     </div>
   );
 }
