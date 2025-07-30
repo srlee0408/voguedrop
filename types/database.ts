@@ -12,16 +12,18 @@ export interface MediaAsset {
   created_at: string
 }
 
-export interface Creation {
+export interface EffectTemplate {
   id: number
-  title: string | null
-  prompt: string
+  name: string
   category_id: number
-  product_id: number
+  prompt: string
+  preview_media_id: number | null
+  display_order: number
+  is_active: boolean
   created_at: string
 }
 
-export interface CreationWithMedia extends Creation {
+export interface EffectTemplateWithMedia extends EffectTemplate {
   category: Category
-  product: MediaAsset
+  preview_media: MediaAsset | null
 }

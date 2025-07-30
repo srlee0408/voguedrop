@@ -3,10 +3,10 @@
 import { Play } from "lucide-react"
 import Image from "next/image"
 import { getPublicUrl } from "@/lib/supabase"
-import type { CreationWithMedia } from "@/types/database"
+import type { EffectTemplateWithMedia } from "@/types/database"
 
 interface GalleryItemsProps {
-  items: CreationWithMedia[]
+  items: EffectTemplateWithMedia[]
 }
 
 export function GalleryItems({ items }: GalleryItemsProps) {
@@ -30,10 +30,10 @@ export function GalleryItems({ items }: GalleryItemsProps) {
           {/* Always show gradient as fallback/background */}
           <div className="w-full h-full bg-gradient-to-br from-primary/20 to-secondary/20 absolute inset-0" />
           
-          {item.product.storage_path && (
+          {item.preview_media?.storage_path && (
             <Image
-              src={getPublicUrl(item.product.storage_path)}
-              alt={item.title || "Gallery item"}
+              src={getPublicUrl(item.preview_media.storage_path)}
+              alt={item.name || "Gallery item"}
               fill
               className="object-cover z-[1]"
               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
@@ -46,7 +46,7 @@ export function GalleryItems({ items }: GalleryItemsProps) {
           
           <div className="absolute bottom-2 sm:bottom-4 left-2 sm:left-4 right-2 sm:right-4 z-20">
             <h3 className="font-semibold mb-1 text-sm sm:text-base">
-              {item.title || "Untitled"}
+              {item.name}
             </h3>
             <p className="text-xs sm:text-sm text-gray-300">
               {item.category.name}
