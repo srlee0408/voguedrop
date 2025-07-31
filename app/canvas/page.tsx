@@ -28,7 +28,7 @@ export default function CanvasPage() {
   const [selectedResolution] = useState("1:1")
   const [selectedSize] = useState("1024×1024")
   const [selectedModelId, setSelectedModelId] = useState<string>("")
-  const [uploadedImage, setUploadedImage] = useState<string | null>(null)
+  const [, setUploadedImage] = useState<string | null>(null)
   const [generatedVideos] = useState<GeneratedVideo[]>([])
   const [isGenerating] = useState(false)
   const [selectedEffects, setSelectedEffects] = useState<EffectTemplateWithMedia[]>([])
@@ -172,7 +172,6 @@ export default function CanvasPage() {
           promptText={promptText}
           onPromptChange={setPromptText}
           onImageUpload={setUploadedImage}
-          generatedVideos={generatedVideos}
           isGenerating={isGenerating}
           generationError={generationError}
           onEffectModalOpen={() => setIsEffectModalOpen(true)}

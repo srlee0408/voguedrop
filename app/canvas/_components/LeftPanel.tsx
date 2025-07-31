@@ -2,7 +2,6 @@ import { ImageSection } from "./ImageSection";
 import { EffectsSection } from "./EffectsSection";
 import { PrompterSection } from "./PrompterSection";
 import { EffectsGallery } from "./EffectsGallery";
-import type { GeneratedVideo } from "@/types/canvas";
 import type { EffectTemplateWithMedia } from "@/types/database";
 
 interface LeftPanelProps {
@@ -11,7 +10,6 @@ interface LeftPanelProps {
   promptText: string;
   onPromptChange: (text: string) => void;
   onImageUpload?: (imageUrl: string) => void;
-  generatedVideos?: GeneratedVideo[];
   isGenerating?: boolean;
   generationError?: string | null;
   onEffectModalOpen?: () => void;
@@ -25,7 +23,6 @@ export function LeftPanel({
   promptText,
   onPromptChange,
   onImageUpload,
-  generatedVideos,
   isGenerating,
   generationError,
   onEffectModalOpen,
