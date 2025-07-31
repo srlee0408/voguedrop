@@ -1,6 +1,9 @@
+"use client"
+
 import { Button } from "@/components/ui/button"
 import { Zap } from "lucide-react"
 import Link from "next/link"
+import { useAuth } from "@/lib/auth/AuthContext"
 
 interface CTASectionProps {
   texts: {
@@ -14,6 +17,8 @@ interface CTASectionProps {
 }
 
 export function CTASection({ texts }: CTASectionProps) {
+  const { user } = useAuth();
+  
   return (
     <section className="py-16 sm:py-24 md:py-32 relative overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-black to-secondary/10" />
@@ -27,9 +32,9 @@ export function CTASection({ texts }: CTASectionProps) {
         <p className="text-lg sm:text-xl text-gray-300 mb-8">
           {texts.subtitle}
         </p>
-        <Link href="/canvas">
+        <Link href={user ? "/canvas" : "/login"}>
           <Button size="lg" className="bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/20">
-            {texts.button}
+            {user ? "Go to Canvas" : texts.button}
             <Zap className="ml-2 w-4 h-4" />
           </Button>
         </Link>

@@ -36,7 +36,7 @@ export default function CanvasPage() {
   const [selectedVideoId, setSelectedVideoId] = useState<number | null>(null)
   
   // 페이지 이탈 방지
-  useBeforeUnload(isGenerating, '영상 생성이 진행 중입니다. 페이지를 벗어나면 생성이 취소됩니다.')
+  useBeforeUnload(isGenerating, 'Video generation is in progress. Leaving the page will cancel the generation.')
   
   // 에러 메시지 자동 제거
   useEffect(() => {
@@ -53,13 +53,17 @@ export default function CanvasPage() {
     setSelectedEffects(prev => {
       const isSelected = prev.some(e => e.id === effect.id);
       if (isSelected) {
-        // 선택 해제
+        // Deselect
         return prev.filter(e => e.id !== effect.id);
       } else {
-        // 선택 추가
+        // Add selection
         return [...prev, effect];
       }
     });
+  };
+
+  const handleEffectRemove = (effectId: number) => {
+    setSelectedEffects(prev => prev.filter(e => e.id !== effectId));
   };
 
   const handleVideoSelect = (video: GeneratedVideo) => {
@@ -67,15 +71,15 @@ export default function CanvasPage() {
     // TODO: 비디오 재생 로직 추가
   };
 
-  // TODO: 영상 생성 기능 구현 예정
+  // TODO: Video generation feature implementation planned
   // const handleGenerateVideo = async () => {
   //   if (!uploadedImage) {
-  //     setGenerationError('이미지를 먼저 업로드해주세요.');
+  //     setGenerationError('Please upload an image first.');
   //     return;
   //   }
 
   //   if (selectedEffects.length === 0) {
-  //     setGenerationError('최소 하나의 효과를 선택해주세요.');
+  //     setGenerationError('Please select at least one effect.');
   //     return;
   //   }
 
@@ -99,10 +103,10 @@ export default function CanvasPage() {
   //     const data = await response.json();
 
   //     if (!response.ok) {
-  //       throw new Error(data.error || '영상 생성에 실패했습니다.');
+  //       throw new Error(data.error || 'Video generation failed.');
   //     }
 
-  //     // 생성된 영상을 목록에 추가
+  //     // Add generated video to list
   //     const newVideo: GeneratedVideo = {
   //       id: data.generationId || Date.now(),
   //       url: data.videoUrl,
@@ -120,18 +124,18 @@ export default function CanvasPage() {
   //     setGenerationError(null);
   //     console.log('Video generated successfully:', data);
       
-  //     // 생성된 비디오 선택
+  //     // Select generated video
   //     setSelectedVideoId(newVideo.id);
       
   //     // 성공 피드백 (간단한 토스트나 알림 - 옵션)
-  //     // toast.success('영상이 성공적으로 생성되었습니다!');
+  //     // toast.success('Video generated successfully!');
       
   //   } catch (error) {
   //     console.error('Video generation error:', error);
   //     setGenerationError(
   //       error instanceof Error 
   //         ? error.message 
-  //         : '영상 생성 중 오류가 발생했습니다.'
+  //         : 'An error occurred during video generation.'
   //     );
   //   } finally {
   //     setIsGenerating(false);
@@ -172,6 +176,8 @@ export default function CanvasPage() {
           isGenerating={isGenerating}
           generationError={generationError}
           onEffectModalOpen={() => setIsEffectModalOpen(true)}
+          selectedEffects={selectedEffects}
+          onEffectRemove={handleEffectRemove}
         />
 
         <Canvas

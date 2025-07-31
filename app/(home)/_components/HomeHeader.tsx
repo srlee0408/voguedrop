@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/lib/auth/AuthContext";
 
 interface HomeHeaderProps {
   texts?: {
@@ -13,6 +14,7 @@ interface HomeHeaderProps {
 
 export function HomeHeader({ texts = { login: "Login", getStarted: "Get Started" } }: HomeHeaderProps) {
   const [isScrolled, setIsScrolled] = useState(false);
+  const { user, signOut } = useAuth();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -66,14 +68,37 @@ export function HomeHeader({ texts = { login: "Login", getStarted: "Get Started"
             </Link>
           </nav>
           <div className="flex items-center gap-4">
-            <Button variant="ghost" className="text-text-secondary hover:text-text-primary">
-              {texts.login}
-            </Button>
-            <Link href="/canvas">
-              <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
-                {texts.getStarted}
-              </Button>
-            </Link>
+            {user ? (
+              <>
+                <Button 
+                  variant="ghost" 
+                  className="text-text-secondary hover:text-text-primary"
+                  onClick={async () => {
+                    await signOut()
+                  }}
+                >
+                  Logout
+                </Button>
+                <Link href="/canvas">
+                  <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
+                    Go to Canvas
+                  </Button>
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link href="/login">
+                  <Button variant="ghost" className="text-text-secondary hover:text-text-primary">
+                    {texts.login}
+                  </Button>
+                </Link>
+                <Link href="/login">
+                  <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
+                    {texts.getStarted}
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </div>

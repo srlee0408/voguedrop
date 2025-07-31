@@ -1,26 +1,34 @@
-import { useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { useRef, useEffect } from "react";
+import { ChevronDown, X } from "lucide-react";
+import type { EffectTemplateWithMedia } from "@/types/database";
 
 interface PrompterSectionProps {
   isOpen: boolean;
   onToggle: () => void;
   promptText?: string;
   onPromptChange?: (text: string) => void;
-  onEffectModalOpen?: () => void;
+  selectedEffects?: EffectTemplateWithMedia[];
+  onEffectRemove?: (effectId: number) => void;
 }
-
-const promptOptions = [
-  { id: 'flicks', name: 'Flicks' },
-  { id: 'camera-angle', name: 'Camera Angle' },
-  { id: 'model', name: 'Model' },
-];
 
 export function PrompterSection({
   isOpen,
   onToggle,
-  onEffectModalOpen,
+  promptText = "",
+  onPromptChange,
+  selectedEffects = [],
+  onEffectRemove,
 }: PrompterSectionProps) {
-  const [activeOption, setActiveOption] = useState('flicks');
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-resize textarea
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
+    }
+  }, [promptText]);
+
 
   return (
     <div className="mb-4">
@@ -39,45 +47,51 @@ export function PrompterSection({
       </button>
       
       {isOpen && (
-        <div id="prompter-content" className="bg-surface rounded-lg border border-border">
-          {/* Options */}
-          <div className="flex gap-2 p-3 border-b border-border">
-            {promptOptions.map((option) => (
-              <button
-                key={option.id}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                  activeOption === option.id
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                }`}
-                onClick={() => {
-                  setActiveOption(option.id)
-                  if (option.id === 'camera-angle' && onEffectModalOpen) {
-                    onEffectModalOpen()
-                  }
-                }}
-              >
-                {option.name}
-              </button>
-            ))}
-          </div>
-
-          {/* Content area */}
-          <div className="p-3">
+        <div id="prompter-content" className="bg-surface rounded-lg border border-border p-3">
+          <div className="space-y-3">
+            {/* Prompt Input */}
             <div className="space-y-2">
-              <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
-                <span className="text-xs text-muted-foreground">1</span>
-                <span className="text-xs">Gentle breeze effect</span>
-              </div>
-              <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
-                <span className="text-xs text-muted-foreground">2</span>
-                <span className="text-xs">Subtle motion blur</span>
-              </div>
-              <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
-                <span className="text-xs text-muted-foreground">3</span>
-                <span className="text-xs">Dynamic camera movement</span>
+              <label htmlFor="prompt-input" className="text-xs font-medium text-foreground">
+                Enter your prompt
+              </label>
+              <textarea
+                ref={textareaRef}
+                id="prompt-input"
+                value={promptText}
+                onChange={(e) => onPromptChange?.(e.target.value)}
+                placeholder="Describe the motion or effect you want to create..."
+                className="w-full min-h-[80px] p-3 text-sm bg-background border border-border rounded-md resize-none focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+                maxLength={500}
+              />
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>Use descriptive words for better results</span>
+                <span>{promptText.length}/500</span>
               </div>
             </div>
+
+            {/* Selected Effects */}
+            {selectedEffects.length > 0 && (
+              <div className="space-y-2">
+                <h3 className="text-xs font-medium text-foreground">Selected Effects</h3>
+                <div className="flex flex-wrap gap-1.5">
+                  {selectedEffects.map((effect) => (
+                    <div
+                      key={effect.id}
+                      className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary rounded-md text-xs"
+                    >
+                      <span>{effect.name}</span>
+                      <button
+                        onClick={() => onEffectRemove?.(effect.id)}
+                        className="hover:bg-primary/20 rounded p-0.5"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
           </div>
         </div>
       )}

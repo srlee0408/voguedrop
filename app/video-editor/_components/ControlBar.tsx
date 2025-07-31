@@ -9,10 +9,10 @@ interface ControlBarProps {
 }
 
 /**
- * 비디오 에디터 컨트롤바 컴포넌트
- * - 비디오 제어 버튼 (Final Video, Preview, Save)
- * - 사운드 선택 옵션
- * - 액션 버튼 (Sound, Create)
+ * Video Editor Control Bar Component
+ * - Video control buttons (Final Video, Preview, Save)
+ * - Sound selection options
+ * - Action buttons (Sound, Create)
  */
 
 export default function ControlBar({ selectedSound, onSelectSound, onAddSound }: ControlBarProps) {

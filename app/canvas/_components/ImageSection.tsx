@@ -88,7 +88,7 @@ export function ImageSection({
     <div className="mb-4">
       <h2 className="text-sm font-medium mb-3 text-foreground">Image</h2>
       <div className="grid grid-cols-4 gap-1.5">
-        {/* 이미지 추가 버튼 */}
+        {/* Add image button */}
         <button
           className="aspect-square bg-primary rounded-md flex items-center justify-center border border-primary hover:bg-primary/90 transition-colors group"
           onClick={handleClick}
@@ -134,7 +134,7 @@ export function ImageSection({
               />
             )}
             
-            {/* 생성 중 오버레이 (해당 미디어가 생성 중일 때) */}
+            {/* Generating overlay (when media is being generated) */}
             {isGenerating && index === allMedia.length - 1 && (
               <GeneratingOverlay isGenerating={true} />
             )}

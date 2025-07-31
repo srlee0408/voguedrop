@@ -4,7 +4,7 @@ import { HowItWorksSection } from "./(home)/_components/HowItWorksSection"
 import { GallerySection } from "./(home)/_components/GallerySection"
 import { CTASection } from "./(home)/_components/CTASection"
 import { Footer } from "./(home)/_components/Footer"
-import homeTexts from "@/locales/ko/home.json"
+import homeTexts from "@/locales/en/home.json"
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0

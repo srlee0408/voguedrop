@@ -1,6 +1,6 @@
 'use client';
 
-import ko from '@/locales/ko.json';
+import en from '@/locales/en.json';
 
 type DeepKeys<T> = T extends object
   ? {
@@ -12,12 +12,12 @@ type DeepKeys<T> = T extends object
     }[keyof T]
   : never;
 
-type TranslationKeys = DeepKeys<typeof ko>;
+type TranslationKeys = DeepKeys<typeof en>;
 
 export function useTranslation() {
   const t = (key: string): string => {
     const keys = key.split('.');
-    let value: any = ko;
+    let value: any = en;
     
     for (const k of keys) {
       if (value && typeof value === 'object' && k in value) {

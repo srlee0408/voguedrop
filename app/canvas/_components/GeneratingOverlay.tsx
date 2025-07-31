@@ -7,7 +7,7 @@ interface GeneratingOverlayProps {
 
 export function GeneratingOverlay({ 
   isGenerating, 
-  message = "영상을 생성하고 있습니다..." 
+  message = "Generating video..." 
 }: GeneratingOverlayProps) {
   if (!isGenerating) return null;
 
@@ -26,7 +26,7 @@ export function GeneratingOverlay({
             {message}
           </p>
           <p className="text-xs text-muted-foreground">
-            약 30-60초 소요됩니다
+            Takes about 30-60 seconds
           </p>
         </div>
 

@@ -2,6 +2,7 @@ import { ImageSection } from "./ImageSection";
 import { EffectsSection } from "./EffectsSection";
 import { PrompterSection } from "./PrompterSection";
 import type { GeneratedVideo } from "@/types/canvas";
+import type { EffectTemplateWithMedia } from "@/types/database";
 
 interface LeftPanelProps {
   isPrompterOpen: boolean;
@@ -13,6 +14,8 @@ interface LeftPanelProps {
   isGenerating?: boolean;
   generationError?: string | null;
   onEffectModalOpen?: () => void;
+  selectedEffects?: EffectTemplateWithMedia[];
+  onEffectRemove?: (effectId: number) => void;
 }
 
 export function LeftPanel({
@@ -25,6 +28,8 @@ export function LeftPanel({
   isGenerating,
   generationError,
   onEffectModalOpen,
+  selectedEffects,
+  onEffectRemove,
 }: LeftPanelProps) {
   return (
     <div className="w-64 bg-background p-6 border-r border-border">
@@ -43,7 +48,8 @@ export function LeftPanel({
         onToggle={onPrompterToggle}
         promptText={promptText}
         onPromptChange={onPromptChange}
-        onEffectModalOpen={onEffectModalOpen}
+        selectedEffects={selectedEffects}
+        onEffectRemove={onEffectRemove}
       />
     
 
