@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import type { EffectTemplateWithMedia } from "@/types/database";
 import { X } from "lucide-react";
 
@@ -16,64 +15,6 @@ interface EffectsSectionProps {
 }
 
 export function EffectsSection({ onEffectClick, selectedEffects, onEffectRemove }: EffectsSectionProps) {
-  const [loadedEffects, setLoadedEffects] = useState<EffectTemplateWithMedia[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchEffects = async () => {
-      try {
-        setIsLoading(true);
-        
-        // Fetch top items from all categories
-        const categories = ['effect', 'camera', 'model'];
-        const allEffects: EffectTemplateWithMedia[] = [];
-        
-        for (const category of categories) {
-          const response = await fetch(`/api/canvas/effects?category=${category}`);
-          
-          if (response.ok) {
-            const data = await response.json();
-            // Get only the first item from each category
-            if (data.effects && data.effects.length > 0) {
-              allEffects.push(data.effects[0]);
-            }
-          }
-        }
-        
-        setLoadedEffects(allEffects);
-      } catch (err) {
-        console.error('Error fetching effects:', err);
-        setError('Failed to load effects');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchEffects();
-  }, []);
-
-  if (isLoading) {
-    return (
-      <div className="mb-4">
-        <h2 className="text-sm font-medium mb-3 text-foreground">Effects</h2>
-        <div className="grid grid-cols-2 gap-2">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="aspect-square bg-surface rounded-md animate-pulse" />
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="mb-4">
-        <h2 className="text-sm font-medium mb-3 text-foreground">Effects</h2>
-        <div className="text-sm text-destructive">{error}</div>
-      </div>
-    );
-  }
 
   // Always show 4 slots
   const slots = [0, 1, 2, 3];

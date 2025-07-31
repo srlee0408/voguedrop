@@ -36,7 +36,6 @@ export function LeftPanel({
     <div className="w-64 bg-background p-6 border-r border-border">
       <ImageSection 
         onImageUpload={onImageUpload}
-        generatedVideos={generatedVideos}
         isGenerating={isGenerating}
       />
 
