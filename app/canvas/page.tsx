@@ -29,12 +29,13 @@ export default function CanvasPage() {
   const [selectedResolution] = useState("1:1")
   const [selectedSize] = useState("1024×1024")
   const [selectedModelId, setSelectedModelId] = useState<string>("")
-  const [, setUploadedImage] = useState<string | null>(null)
-  const [generatedVideos] = useState<GeneratedVideo[]>([])
-  const [isGenerating] = useState(false)
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null)
+  const [generatedVideos, setGeneratedVideos] = useState<GeneratedVideo[]>([])
+  const [isGenerating, setIsGenerating] = useState(false)
   const [selectedEffects, setSelectedEffects] = useState<EffectTemplateWithMedia[]>([])
   const [generationError, setGenerationError] = useState<string | null>(null)
   const [selectedVideoId, setSelectedVideoId] = useState<number | null>(null)
+  const [selectedDuration, setSelectedDuration] = useState<string>("5")
   
   // 페이지 이탈 방지
   useBeforeUnload(isGenerating, 'Video generation is in progress. Leaving the page will cancel the generation.')
@@ -72,94 +73,99 @@ export default function CanvasPage() {
     // TODO: 비디오 재생 로직 추가
   };
 
-  // TODO: Video generation feature implementation planned
-  // const handleGenerateVideo = async () => {
-  //   if (!uploadedImage) {
-  //     setGenerationError('Please upload an image first.');
-  //     return;
-  //   }
+  // Generate 버튼 활성화 조건 계산
+  const canGenerate = !!uploadedImage && selectedEffects.length > 0;
 
-  //   if (selectedEffects.length === 0) {
-  //     setGenerationError('Please select at least one effect.');
-  //     return;
-  //   }
+  const handleGenerateVideo = async () => {
+    if (!uploadedImage) {
+      setGenerationError('Please upload an image first.');
+      return;
+    }
 
-  //   setIsGenerating(true);
-  //   setGenerationError(null);
+    if (selectedEffects.length === 0) {
+      setGenerationError('Please select at least one effect.');
+      return;
+    }
 
-  //   try {
-  //     const response = await fetch('/api/canvas/generate', {
-  //       method: 'POST',
-  //       headers: {
-  //         'Content-Type': 'application/json',
-  //       },
-  //       body: JSON.stringify({
-  //         imageUrl: uploadedImage,
-  //         selectedEffects,
-  //         basePrompt: promptText,
-  //         modelType: 'seedance',
-  //       }),
-  //     });
+    setIsGenerating(true);
+    setGenerationError(null);
 
-  //     const data = await response.json();
+    try {
+      const response = await fetch('/api/canvas/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          imageUrl: uploadedImage,
+          selectedEffects,
+          basePrompt: promptText,
+          modelType: 'seedance',
+          duration: selectedDuration,
+        }),
+      });
 
-  //     if (!response.ok) {
-  //       throw new Error(data.error || 'Video generation failed.');
-  //     }
+      const data = await response.json();
 
-  //     // Add generated video to list
-  //     const newVideo: GeneratedVideo = {
-  //       id: data.generationId || Date.now(),
-  //       url: data.videoUrl,
-  //       thumbnail: uploadedImage,
-  //       createdAt: new Date(),
-  //     };
+      if (!response.ok) {
+        throw new Error(data.error || 'Video generation failed.');
+      }
 
-  //     setGeneratedVideos(prev => {
-  //       // 최대 3개까지만 유지
-  //       const updated = [newVideo, ...prev].slice(0, 3);
-  //       return updated;
-  //     });
+      // Process multiple video results
+      const newVideos: GeneratedVideo[] = [];
       
-  //     // 성공 메시지와 에러 초기화
-  //     setGenerationError(null);
-  //     console.log('Video generated successfully:', data);
+      if (data.results && Array.isArray(data.results)) {
+        data.results.forEach((result: {
+          success: boolean;
+          generationId?: number;
+          videoUrl?: string;
+          modelType?: string;
+          error?: string;
+        }) => {
+          if (result.success && result.videoUrl) {
+            newVideos.push({
+              id: result.generationId || Date.now() + Math.random(),
+              url: result.videoUrl,
+              thumbnail: uploadedImage,
+              createdAt: new Date(),
+              modelType: result.modelType as "seedance" | "hailo" | undefined
+            });
+          }
+        });
+      }
+
+      if (newVideos.length === 0) {
+        throw new Error('No videos were generated successfully.');
+      }
+
+      setGeneratedVideos(prev => {
+        // Add new videos to the beginning, keep max 4
+        const updated = [...newVideos, ...prev].slice(0, 4);
+        return updated;
+      });
       
-  //     // Select generated video
-  //     setSelectedVideoId(newVideo.id);
+      // 성공 메시지와 에러 초기화
+      setGenerationError(null);
+      console.log('Videos generated successfully:', newVideos);
       
-  //     // 성공 피드백 (간단한 토스트나 알림 - 옵션)
-  //     // toast.success('Video generated successfully!');
+      // Select first generated video
+      if (newVideos.length > 0) {
+        setSelectedVideoId(newVideos[0].id);
+      }
       
-  //   } catch (error) {
-  //     console.error('Video generation error:', error);
-  //     setGenerationError(
-  //       error instanceof Error 
-  //         ? error.message 
-  //         : 'An error occurred during video generation.'
-  //     );
-  //   } finally {
-  //     setIsGenerating(false);
-  //   }
-  // };
+    } catch (error) {
+      console.error('Video generation error:', error);
+      setGenerationError(
+        error instanceof Error 
+          ? error.message 
+          : 'An error occurred during video generation.'
+      );
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
 
-  const libraryClips = [
-    {
-      title: "Evening Elegance",
-      date: "2025-07-15",
-      duration: "01:24",
-      image: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=360&h=640&fit=crop",
-    },
-    { title: "Urban Vibes", date: "2025-07-14", duration: "02:15", image: "https://readdy.ai/api/search-image?query=Urban street fashion photography with modern city backdrop&width=840&height=360&seq=6&orientation=landscape" },
-    {
-      title: "Avant-garde Vision",
-      date: "2025-07-13",
-      duration: "03:42",
-      image: "https://readdy.ai/api/search-image?query=Avant-garde fashion editorial with experimental styling&width=360&height=640&seq=7&orientation=portrait",
-    },
-    { title: "Luxury Details", date: "2025-07-12", duration: "02:56", image: "https://readdy.ai/api/search-image?query=Luxury fashion detail shot with premium materials and elegant styling&width=400&height=400&seq=8&orientation=square" },
-  ]
 
 
   return (
@@ -193,10 +199,15 @@ export default function CanvasPage() {
             generatedVideos={generatedVideos}
             selectedVideoId={selectedVideoId}
             onVideoSelect={handleVideoSelect}
+            onGenerateClick={handleGenerateVideo}
+            isGenerating={isGenerating}
+            canGenerate={canGenerate}
+            selectedDuration={selectedDuration}
+            onDurationChange={setSelectedDuration}
           />
         </div>
 
-        <LibraryModal isOpen={isLibraryOpen} onClose={() => setIsLibraryOpen(false)} clips={libraryClips} />
+        <LibraryModal isOpen={isLibraryOpen} onClose={() => setIsLibraryOpen(false)} />
         
         <EffectModal 
           isOpen={isEffectModalOpen} 

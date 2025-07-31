@@ -1,4 +1,4 @@
-import { Pin } from "lucide-react";
+import { Pin, Loader2 } from "lucide-react";
 import Image from "next/image";
 import { CanvasControls } from "./CanvasControls";
 import { CanvasHistoryPanel } from "./CanvasHistoryPanel";
@@ -17,6 +17,11 @@ interface CanvasProps {
   generatedVideos?: GeneratedVideo[];
   selectedVideoId?: number | null;
   onVideoSelect?: (video: GeneratedVideo) => void;
+  onGenerateClick?: () => void;
+  isGenerating?: boolean;
+  canGenerate?: boolean;
+  selectedDuration?: string;
+  onDurationChange?: (duration: string) => void;
 }
 
 export function Canvas({
@@ -31,6 +36,11 @@ export function Canvas({
   generatedVideos = [],
   selectedVideoId,
   onVideoSelect,
+  onGenerateClick,
+  isGenerating = false,
+  canGenerate = false,
+  selectedDuration = "5",
+  onDurationChange,
 }: CanvasProps) {
   const {
     images,
@@ -38,15 +48,29 @@ export function Canvas({
   } = useCanvas();
 
   return (
-    <div className="flex-1 p-6 flex bg-background">
-      <div className="flex-1 flex flex-col items-center">
-        {/* Main Images */}
-        <div className="flex gap-4 w-full mb-4">
-          {images.map((image, index) => (
-            <div
-              key={image.id}
-              className="relative flex-1 h-[640px] bg-surface-secondary rounded-lg overflow-hidden"
-            >
+    <div className="flex-1 flex bg-background">
+      <div className="flex-1 flex flex-col">
+        {/* Main Images - 4 Columns */}
+        <div className="grid grid-cols-4 gap-4 flex-1 p-4">
+          {images.map((image, index) => {
+            // generatedVideos에서 해당 슬롯의 비디오 찾기
+            const video = generatedVideos && generatedVideos[index];
+            
+            // 이미 채워진 슬롯 수 계산
+            const filledSlots = generatedVideos.filter(v => v?.url).length;
+            
+            // 다음 두 빈 슬롯에 로딩 표시
+            const isLoading = isGenerating && 
+                            index >= filledSlots && 
+                            index < filledSlots + 2 && 
+                            !video?.url;
+            
+            
+            return (
+              <div
+                key={image.id}
+                className="relative bg-surface rounded-lg overflow-hidden h-full"
+              >
               <button
                 className="absolute top-4 right-4 w-10 h-10 bg-surface/90 backdrop-blur rounded-full flex items-center justify-center z-20 hover:bg-surface transition-colors"
                 onClick={() => toggleFavorite(index)}
@@ -60,21 +84,41 @@ export function Canvas({
                   }`}
                 />
               </button>
-              <Image
-                src={image.url}
-                alt={`Canvas image ${index + 1}`}
-                className="w-full h-full object-cover"
-                fill
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                priority={index === 0}
-              />
+              
+              {/* 로딩 상태 - 첫 두 슬롯만 */}
+              {isLoading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-10">
+                  <Loader2 className="w-12 h-12 text-white animate-spin" />
+                </div>
+              )}
+              
+              {/* 비디오 또는 이미지 */}
+              {video?.url ? (
+                <video
+                  src={video.url}
+                  className="w-full h-full object-cover"
+                  controls
+                  muted
+                  playsInline
+                />
+              ) : image.url ? (
+                <Image
+                  src={image.url}
+                  alt={`Canvas image ${index + 1}`}
+                  className="absolute inset-0 w-full h-full object-cover"
+                  fill
+                  sizes="(max-width: 1024px) 25vw, 25vw"
+                  priority={index === 0}
+                />
+              ) : null}
             </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Controls */}
-        {showControls && onPromptModalOpen && onBrushToggle && onBrushSizeChange && (
-          <div className="flex flex-col gap-4">
+        {showControls && onBrushToggle && onBrushSizeChange && (
+          <div className="flex justify-center p-4">
             <CanvasControls
               selectedResolution={selectedResolution}
               selectedSize={selectedSize}
@@ -83,6 +127,11 @@ export function Canvas({
               onPromptModalOpen={onPromptModalOpen}
               onBrushToggle={onBrushToggle}
               onBrushSizeChange={onBrushSizeChange}
+              onGenerateClick={onGenerateClick}
+              isGenerating={isGenerating}
+              canGenerate={canGenerate}
+              selectedDuration={selectedDuration}
+              onDurationChange={onDurationChange}
             />
           </div>
         )}

@@ -3,6 +3,7 @@ export interface GeneratedVideo {
   url: string;
   createdAt: Date;
   thumbnail?: string;
+  modelType?: 'seedance' | 'hailo';
 }
 
 export interface EffectTemplate {

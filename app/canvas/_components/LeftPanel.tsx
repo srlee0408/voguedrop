@@ -47,8 +47,6 @@ export function LeftPanel({
         onToggle={onPrompterToggle}
         promptText={promptText}
         onPromptChange={onPromptChange}
-        selectedEffects={selectedEffects}
-        onEffectRemove={onEffectRemove}
       />
 
       <EffectsGallery

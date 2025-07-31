@@ -2,7 +2,6 @@ import { Plus } from "lucide-react";
 import Image from "next/image";
 import { useState, useCallback, useRef } from "react";
 import { ERROR_MESSAGES } from "@/lib/constants/errors";
-import { GeneratingOverlay } from "./GeneratingOverlay";
 
 interface ImageSectionProps {
   onImageUpload?: (imageUrl: string) => void;
@@ -10,8 +9,7 @@ interface ImageSectionProps {
 }
 
 export function ImageSection({ 
-  onImageUpload,
-  isGenerating = false
+  onImageUpload
 }: ImageSectionProps) {
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -98,10 +96,6 @@ export function ImageSection({
               sizes="64px"
             />
             
-            {/* Generating overlay */}
-            {isGenerating && (
-              <GeneratingOverlay isGenerating={true} />
-            )}
           </div>
         )}
       </div>

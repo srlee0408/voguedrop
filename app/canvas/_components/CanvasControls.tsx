@@ -6,9 +6,14 @@ interface CanvasControlsProps {
   selectedSize: string
   brushSize: number
   isBrushPopupOpen: boolean
-  onPromptModalOpen: () => void
+  onPromptModalOpen?: () => void
   onBrushToggle: () => void
   onBrushSizeChange: (size: number) => void
+  onGenerateClick?: () => void
+  isGenerating?: boolean
+  canGenerate?: boolean
+  selectedDuration?: string
+  onDurationChange?: (duration: string) => void
 }
 
 export function CanvasControls({
@@ -19,20 +24,29 @@ export function CanvasControls({
   onPromptModalOpen,
   onBrushToggle,
   onBrushSizeChange,
+  onGenerateClick,
+  isGenerating = false,
+  canGenerate = false,
+  selectedDuration = "5",
+  onDurationChange,
 }: CanvasControlsProps) {
   return (
     <div className="flex items-center gap-2 bg-surface-secondary p-2 rounded-lg border border-border">
       <Button
-        className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-button hover:bg-primary/90 transition-colors"
-        onClick={onPromptModalOpen}
+        className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-button hover:bg-primary/90 disabled:bg-primary/50 disabled:cursor-not-allowed transition-colors"
+        onClick={onGenerateClick || onPromptModalOpen}
+        disabled={!canGenerate || isGenerating}
       >
         <Wand2 className="w-4 h-4" />
-        <span>Generate</span>
+        <span>{isGenerating ? 'Generating...' : 'Generate'}</span>
       </Button>
 
       <div className="relative">
-        <select className="appearance-none bg-primary text-primary-foreground text-sm font-medium rounded-button px-4 py-2 pr-8 hover:bg-primary/90 transition-colors cursor-pointer">
-          <option value="3">3s</option>
+        <select 
+          className="appearance-none bg-primary text-primary-foreground text-sm font-medium rounded-button px-4 py-2 pr-8 hover:bg-primary/90 transition-colors cursor-pointer"
+          value={selectedDuration}
+          onChange={(e) => onDurationChange?.(e.target.value)}
+        >
           <option value="5">5s</option>
           <option value="10">10s</option>
         </select>

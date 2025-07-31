@@ -1,14 +1,11 @@
 import { useRef, useEffect } from "react";
-import { ChevronDown, X } from "lucide-react";
-import type { EffectTemplateWithMedia } from "@/types/database";
+import { ChevronDown } from "lucide-react";
 
 interface PrompterSectionProps {
   isOpen: boolean;
   onToggle: () => void;
   promptText?: string;
   onPromptChange?: (text: string) => void;
-  selectedEffects?: EffectTemplateWithMedia[];
-  onEffectRemove?: (effectId: number) => void;
 }
 
 export function PrompterSection({
@@ -16,8 +13,6 @@ export function PrompterSection({
   onToggle,
   promptText = "",
   onPromptChange,
-  selectedEffects = [],
-  onEffectRemove,
 }: PrompterSectionProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -69,28 +64,6 @@ export function PrompterSection({
               </div>
             </div>
 
-            {/* Selected Effects */}
-            {selectedEffects.length > 0 && (
-              <div className="space-y-2">
-                <h3 className="text-xs font-medium text-foreground">Selected Effects</h3>
-                <div className="flex flex-wrap gap-1.5">
-                  {selectedEffects.map((effect) => (
-                    <div
-                      key={effect.id}
-                      className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary rounded-md text-xs"
-                    >
-                      <span>{effect.name}</span>
-                      <button
-                        onClick={() => onEffectRemove?.(effect.id)}
-                        className="hover:bg-primary/20 rounded p-0.5"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
 
           </div>
         </div>

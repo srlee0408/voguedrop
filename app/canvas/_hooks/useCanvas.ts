@@ -10,17 +10,22 @@ export function useCanvas() {
   const [images, setImages] = useState<CanvasImage[]>([
     {
       id: '1',
-      url: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=405&h=640&fit=crop&crop=center',
+      url: '',
       isFavorite: false,
     },
     {
       id: '2',
-      url: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=405&h=640&fit=crop&crop=center',
+      url: '',
       isFavorite: false,
     },
     {
       id: '3',
-      url: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=405&h=640&fit=crop&crop=center',
+      url: '',
+      isFavorite: false,
+    },
+    {
+      id: '4',
+      url: '',
       isFavorite: false,
     },
   ]);
@@ -43,7 +48,7 @@ export function useCanvas() {
     },
     {
       id: 't4',
-      url: 'https://images.unsplash.com/photo-1518709268805-4e9042af2176?w=80&h=80&fit=crop&crop=center',
+      url: '',
       isFavorite: false,
     },
   ]);
