@@ -1,5 +1,6 @@
 import type { EffectTemplateWithMedia } from "@/types/database";
 import { X } from "lucide-react";
+import { HoverVideo } from "@/components/ui/hover-video";
 
 export interface Effect {
   id: string;
@@ -30,16 +31,17 @@ export function EffectsSection({ onEffectClick, selectedEffects, onEffectRemove 
             return (
               <div
                 key={`slot-${slotIndex}`}
-                className="aspect-square bg-surface rounded-md overflow-hidden relative group"
+                className="bg-surface rounded-md overflow-hidden relative group"
               >
                 {effect.previewUrl ? (
-                  <img 
-                    src={effect.previewUrl} 
-                    alt={effect.name}
-                    className="w-full h-full object-cover"
-                  />
+                  <div className="relative">
+                    <HoverVideo
+                      src={effect.previewUrl}
+                      className="w-full h-auto"
+                    />
+                  </div>
                 ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center">
+                  <div className="aspect-square bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center">
                     <span className="text-white text-xs font-medium px-2 text-center">{effect.name}</span>
                   </div>
                 )}
@@ -65,7 +67,7 @@ export function EffectsSection({ onEffectClick, selectedEffects, onEffectRemove 
             <button
               key={`slot-${slotIndex}`}
               onClick={onEffectClick}
-              className="aspect-square bg-surface rounded-md overflow-hidden relative group hover:ring-1 hover:ring-primary transition-all flex items-center justify-center"
+              className="min-h-[100px] bg-surface rounded-md overflow-hidden relative group hover:ring-1 hover:ring-primary transition-all flex items-center justify-center"
             >
               <div className="text-2xl text-muted-foreground group-hover:text-primary transition-colors">+</div>
             </button>

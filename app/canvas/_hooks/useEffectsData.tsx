@@ -3,44 +3,61 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import type { EffectTemplateWithMedia } from '@/types/database'
 
+interface Category {
+  id: number
+  name: string
+}
+
 interface EffectsDataContextType {
   effects: EffectTemplateWithMedia[]
+  categories: Category[]
   isLoading: boolean
   error: string | null
   refetchEffects: () => Promise<void>
   getEffectsByCategory: (category: string) => EffectTemplateWithMedia[]
+  getRepresentativeEffects: () => EffectTemplateWithMedia[]
 }
 
 const EffectsDataContext = createContext<EffectsDataContextType | undefined>(undefined)
 
 export function EffectsDataProvider({ children }: { children: ReactNode }) {
   const [effects, setEffects] = useState<EffectTemplateWithMedia[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchEffects = async () => {
+  const fetchData = async () => {
     try {
       setIsLoading(true)
       setError(null)
       
-      const response = await fetch('/api/canvas/effects?category=all')
+      // 병렬로 effects와 categories 로드
+      const [effectsResponse, categoriesResponse] = await Promise.all([
+        fetch('/api/canvas/effects?category=all'),
+        fetch('/api/canvas/categories')
+      ])
       
-      if (!response.ok) {
-        throw new Error('Failed to fetch effects')
+      if (!effectsResponse.ok || !categoriesResponse.ok) {
+        throw new Error('Failed to fetch data')
       }
       
-      const data = await response.json()
-      setEffects(data.effects || [])
+      const [effectsData, categoriesData] = await Promise.all([
+        effectsResponse.json(),
+        categoriesResponse.json()
+      ])
+      
+      setEffects(effectsData.effects || [])
+      setCategories(categoriesData.categories || [])
     } catch (err) {
-      console.error('Error fetching effects:', err)
-      setError('Failed to load effects')
+      console.error('Error fetching data:', err)
+      setError('Failed to load data')
     } finally {
       setIsLoading(false)
     }
   }
 
   useEffect(() => {
-    fetchEffects()
+    fetchData()
   }, [])
 
   const getEffectsByCategory = (category: string) => {
@@ -48,25 +65,34 @@ export function EffectsDataProvider({ children }: { children: ReactNode }) {
       return effects
     }
     
-    const categoryMap: { [key: string]: string } = {
-      'Effect': 'effect',
-      'Camera': 'camera',
-      'Model': 'model',
-      'effect': 'effect',
-      'camera': 'camera',
-      'model': 'model'
+    // 카테고리 이름을 소문자로 정규화
+    const normalizedCategory = category.toLowerCase()
+    return effects.filter(effect => effect.category?.name === normalizedCategory)
+  }
+
+  const getRepresentativeEffects = () => {
+    const representativeEffects: EffectTemplateWithMedia[] = []
+    const seenCategories = new Set<number>()
+    
+    // display_order로 정렬된 effects에서 각 카테고리의 첫 번째 효과만 선택
+    for (const effect of effects) {
+      if (effect.category && !seenCategories.has(effect.category.id)) {
+        seenCategories.add(effect.category.id)
+        representativeEffects.push(effect)
+      }
     }
     
-    const normalizedCategory = categoryMap[category] || category
-    return effects.filter(effect => effect.category?.name === normalizedCategory)
+    return representativeEffects
   }
 
   const value: EffectsDataContextType = {
     effects,
+    categories,
     isLoading,
     error,
-    refetchEffects: fetchEffects,
-    getEffectsByCategory
+    refetchEffects: fetchData,
+    getEffectsByCategory,
+    getRepresentativeEffects
   }
 
   return (

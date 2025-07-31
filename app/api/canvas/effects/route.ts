@@ -16,7 +16,7 @@ interface EffectWithRelations {
   }
   preview_media?: {
     storage_path: string
-  }[]
+  }
 }
 
 export async function GET(request: NextRequest) {
@@ -24,9 +24,9 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const category = searchParams.get('category')
 
-    if (!category || !['effect', 'camera', 'model', 'all'].includes(category)) {
+    if (!category) {
       return NextResponse.json(
-        { error: '유효한 카테고리를 지정해주세요.' },
+        { error: '카테고리를 지정해주세요.' },
         { status: 400 }
       )
     }
@@ -61,10 +61,12 @@ export async function GET(request: NextRequest) {
       // 미디어 URL 변환
       const effectsWithMedia = ((effects || []) as unknown as EffectWithRelations[]).map((effect) => {
         let previewUrl = null
-        if (effect.preview_media && effect.preview_media.length > 0 && effect.preview_media[0].storage_path) {
+        
+        // preview_media가 있고 storage_path가 있는 경우
+        if (effect.preview_media?.storage_path) {
           previewUrl = supabase.storage
             .from('media-asset')
-            .getPublicUrl(effect.preview_media[0].storage_path).data.publicUrl
+            .getPublicUrl(effect.preview_media.storage_path).data.publicUrl
         }
 
         return {
@@ -111,10 +113,12 @@ export async function GET(request: NextRequest) {
     // 미디어 URL 변환
     const effectsWithMedia = ((effects || []) as unknown as EffectWithRelations[]).map((effect) => {
       let previewUrl = null
-      if (effect.preview_media && effect.preview_media.length > 0 && effect.preview_media[0].storage_path) {
+      
+      // preview_media가 있고 storage_path가 있는 경우
+      if (effect.preview_media?.storage_path) {
         previewUrl = supabase.storage
           .from('media-asset')
-          .getPublicUrl(effect.preview_media[0].storage_path).data.publicUrl
+          .getPublicUrl(effect.preview_media.storage_path).data.publicUrl
       }
 
       return {

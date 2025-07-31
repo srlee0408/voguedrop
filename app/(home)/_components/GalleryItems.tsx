@@ -31,17 +31,41 @@ export function GalleryItems({ items }: GalleryItemsProps) {
           <div className="w-full h-full bg-gradient-to-br from-primary/20 to-secondary/20 absolute inset-0" />
           
           {item.preview_media?.storage_path && (
-            <Image
-              src={getPublicUrl(item.preview_media.storage_path)}
-              alt={item.name || "Gallery item"}
-              fill
-              className="object-cover z-[1]"
-              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-              onError={(e) => {
-                // Hide broken image and show gradient fallback
-                e.currentTarget.style.display = 'none'
-              }}
-            />
+            (() => {
+              const url = getPublicUrl(item.preview_media.storage_path)
+              const isVideo = url.endsWith('.mp4') || url.endsWith('.webm')
+              
+              if (isVideo) {
+                return (
+                  <video
+                    src={url}
+                    className="w-full h-full object-cover z-[1]"
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    onError={(e) => {
+                      // Hide broken video and show gradient fallback
+                      e.currentTarget.style.display = 'none'
+                    }}
+                  />
+                )
+              } else {
+                return (
+                  <Image
+                    src={url}
+                    alt={item.name || "Gallery item"}
+                    fill
+                    className="object-cover z-[1]"
+                    sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                    onError={(e) => {
+                      // Hide broken image and show gradient fallback
+                      e.currentTarget.style.display = 'none'
+                    }}
+                  />
+                )
+              }
+            })()
           )}
           
           <div className="absolute bottom-2 sm:bottom-4 left-2 sm:left-4 right-2 sm:right-4 z-20">

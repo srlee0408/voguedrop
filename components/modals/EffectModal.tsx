@@ -2,6 +2,7 @@ import { BaseModal } from "./BaseModal"
 import { useState } from "react"
 import type { EffectTemplateWithMedia } from "@/types/database"
 import { useEffectsData } from "@/app/canvas/_hooks/useEffectsData"
+import { HoverVideo } from "@/components/ui/hover-video"
 
 interface EffectModalProps {
   isOpen: boolean
@@ -11,7 +12,7 @@ interface EffectModalProps {
 }
 
 export function EffectModal({ isOpen, onClose, onSelectEffect, selectedEffects = [] }: EffectModalProps) {
-  const { getEffectsByCategory, isLoading, error } = useEffectsData()
+  const { getEffectsByCategory, categories, isLoading, error } = useEffectsData()
   const [selectedCategory, setSelectedCategory] = useState("All")
   
   const effects = getEffectsByCategory(selectedCategory)
@@ -29,7 +30,7 @@ export function EffectModal({ isOpen, onClose, onSelectEffect, selectedEffects =
   if (!isOpen) return null
 
   return (
-    <BaseModal isOpen={isOpen} onClose={onClose} title="Effect">
+    <BaseModal isOpen={isOpen} onClose={onClose} title="Effect Gallery">
       {isLoading ? (
         <div className="flex items-center justify-center h-64">
           <div className="text-gray-500">Loading effects...</div>
@@ -41,15 +42,23 @@ export function EffectModal({ isOpen, onClose, onSelectEffect, selectedEffects =
       ) : (
         <>
           <div className="flex gap-2 overflow-x-auto mb-6 pb-2">
-            {["All", "Effect", "Camera", "Model"].map((category) => (
+            <button
+              className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap ${
+                selectedCategory === "All" ? "bg-primary text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
+              onClick={() => setSelectedCategory("All")}
+            >
+              All
+            </button>
+            {categories.map((category) => (
               <button
-                key={category}
-                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap ${
-                  category === selectedCategory ? "bg-primary text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                key={category.id}
+                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap capitalize ${
+                  category.name === selectedCategory.toLowerCase() ? "bg-primary text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                 }`}
-                onClick={() => setSelectedCategory(category)}
+                onClick={() => setSelectedCategory(category.name)}
               >
-                {category}
+                {category.name}
               </button>
             ))}
           </div>
@@ -64,9 +73,8 @@ export function EffectModal({ isOpen, onClose, onSelectEffect, selectedEffects =
                 }`}
               >
                 {effect.previewUrl ? (
-                  <img
+                  <HoverVideo
                     src={effect.previewUrl}
-                    alt={effect.name}
                     className="w-full h-full object-cover"
                   />
                 ) : (
@@ -74,11 +82,11 @@ export function EffectModal({ isOpen, onClose, onSelectEffect, selectedEffects =
                     <span className="text-gray-700 font-medium text-center">{effect.name}</span>
                   </div>
                 )}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4 pointer-events-none">
                   <span className="text-white font-medium">{effect.name}</span>
                 </div>
                 {isEffectSelected(effect.id) && (
-                  <div className="absolute top-2 right-2 w-6 h-6 bg-primary rounded-full flex items-center justify-center">
+                  <div className="absolute top-2 right-2 w-6 h-6 bg-primary rounded-full flex items-center justify-center pointer-events-none">
                     <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>

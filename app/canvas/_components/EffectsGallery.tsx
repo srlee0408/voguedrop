@@ -1,17 +1,18 @@
 import { useEffectsData } from "@/app/canvas/_hooks/useEffectsData";
-import Image from "next/image";
+import { HoverVideo } from "@/components/ui/hover-video";
 
 interface EffectsGalleryProps {
   onEffectClick?: () => void;
 }
 
 export function EffectsGallery({ onEffectClick }: EffectsGalleryProps) {
-  const { effects: loadedEffects, isLoading, error } = useEffectsData();
+  const { getRepresentativeEffects, isLoading, error } = useEffectsData();
+  const representativeEffects = getRepresentativeEffects();
 
   if (isLoading) {
     return (
       <div className="mb-4">
-        <h2 className="text-sm font-medium mb-3 text-foreground">Effect Gallery</h2>
+        <h2 className="text-sm font-medium mb-3 text-foreground">Effect Category</h2>
         <div className="grid grid-cols-3 gap-2">
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <div key={i} className="aspect-square rounded-full bg-surface animate-pulse" />
@@ -24,7 +25,7 @@ export function EffectsGallery({ onEffectClick }: EffectsGalleryProps) {
   if (error) {
     return (
       <div className="mb-4">
-        <h2 className="text-sm font-medium mb-3 text-foreground">Effect Gallery</h2>
+        <h2 className="text-sm font-medium mb-3 text-foreground">Effect Category</h2>
         <div className="text-sm text-destructive">{error}</div>
       </div>
     );
@@ -32,20 +33,18 @@ export function EffectsGallery({ onEffectClick }: EffectsGalleryProps) {
 
   return (
     <div className="mb-4">
-      <h2 className="text-sm font-medium mb-3 text-foreground">Effect Gallery</h2>
+      <h2 className="text-sm font-medium mb-3 text-foreground">Effect Category</h2>
       <div className="grid grid-cols-3 gap-2">
-        {loadedEffects.map((effect) => (
+        {representativeEffects.map((effect) => (
           <div key={effect.id} className="flex flex-col gap-1">
             <button
               onClick={onEffectClick}
               className="aspect-square rounded-full overflow-hidden relative group hover:ring-2 hover:ring-primary transition-all"
             >
               {effect.previewUrl ? (
-                <Image 
-                  src={effect.previewUrl} 
-                  alt={effect.name}
-                  fill
-                  className="object-cover"
+                <HoverVideo
+                  src={effect.previewUrl}
+                  className="w-full h-full object-cover"
                 />
               ) : (
                 <div className="w-full h-full bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center">
