@@ -135,7 +135,7 @@ export function ModelModal({ isOpen, onClose, onSelectModel, selectedModelId }: 
             <div
               key={model.id}
               onClick={() => setSelectedModel(model.id)}
-              className={`cursor-pointer rounded-lg overflow-hidden border-2 transition-all ${
+              className={`relative cursor-pointer rounded-lg overflow-hidden border-2 transition-all ${
                 selectedModel === model.id
                   ? "border-primary shadow-lg"
                   : "border-gray-200 hover:border-gray-300"

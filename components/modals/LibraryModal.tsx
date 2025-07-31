@@ -83,8 +83,8 @@ export function LibraryModal({ isOpen, onClose }: LibraryModalProps) {
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-      <div className="bg-gray-800 rounded-xl p-6 w-[1000px] max-h-[80vh] flex flex-col">
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-gray-800 rounded-xl p-6 w-full max-w-[1000px] max-h-[90vh] flex flex-col">
         <div className="flex justify-between items-center mb-2">
           <h3 className="text-xl font-medium text-white">Library</h3>
           <button className="text-gray-400 hover:text-gray-300" onClick={onClose}>
@@ -127,7 +127,8 @@ export function LibraryModal({ isOpen, onClose }: LibraryModalProps) {
           </div>
         </div>
 
-        <div className="grid grid-cols-4 gap-4 overflow-y-auto flex-1">
+        <div className="flex-1 overflow-y-auto">
+          <div className="grid grid-cols-4 gap-4 p-1">
           {isLoading ? (
             <div className="col-span-4 flex items-center justify-center py-20">
               <div className="text-center">
@@ -143,14 +144,14 @@ export function LibraryModal({ isOpen, onClose }: LibraryModalProps) {
             filteredVideos.map((video) => (
               <div
                 key={video.id}
-                className="bg-gray-700 rounded-lg overflow-hidden aspect-square"
+                className="bg-gray-700 rounded-lg overflow-hidden aspect-square relative"
               >
-                <div className="relative group h-full">
+                <div className="relative group w-full h-full">
                   {video.input_image_url && (
                     <Image
                       src={video.input_image_url}
                       alt={`Video ${video.id}`}
-                      className="w-full h-full object-cover"
+                      className="object-cover"
                       fill
                       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                     />
@@ -185,6 +186,7 @@ export function LibraryModal({ isOpen, onClose }: LibraryModalProps) {
               </div>
             ))
           )}
+          </div>
         </div>
       </div>
     </div>

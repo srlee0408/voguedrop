@@ -106,7 +106,8 @@ export async function POST(request: NextRequest) {
 
     // 4. 두 모델에 대한 DB 레코드 생성
     // RLS 정책을 위해 인증된 supabase 클라이언트로 직접 삽입
-    const models: Array<'seedance' | 'hailo'> = ['seedance', 'hailo'];
+    // const models: Array<'seedance' | 'hailo'> = ['seedance', 'hailo'];
+    const models: Array<'seedance' | 'hailo'> = ['hailo']; // 임시로 hailo만 사용
     const generations = await Promise.all(
       models.map(async (model) => {
         const { data, error } = await supabase
@@ -156,11 +157,11 @@ export async function POST(request: NextRequest) {
     const videoGenerations = await Promise.allSettled(
       models.map(async (model, index) => {
         try {
-          // 두 번째 모델(Hailo)은 3초 대기 후 실행
-          if (index === 1) {
-            console.log('Waiting 3 seconds before calling Hailo...');
-            await new Promise(resolve => setTimeout(resolve, 3000));
-          }
+          // 두 번째 모델(Hailo)은 3초 대기 후 실행 (현재는 hailo만 사용하므로 실행되지 않음)
+          // if (index === 1) {
+          //   console.log('Waiting 3 seconds before calling Hailo...');
+          //   await new Promise(resolve => setTimeout(resolve, 3000));
+          // }
           
           // 🚀 fal.ai API 호출 (/lib/fal-ai.ts → generateVideo)
           const { videoUrl } = await generateVideo({

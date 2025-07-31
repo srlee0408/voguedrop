@@ -91,7 +91,8 @@ export default function CanvasPage() {
     setGenerationError(null);
 
     try {
-      const response = await fetch('/api/canvas/generate', {
+      // 1. 비동기 작업 시작
+      const response = await fetch('/api/canvas/generate-async', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -100,7 +101,6 @@ export default function CanvasPage() {
           imageUrl: uploadedImage,
           selectedEffects,
           basePrompt: promptText,
-          modelType: 'seedance',
           duration: selectedDuration,
         }),
       });
@@ -111,47 +111,62 @@ export default function CanvasPage() {
         throw new Error(data.error || 'Video generation failed.');
       }
 
-      // Process multiple video results
-      const newVideos: GeneratedVideo[] = [];
-      
-      if (data.results && Array.isArray(data.results)) {
-        data.results.forEach((result: {
-          success: boolean;
-          generationId?: number;
-          videoUrl?: string;
-          modelType?: string;
-          error?: string;
-        }) => {
-          if (result.success && result.videoUrl) {
-            newVideos.push({
-              id: result.generationId || Date.now() + Math.random(),
-              url: result.videoUrl,
-              thumbnail: uploadedImage,
-              createdAt: new Date(),
-              modelType: result.modelType as "seedance" | "hailo" | undefined
-            });
+      // 2. 폴링 시작
+      const pollJobs = async () => {
+        const pollPromises = data.jobs
+          .filter((job: { status: string }) => job.status !== 'failed')
+          .map(async (job: { jobId: string }) => {
+            const statusResponse = await fetch(`/api/canvas/jobs/${job.jobId}`);
+            return statusResponse.json();
+          });
+
+        const jobStatuses = await Promise.all(pollPromises);
+        
+        // 완료된 비디오 처리
+        const completedJobs = jobStatuses.filter(job => job.status === 'completed');
+        
+        if (completedJobs.length > 0) {
+          const newVideos: GeneratedVideo[] = completedJobs.map(job => ({
+            id: job.jobId,
+            url: job.result.videoUrl,
+            thumbnail: job.result.thumbnailUrl,
+            createdAt: new Date(job.createdAt),
+            modelType: job.modelType as "seedance" | "hailo"
+          }));
+
+          setGeneratedVideos(prev => {
+            // 중복 제거하고 추가
+            const existingIds = new Set(prev.map(v => v.id));
+            const uniqueNewVideos = newVideos.filter(v => !existingIds.has(v.id));
+            return [...uniqueNewVideos, ...prev].slice(0, 4);
+          });
+
+          // 첫 번째 비디오 선택
+          if (newVideos.length > 0 && !selectedVideoId) {
+            setSelectedVideoId(newVideos[0].id);
           }
-        });
-      }
+        }
 
-      if (newVideos.length === 0) {
-        throw new Error('No videos were generated successfully.');
-      }
+        // 아직 처리 중인 작업이 있으면 계속 폴링
+        const processingJobs = jobStatuses.filter(
+          job => job.status === 'pending' || job.status === 'processing'
+        );
 
-      setGeneratedVideos(prev => {
-        // Add new videos to the beginning, keep max 4
-        const updated = [...newVideos, ...prev].slice(0, 4);
-        return updated;
-      });
-      
-      // 성공 메시지와 에러 초기화
-      setGenerationError(null);
-      console.log('Videos generated successfully:', newVideos);
-      
-      // Select first generated video
-      if (newVideos.length > 0) {
-        setSelectedVideoId(newVideos[0].id);
-      }
+        if (processingJobs.length > 0) {
+          setTimeout(pollJobs, 3000); // 3초 후 다시 확인
+        } else {
+          // 모든 작업 완료
+          setIsGenerating(false);
+          
+          const failedJobs = jobStatuses.filter(job => job.status === 'failed');
+          if (failedJobs.length === jobStatuses.length) {
+            setGenerationError('All video generation attempts failed.');
+          }
+        }
+      };
+
+      // 폴링 시작
+      setTimeout(pollJobs, 3000);
       
     } catch (error) {
       console.error('Video generation error:', error);
@@ -160,7 +175,6 @@ export default function CanvasPage() {
           ? error.message 
           : 'An error occurred during video generation.'
       );
-    } finally {
       setIsGenerating(false);
     }
   };

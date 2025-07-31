@@ -31,6 +31,9 @@ npm run lint
 npm run type-check
 ```
 
+### 빌드 전 필수 체크
+**중요**: 코드 작성 완료 후 반드시 `npm run build`를 실행하여 타입 에러와 빌드 에러가 없는지 확인해야 합니다. 타입 에러가 있으면 프로덕션 배포가 실패합니다.
+
 ## 고수준 아키텍처
 
 ### 시스템 구조
@@ -73,9 +76,10 @@ types/
 ## 코딩 표준
 
 ### TypeScript 필수 규칙
-- `any` 타입 사용 금지
+- `any` 타입 사용 금지 - 타입을 모를 때는 `unknown` 사용 후 타입 가드 적용
 - 모든 함수에 명시적 반환 타입 정의
 - interface로 props 정의, type은 유니온/인터섹션에 사용
+- 빌드 시 타입 에러가 없어야 함 - `npm run build`로 확인
 
 ### 컴포넌트 패턴
 ```typescript
@@ -153,6 +157,17 @@ FAL_API_KEY=your-fal-api-key
 - 사용자 친화적인 에러 메시지 표시
 - 로딩 상태 표시 필수
 
+### 코드 품질 체크
+1. **작업 완료 후 필수 명령어 실행**:
+   ```bash
+   npm run lint      # ESLint 검사
+   npm run build     # 타입 체크 및 빌드 테스트
+   ```
+2. **빌드 에러 발생 시**:
+   - 타입 에러: 정확한 타입 정의 추가
+   - ESLint 에러: 코드 스타일 수정
+   - 의존성 에러: package.json 확인
+
 ## Git 워크플로우
 
 ### 브랜치 전략
@@ -196,3 +211,8 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 - `npm run dev`로 실시간 타입 체크
 - VS Code의 TypeScript 버전이 프로젝트와 일치하는지 확인
 - `types/` 폴더의 타입 정의 확인
+- **`npm run build` 실행 시 타입 에러 해결 방법**:
+  - `@typescript-eslint/no-unused-vars`: 사용하지 않는 변수 제거
+  - `@typescript-eslint/no-explicit-any`: `any` 대신 구체적인 타입 정의
+  - React Hook 의존성 경고: `useCallback` 사용 또는 의존성 배열 업데이트
+  - 타입 캐스팅이 필요한 경우: `as` 키워드 사용 (최소한으로)

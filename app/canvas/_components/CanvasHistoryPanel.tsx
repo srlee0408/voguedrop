@@ -85,7 +85,7 @@ export function CanvasHistoryPanel({
           <p className="text-xs text-muted-foreground">No videos yet</p>
         </div>
       ) : (
-        dbVideos.map((video) => (
+        dbVideos.slice(0, 4).map((video) => (
           <button
             key={video.id}
             onClick={() => onVideoSelect?.(video)}
