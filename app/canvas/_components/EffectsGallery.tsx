@@ -1,46 +1,12 @@
-import { useEffect, useState } from "react";
-import type { EffectTemplateWithMedia } from "@/types/database";
+import { useEffectsData } from "@/app/canvas/_hooks/useEffectsData";
+import Image from "next/image";
 
 interface EffectsGalleryProps {
   onEffectClick?: () => void;
 }
 
 export function EffectsGallery({ onEffectClick }: EffectsGalleryProps) {
-  const [loadedEffects, setLoadedEffects] = useState<EffectTemplateWithMedia[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchEffects = async () => {
-      try {
-        setIsLoading(true);
-        
-        // Fetch all effects from all categories
-        const categories = ['effect', 'camera', 'model'];
-        const allEffects: EffectTemplateWithMedia[] = [];
-        
-        for (const category of categories) {
-          const response = await fetch(`/api/canvas/effects?category=${category}`);
-          
-          if (response.ok) {
-            const data = await response.json();
-            if (data.effects && data.effects.length > 0) {
-              allEffects.push(...data.effects);
-            }
-          }
-        }
-        
-        setLoadedEffects(allEffects);
-      } catch (err) {
-        console.error('Error fetching effects:', err);
-        setError('Failed to load effects');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchEffects();
-  }, []);
+  const { effects: loadedEffects, isLoading, error } = useEffectsData();
 
   if (isLoading) {
     return (
@@ -75,10 +41,11 @@ export function EffectsGallery({ onEffectClick }: EffectsGalleryProps) {
               className="aspect-square rounded-full overflow-hidden relative group hover:ring-2 hover:ring-primary transition-all"
             >
               {effect.previewUrl ? (
-                <img 
+                <Image 
                   src={effect.previewUrl} 
                   alt={effect.name}
-                  className="w-full h-full object-cover"
+                  fill
+                  className="object-cover"
                 />
               ) : (
                 <div className="w-full h-full bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center">

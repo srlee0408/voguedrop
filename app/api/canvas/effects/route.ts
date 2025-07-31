@@ -1,34 +1,87 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 
+interface EffectWithRelations {
+  id: number
+  name: string
+  category_id: number
+  prompt: string
+  preview_media_id: number | null
+  display_order: number
+  is_active: boolean
+  created_at: string
+  category: {
+    id: number
+    name: string
+  }
+  preview_media?: {
+    storage_path: string
+  }[]
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const category = searchParams.get('category')
 
-    if (!category || !['effect', 'camera', 'model'].includes(category)) {
+    if (!category || !['effect', 'camera', 'model', 'all'].includes(category)) {
       return NextResponse.json(
         { error: '유효한 카테고리를 지정해주세요.' },
         { status: 400 }
       )
     }
 
-    // 먼저 카테고리 ID를 조회
-    const { data: categoryData, error: categoryError } = await supabase
-      .from('categories')
-      .select('id')
-      .eq('name', category)
-      .single()
+    // 'all' 카테고리인 경우 모든 효과를 한 번에 조회
+    if (category === 'all') {
+      const { data: effects, error: effectsError } = await supabase
+        .from('effect_templates')
+        .select(`
+          id,
+          name,
+          category_id,
+          prompt,
+          preview_media_id,
+          display_order,
+          is_active,
+          created_at,
+          category:categories(*),
+          preview_media:media_assets(storage_path)
+        `)
+        .eq('is_active', true)
+        .order('display_order', { ascending: true })
 
-    if (categoryError || !categoryData) {
-      console.error('Category fetch error:', categoryError)
-      return NextResponse.json(
-        { error: '카테고리 정보를 찾을 수 없습니다.' },
-        { status: 404 }
-      )
+      if (effectsError) {
+        console.error('Effects fetch error:', effectsError)
+        return NextResponse.json(
+          { error: '효과 목록을 불러오는데 실패했습니다.' },
+          { status: 500 }
+        )
+      }
+
+      // 미디어 URL 변환
+      const effectsWithMedia = ((effects || []) as unknown as EffectWithRelations[]).map((effect) => {
+        let previewUrl = null
+        if (effect.preview_media && effect.preview_media.length > 0 && effect.preview_media[0].storage_path) {
+          previewUrl = supabase.storage
+            .from('media-asset')
+            .getPublicUrl(effect.preview_media[0].storage_path).data.publicUrl
+        }
+
+        return {
+          ...effect,
+          previewUrl,
+          preview_media: undefined // 클라이언트에 불필요한 정보 제거
+        }
+      })
+
+      return NextResponse.json({
+        effects: effectsWithMedia,
+        category: 'all',
+        total: effectsWithMedia.length
+      })
     }
 
-    // effect_templates 조회 (category 정보 포함)
+    // 특정 카테고리 조회 - join을 사용해서 한 번에 모든 데이터 가져오기
     const { data: effects, error: effectsError } = await supabase
       .from('effect_templates')
       .select(`
@@ -40,9 +93,10 @@ export async function GET(request: NextRequest) {
         display_order,
         is_active,
         created_at,
-        category:categories(*)
+        category:categories!inner(*),
+        preview_media:media_assets(storage_path)
       `)
-      .eq('category_id', categoryData.id)
+      .eq('category.name', category)
       .eq('is_active', true)
       .order('display_order', { ascending: true })
 
@@ -54,30 +108,21 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // preview_media_id가 있는 경우 미디어 정보도 함께 조회
-    const effectsWithMedia = await Promise.all(
-      (effects || []).map(async (effect) => {
-        if (effect.preview_media_id) {
-          const { data: mediaData } = await supabase
-            .from('media_assets')
-            .select('storage_path')
-            .eq('id', effect.preview_media_id)
-            .single()
+    // 미디어 URL 변환
+    const effectsWithMedia = ((effects || []) as unknown as EffectWithRelations[]).map((effect) => {
+      let previewUrl = null
+      if (effect.preview_media && effect.preview_media.length > 0 && effect.preview_media[0].storage_path) {
+        previewUrl = supabase.storage
+          .from('media-asset')
+          .getPublicUrl(effect.preview_media[0].storage_path).data.publicUrl
+      }
 
-          if (mediaData) {
-            const publicUrl = supabase.storage
-              .from('media-asset')
-              .getPublicUrl(mediaData.storage_path).data.publicUrl
-
-            return {
-              ...effect,
-              previewUrl: publicUrl
-            }
-          }
-        }
-        return effect
-      })
-    )
+      return {
+        ...effect,
+        previewUrl,
+        preview_media: undefined // 클라이언트에 불필요한 정보 제거
+      }
+    })
 
     return NextResponse.json({
       effects: effectsWithMedia,

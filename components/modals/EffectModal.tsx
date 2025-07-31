@@ -1,6 +1,7 @@
 import { BaseModal } from "./BaseModal"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import type { EffectTemplateWithMedia } from "@/types/database"
+import { useEffectsData } from "@/app/canvas/_hooks/useEffectsData"
 
 interface EffectModalProps {
   isOpen: boolean
@@ -10,65 +11,10 @@ interface EffectModalProps {
 }
 
 export function EffectModal({ isOpen, onClose, onSelectEffect, selectedEffects = [] }: EffectModalProps) {
-  const [effects, setEffects] = useState<EffectTemplateWithMedia[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { getEffectsByCategory, isLoading, error } = useEffectsData()
   const [selectedCategory, setSelectedCategory] = useState("All")
-
-  useEffect(() => {
-    if (isOpen) {
-      fetchEffects()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, selectedCategory])
-
-  const fetchEffects = async () => {
-    try {
-      setIsLoading(true)
-      setError(null)
-      
-      if (selectedCategory === "All") {
-        // Fetch from all categories
-        const categories = ['effect', 'camera', 'model']
-        const allEffects: EffectTemplateWithMedia[] = []
-        
-        for (const category of categories) {
-          const response = await fetch(`/api/canvas/effects?category=${category}`)
-          
-          if (response.ok) {
-            const data = await response.json()
-            if (data.effects) {
-              allEffects.push(...data.effects)
-            }
-          }
-        }
-        
-        setEffects(allEffects)
-      } else {
-        // Fetch from specific category
-        const categoryMap: { [key: string]: string } = {
-          'Effect': 'effect',
-          'Camera': 'camera',
-          'Model': 'model'
-        }
-        
-        const category = categoryMap[selectedCategory] || 'effect'
-        const response = await fetch(`/api/canvas/effects?category=${category}`)
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch effects')
-        }
-        
-        const data = await response.json()
-        setEffects(data.effects || [])
-      }
-    } catch (err) {
-      console.error('Error fetching effects:', err)
-      setError('Failed to load effects')
-    } finally {
-      setIsLoading(false)
-    }
-  }
+  
+  const effects = getEffectsByCategory(selectedCategory)
 
   const handleEffectClick = (effect: EffectTemplateWithMedia) => {
     if (onSelectEffect) {

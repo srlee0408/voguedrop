@@ -13,6 +13,7 @@ import { ModelModal } from "@/components/modals/ModelModal"
 import type { GeneratedVideo } from "@/types/canvas"
 import type { EffectTemplateWithMedia } from "@/types/database"
 import { useBeforeUnload } from "./_hooks/useBeforeUnload"
+import { EffectsDataProvider } from "./_hooks/useEffectsData"
 
 export default function CanvasPage() {
   const [isLibraryOpen, setIsLibraryOpen] = useState(false)
@@ -162,69 +163,71 @@ export default function CanvasPage() {
 
 
   return (
-    <div className="min-h-screen flex flex-col bg-background text-foreground">
-      <Header onLibraryClick={() => setIsLibraryOpen(true)} />
+    <EffectsDataProvider>
+      <div className="min-h-screen flex flex-col bg-background text-foreground">
+        <Header onLibraryClick={() => setIsLibraryOpen(true)} />
 
-      <div className="flex flex-1">
-        <LeftPanel
-          isPrompterOpen={isPrompterOpen}
-          onPrompterToggle={() => setIsPrompterOpen(!isPrompterOpen)}
-          promptText={promptText}
-          onPromptChange={setPromptText}
-          onImageUpload={setUploadedImage}
-          isGenerating={isGenerating}
-          generationError={generationError}
-          onEffectModalOpen={() => setIsEffectModalOpen(true)}
+        <div className="flex flex-1">
+          <LeftPanel
+            isPrompterOpen={isPrompterOpen}
+            onPrompterToggle={() => setIsPrompterOpen(!isPrompterOpen)}
+            promptText={promptText}
+            onPromptChange={setPromptText}
+            onImageUpload={setUploadedImage}
+            isGenerating={isGenerating}
+            generationError={generationError}
+            onEffectModalOpen={() => setIsEffectModalOpen(true)}
+            selectedEffects={selectedEffects}
+            onEffectRemove={handleEffectRemove}
+          />
+
+          <Canvas
+            selectedResolution={selectedResolution}
+            selectedSize={selectedSize}
+            brushSize={brushSize}
+            isBrushPopupOpen={isBrushPopupOpen}
+            onPromptModalOpen={() => setIsPromptModalOpen(true)}
+            onBrushToggle={() => setIsBrushPopupOpen(!isBrushPopupOpen)}
+            onBrushSizeChange={setBrushSize}
+            showControls={true}
+            generatedVideos={generatedVideos}
+            selectedVideoId={selectedVideoId}
+            onVideoSelect={handleVideoSelect}
+          />
+        </div>
+
+        <LibraryModal isOpen={isLibraryOpen} onClose={() => setIsLibraryOpen(false)} clips={libraryClips} />
+        
+        <EffectModal 
+          isOpen={isEffectModalOpen} 
+          onClose={() => setIsEffectModalOpen(false)} 
+          onSelectEffect={handleEffectSelect}
           selectedEffects={selectedEffects}
-          onEffectRemove={handleEffectRemove}
         />
-
-        <Canvas
-          selectedResolution={selectedResolution}
-          selectedSize={selectedSize}
-          brushSize={brushSize}
-          isBrushPopupOpen={isBrushPopupOpen}
-          onPromptModalOpen={() => setIsPromptModalOpen(true)}
-          onBrushToggle={() => setIsBrushPopupOpen(!isBrushPopupOpen)}
-          onBrushSizeChange={setBrushSize}
-          showControls={true}
-          generatedVideos={generatedVideos}
-          selectedVideoId={selectedVideoId}
-          onVideoSelect={handleVideoSelect}
+        
+        <PromptModal
+          isOpen={isPromptModalOpen}
+          onClose={() => setIsPromptModalOpen(false)}
+          promptText={promptText}
+          negativePrompt={negativePrompt}
+          onPromptChange={setPromptText}
+          onNegativePromptChange={setNegativePrompt}
+          onApply={() => console.log("Generating with prompt:", promptText)}
+        />
+        
+        <CameraModal
+          isOpen={isCameraModalOpen}
+          onClose={() => setIsCameraModalOpen(false)}
+          onCapture={(imageData) => console.log("Captured image:", imageData)}
+        />
+        
+        <ModelModal
+          isOpen={isModelModalOpen}
+          onClose={() => setIsModelModalOpen(false)}
+          onSelectModel={setSelectedModelId}
+          selectedModelId={selectedModelId}
         />
       </div>
-
-      <LibraryModal isOpen={isLibraryOpen} onClose={() => setIsLibraryOpen(false)} clips={libraryClips} />
-      
-      <EffectModal 
-        isOpen={isEffectModalOpen} 
-        onClose={() => setIsEffectModalOpen(false)} 
-        onSelectEffect={handleEffectSelect}
-        selectedEffects={selectedEffects}
-      />
-      
-      <PromptModal
-        isOpen={isPromptModalOpen}
-        onClose={() => setIsPromptModalOpen(false)}
-        promptText={promptText}
-        negativePrompt={negativePrompt}
-        onPromptChange={setPromptText}
-        onNegativePromptChange={setNegativePrompt}
-        onApply={() => console.log("Generating with prompt:", promptText)}
-      />
-      
-      <CameraModal
-        isOpen={isCameraModalOpen}
-        onClose={() => setIsCameraModalOpen(false)}
-        onCapture={(imageData) => console.log("Captured image:", imageData)}
-      />
-      
-      <ModelModal
-        isOpen={isModelModalOpen}
-        onClose={() => setIsModelModalOpen(false)}
-        onSelectModel={setSelectedModelId}
-        selectedModelId={selectedModelId}
-      />
-    </div>
+    </EffectsDataProvider>
   )
 }
