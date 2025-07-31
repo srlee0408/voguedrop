@@ -1,6 +1,7 @@
 import { ImageSection } from "./ImageSection";
 import { EffectsSection } from "./EffectsSection";
 import { PrompterSection } from "./PrompterSection";
+import { EffectsGallery } from "./EffectsGallery";
 import type { GeneratedVideo } from "@/types/canvas";
 import type { EffectTemplateWithMedia } from "@/types/database";
 
@@ -39,8 +40,10 @@ export function LeftPanel({
         isGenerating={isGenerating}
       />
 
-<EffectsSection 
+      <EffectsSection 
+        selectedEffects={selectedEffects}
         onEffectClick={onEffectModalOpen}
+        onEffectRemove={onEffectRemove}
       />
       
       <PrompterSection
@@ -51,7 +54,10 @@ export function LeftPanel({
         selectedEffects={selectedEffects}
         onEffectRemove={onEffectRemove}
       />
-    
+
+      <EffectsGallery
+        onEffectClick={onEffectModalOpen}
+      />
 
       {/* Error Message */}
       {generationError && (

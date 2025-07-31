@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // effect_templates 조회
+    // effect_templates 조회 (category 정보 포함)
     const { data: effects, error: effectsError } = await supabase
       .from('effect_templates')
       .select(`
@@ -39,7 +39,8 @@ export async function GET(request: NextRequest) {
         preview_media_id,
         display_order,
         is_active,
-        created_at
+        created_at,
+        category:categories(*)
       `)
       .eq('category_id', categoryData.id)
       .eq('is_active', true)
