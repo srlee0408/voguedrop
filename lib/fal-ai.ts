@@ -58,7 +58,7 @@ export async function generateVideo({
     : {
         prompt: truncatedPrompt,
         image_url: imageUrl,
-        duration: "6",  // Hailo는 6초 고정
+        duration: duration || "6",  // 사용자가 선택한 duration 사용
         prompt_optimizer: true
       };
 

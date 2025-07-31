@@ -167,7 +167,7 @@ export async function POST(request: NextRequest) {
             imageUrl: finalImageUrl,
             prompt: combinedPrompt,
             modelType: model,
-            duration: model === 'seedance' ? (duration || '5') : '6'  // Hailo는 6초만 지원
+            duration: duration || '6'  // 두 모델 모두 사용자가 선택한 duration 사용
           });
 
           // 성공시 DB 업데이트

@@ -27,7 +27,7 @@ export function CanvasControls({
   onGenerateClick,
   isGenerating = false,
   canGenerate = false,
-  selectedDuration = "5",
+  selectedDuration = "6",
   onDurationChange,
 }: CanvasControlsProps) {
   return (
@@ -47,7 +47,7 @@ export function CanvasControls({
           value={selectedDuration}
           onChange={(e) => onDurationChange?.(e.target.value)}
         >
-          <option value="5">5s</option>
+          <option value="6">6s</option>
           <option value="10">10s</option>
         </select>
         <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">

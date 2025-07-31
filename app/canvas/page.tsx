@@ -35,7 +35,7 @@ export default function CanvasPage() {
   const [selectedEffects, setSelectedEffects] = useState<EffectTemplateWithMedia[]>([])
   const [generationError, setGenerationError] = useState<string | null>(null)
   const [selectedVideoId, setSelectedVideoId] = useState<number | null>(null)
-  const [selectedDuration, setSelectedDuration] = useState<string>("5")
+  const [selectedDuration, setSelectedDuration] = useState<string>("6")
   
   // 페이지 이탈 방지
   useBeforeUnload(isGenerating, 'Video generation is in progress. Leaving the page will cancel the generation.')

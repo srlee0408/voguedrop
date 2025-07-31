@@ -39,7 +39,7 @@ export function Canvas({
   onGenerateClick,
   isGenerating = false,
   canGenerate = false,
-  selectedDuration = "5",
+  selectedDuration = "6",
   onDurationChange,
 }: CanvasProps) {
   const {
