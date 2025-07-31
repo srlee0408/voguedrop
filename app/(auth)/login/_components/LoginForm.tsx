@@ -1,12 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import type { LoginFormData } from '@/types/auth'
 import { createClient } from '@/lib/supabase/client'
 
 export function LoginForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
   const [formData, setFormData] = useState<LoginFormData>({
     email: '',
@@ -14,6 +15,8 @@ export function LoginForm() {
   })
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  
+  const redirect = searchParams.get('redirect') || '/'
 
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -48,8 +51,8 @@ export function LoginForm() {
         throw signInError
       }
 
-      // Redirect to home page on successful login
-      router.push('/')
+      // Redirect to the intended page or home
+      router.push(redirect)
     } catch (err) {
       if (err instanceof Error) {
         setError(err.message)
