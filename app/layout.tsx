@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./external-imports.css";
 import "./globals.css";
+
 import { StagewiseToolbar } from "@stagewise/toolbar-next";
 import ReactPlugin from "@stagewise-plugins/react";
 import { AuthProvider } from "@/lib/auth/AuthContext";
@@ -35,6 +36,7 @@ export default function RootLayout({
           {children}
         </AuthProvider>
         <StagewiseToolbar config={{ plugins: [ReactPlugin] }} />
+
       </body>
     </html>
   );

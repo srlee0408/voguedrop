@@ -14,7 +14,7 @@ export default function HomePage() {
     <div className="min-h-screen bg-black text-white">
       <HeroSection texts={homeTexts.hero} />
       <FeaturesSection texts={homeTexts.features} />
-      <HowItWorksSection texts={homeTexts.howItWorks} />
+      <HowItWorksSection />
       <GallerySection texts={homeTexts.gallery} />
       <CTASection texts={homeTexts.cta} />
       <Footer texts={homeTexts.footer} />
