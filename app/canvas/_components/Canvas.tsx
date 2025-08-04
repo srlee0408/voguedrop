@@ -1,4 +1,4 @@
-import { Pin, Loader2 } from "lucide-react";
+import { Pin } from "lucide-react";
 import Image from "next/image";
 import { CanvasControls } from "./CanvasControls";
 import { CanvasHistoryPanel } from "./CanvasHistoryPanel";
@@ -56,14 +56,6 @@ export function Canvas({
             // generatedVideos에서 해당 슬롯의 비디오 찾기
             const video = generatedVideos && generatedVideos[index];
             
-            // 이미 채워진 슬롯 수 계산
-            const filledSlots = generatedVideos.filter(v => v?.url).length;
-            
-            // 다음 두 빈 슬롯에 로딩 표시
-            const isLoading = isGenerating && 
-                            index >= filledSlots && 
-                            index < filledSlots + 2 && 
-                            !video?.url;
             
             
             return (
@@ -85,12 +77,6 @@ export function Canvas({
                 />
               </button>
               
-              {/* 로딩 상태 - 첫 두 슬롯만 */}
-              {isLoading && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-10">
-                  <Loader2 className="w-12 h-12 text-white animate-spin" />
-                </div>
-              )}
               
               {/* 비디오 또는 이미지 */}
               {video?.url ? (
