@@ -15,7 +15,9 @@ interface GallerySectionProps {
 async function GalleryData() {
   try {
     const items = await getGalleryItems()
-    return <GalleryItems items={items} />
+    // Limit to 8 items for the home page
+    const limitedItems = items.slice(0, 8)
+    return <GalleryItems items={limitedItems} />
   } catch {
     return (
       <div className="col-span-full text-center py-12">

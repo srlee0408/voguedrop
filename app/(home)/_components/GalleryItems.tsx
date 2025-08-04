@@ -69,12 +69,9 @@ export function GalleryItems({ items }: GalleryItemsProps) {
           )}
           
           <div className="absolute bottom-2 sm:bottom-4 left-2 sm:left-4 right-2 sm:right-4 z-20">
-            <h3 className="font-semibold mb-1 text-sm sm:text-base">
+            <h3 className="font-semibold text-sm sm:text-base">
               {item.name}
             </h3>
-            <p className="text-xs sm:text-sm text-gray-300">
-              {item.category.name}
-            </p>
           </div>
           
           <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-30">

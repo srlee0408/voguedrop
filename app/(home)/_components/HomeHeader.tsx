@@ -32,24 +32,27 @@ export function HomeHeader({ texts = { login: "Login", getStarted: "Get Started"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
         <div className="flex items-center justify-between">
-          <div className="font-sans text-xl sm:text-2xl font-bold text-primary tracking-tight">
+          <Link 
+            href="/" 
+            className="font-sans text-xl sm:text-2xl font-bold text-primary tracking-tight hover:opacity-80 transition-opacity"
+          >
             vogue drop
-          </div>
+          </Link>
           <nav className="hidden md:flex items-center gap-8">
             <Link
-              href="#features"
+              href="/#features"
               className="text-text-secondary hover:text-text-primary transition-colors"
             >
               Features
             </Link>
             <Link
-              href="#how-it-works"
+              href="/#how-it-works"
               className="text-text-secondary hover:text-text-primary transition-colors"
             >
               How it Works
             </Link>
             <Link
-              href="#gallery"
+              href="/gallery"
               className="text-text-secondary hover:text-text-primary transition-colors"
             >
               Gallery
