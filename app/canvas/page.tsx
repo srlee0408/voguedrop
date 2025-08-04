@@ -30,12 +30,15 @@ export default function CanvasPage() {
   const [selectedSize] = useState("1024×1024")
   const [selectedModelId, setSelectedModelId] = useState<string>("")
   const [uploadedImage, setUploadedImage] = useState<string | null>(null)
-  const [generatedVideos, setGeneratedVideos] = useState<GeneratedVideo[]>([])
+  const [generatedVideos, setGeneratedVideos] = useState<Map<string, GeneratedVideo>>(new Map())
   const [isGenerating, setIsGenerating] = useState(false)
   const [selectedEffects, setSelectedEffects] = useState<EffectTemplateWithMedia[]>([])
   const [generationError, setGenerationError] = useState<string | null>(null)
   const [selectedVideoId, setSelectedVideoId] = useState<number | null>(null)
   const [selectedDuration, setSelectedDuration] = useState<string>("6")
+  const [generatingProgress, setGeneratingProgress] = useState<Map<string, number>>(new Map())
+  const [currentWebhookStatus, setCurrentWebhookStatus] = useState<string>("")
+  const [currentElapsedMinutes, setCurrentElapsedMinutes] = useState<number>(0)
   
   // 페이지 이탈 방지
   useBeforeUnload(isGenerating, 'Video generation is in progress. Leaving the page will cancel the generation.')
@@ -115,13 +118,84 @@ export default function CanvasPage() {
         throw new Error(data.error || 'Video generation failed.');
       }
 
+      // 진행률 초기화 - 각 작업을 슬롯 인덱스와 매핑
+      const progressMap = new Map<string, number>();
+      const jobStartTimes = new Map<string, number>(); // 작업 시작 시간 기록
+      
+      data.jobs.forEach((job: { jobId: string }, index: number) => {
+        progressMap.set(index.toString(), 0);
+        jobStartTimes.set(job.jobId, Date.now());
+      });
+      setGeneratingProgress(progressMap);
+
       // 2. 폴링 시작
       const pollJobs = async () => {
         const pollPromises = data.jobs
-          .filter((job: { status: string }) => job.status !== 'failed')
-          .map(async (job: { jobId: string }) => {
+          .map(async (job: { jobId: string }, originalIndex: number) => {
+            const jobStartTime = jobStartTimes.get(job.jobId) || Date.now();
+            const elapsedTime = Date.now() - jobStartTime;
+            const elapsedMinutes = Math.floor(elapsedTime / 60000);
+            
+            // UI 상태 업데이트
+            setCurrentElapsedMinutes(elapsedMinutes);
+            
+            // 5분 경과 체크
+            if (elapsedMinutes >= 5 && elapsedTime % 60000 < 2000) { // 매 분마다 한 번만 체크
+              console.log(`Job ${job.jobId}: ${elapsedMinutes}분 경과, webhook 상태 확인`);
+              
+              // webhook 상태 확인
+              const webhookCheckResponse = await fetch(`/api/canvas/jobs/${job.jobId}/check-webhook`);
+              const webhookCheckData = await webhookCheckResponse.json();
+              
+              // webhook 상태 UI 업데이트
+              setCurrentWebhookStatus(webhookCheckData.webhookStatus || 'pending');
+              
+              if (webhookCheckData.webhookCheckRequired) {
+                console.log(`Job ${job.jobId}: webhook 미수신으로 fal.ai 직접 확인 필요`);
+                
+                // poll 엔드포인트로 fal.ai 상태 직접 확인
+                const pollResponse = await fetch(`/api/canvas/jobs/${job.jobId}/poll`);
+                const pollData = await pollResponse.json();
+                
+                // webhook 상태 업데이트
+                if (pollData.webhookStatus) {
+                  setCurrentWebhookStatus(pollData.webhookStatus);
+                }
+                
+                if (pollData.status === 'completed' || pollData.status === 'failed') {
+                  return { ...pollData, originalIndex };
+                }
+              }
+            }
+            
+            // 일반 상태 확인
             const statusResponse = await fetch(`/api/canvas/jobs/${job.jobId}`);
-            return statusResponse.json();
+            const statusData = await statusResponse.json();
+            
+            // 진행률 업데이트 (시뮬레이션 - 실제로는 API에서 progress 정보가 와야 함)
+            if (statusData.status === 'processing') {
+              // 진행률 시뮬레이션: 경과 시간에 기반한 선형 진행률
+              // 5분(300초) 동안 0%에서 90%까지 도달
+              const currentTime = Date.now();
+              const startTime = jobStartTimes.get(job.jobId) || currentTime;
+              const elapsedSeconds = (currentTime - startTime) / 1000;
+              const targetProgress = Math.min((elapsedSeconds / 300) * 90, 90); // 최대 90%까지
+              
+              setGeneratingProgress(prev => {
+                const newMap = new Map(prev);
+                newMap.set(originalIndex.toString(), Math.floor(targetProgress));
+                return newMap;
+              });
+            } else if (statusData.status === 'completed') {
+              // 완료 시 100%로 설정
+              setGeneratingProgress(prev => {
+                const newMap = new Map(prev);
+                newMap.set(originalIndex.toString(), 100);
+                return newMap;
+              });
+            }
+            
+            return { ...statusData, originalIndex };
           });
 
         const jobStatuses = await Promise.all(pollPromises);
@@ -140,9 +214,13 @@ export default function CanvasPage() {
 
           setGeneratedVideos(prev => {
             // 중복 제거하고 추가
-            const existingIds = new Set(prev.map(v => v.id));
+            const existingIds = new Set(Array.from(prev.values()).map(v => v.id));
             const uniqueNewVideos = newVideos.filter(v => !existingIds.has(v.id));
-            return [...uniqueNewVideos, ...prev].slice(0, 2);
+            const newMap = new Map(prev);
+            uniqueNewVideos.forEach(video => {
+              newMap.set(video.id.toString(), video);
+            });
+            return newMap;
           });
 
           // 첫 번째 비디오 선택
@@ -162,6 +240,11 @@ export default function CanvasPage() {
           // 모든 작업 완료
           setIsGenerating(false);
           
+          // 진행률 및 webhook 상태 초기화
+          setGeneratingProgress(new Map());
+          setCurrentWebhookStatus("");
+          setCurrentElapsedMinutes(0);
+          
           const failedJobs = jobStatuses.filter(job => job.status === 'failed');
           if (failedJobs.length === jobStatuses.length) {
             setGenerationError('All video generation attempts failed.');
@@ -180,6 +263,9 @@ export default function CanvasPage() {
           : 'An error occurred during video generation.'
       );
       setIsGenerating(false);
+      setGeneratingProgress(new Map());
+      setCurrentWebhookStatus("");
+      setCurrentElapsedMinutes(0);
     }
   };
 
@@ -214,7 +300,7 @@ export default function CanvasPage() {
             onBrushToggle={() => setIsBrushPopupOpen(!isBrushPopupOpen)}
             onBrushSizeChange={setBrushSize}
             showControls={true}
-            generatedVideos={generatedVideos}
+            generatedVideos={Array.from(generatedVideos.values())}
             selectedVideoId={selectedVideoId}
             onVideoSelect={handleVideoSelect}
             onGenerateClick={handleGenerateVideo}
@@ -222,6 +308,9 @@ export default function CanvasPage() {
             canGenerate={canGenerate}
             selectedDuration={selectedDuration}
             onDurationChange={setSelectedDuration}
+            generatingProgress={generatingProgress}
+            webhookStatus={currentWebhookStatus}
+            elapsedMinutes={currentElapsedMinutes}
           />
         </div>
 

@@ -2,6 +2,7 @@ import { Pin } from "lucide-react";
 import Image from "next/image";
 import { CanvasControls } from "./CanvasControls";
 import { CanvasHistoryPanel } from "./CanvasHistoryPanel";
+import { VideoGenerationProgress } from "./VideoGenerationProgress";
 import { useCanvas } from "../_hooks/useCanvas";
 import type { GeneratedVideo } from "@/types/canvas";
 
@@ -22,6 +23,9 @@ interface CanvasProps {
   canGenerate?: boolean;
   selectedDuration?: string;
   onDurationChange?: (duration: string) => void;
+  generatingProgress?: Map<string, number>;
+  webhookStatus?: string;
+  elapsedMinutes?: number;
 }
 
 export function Canvas({
@@ -41,6 +45,9 @@ export function Canvas({
   canGenerate = false,
   selectedDuration = "6",
   onDurationChange,
+  generatingProgress = new Map(),
+  webhookStatus = "",
+  elapsedMinutes = 0,
 }: CanvasProps) {
   const {
     images,
@@ -56,7 +63,10 @@ export function Canvas({
             // generatedVideos에서 해당 슬롯의 비디오 찾기
             const video = generatedVideos && generatedVideos[index];
             
-            
+            // 현재 슬롯의 생성 진행률 찾기
+            // generatingProgress는 슬롯 index -> progress 맵
+            const progress = generatingProgress.get(index.toString()) || 0;
+            const isGeneratingThisSlot = isGenerating && generatingProgress.has(index.toString()) && progress < 100;
             
             return (
               <div
@@ -97,6 +107,14 @@ export function Canvas({
                   priority={index === 0}
                 />
               ) : null}
+              
+              {/* 프로그레스 오버레이 */}
+              <VideoGenerationProgress 
+                progress={progress}
+                isVisible={isGeneratingThisSlot}
+                webhookStatus={webhookStatus}
+                elapsedMinutes={elapsedMinutes}
+              />
             </div>
             );
           })}
