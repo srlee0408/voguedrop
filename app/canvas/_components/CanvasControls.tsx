@@ -1,14 +1,10 @@
-import { Wand2, Download, Bookmark, Brush, ChevronDown } from "lucide-react"
+import { Wand2, Download, ChevronDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 interface CanvasControlsProps {
   selectedResolution: string
   selectedSize: string
-  brushSize: number
-  isBrushPopupOpen: boolean
   onPromptModalOpen?: () => void
-  onBrushToggle: () => void
-  onBrushSizeChange: (size: number) => void
   onGenerateClick?: () => void
   isGenerating?: boolean
   canGenerate?: boolean
@@ -19,11 +15,7 @@ interface CanvasControlsProps {
 export function CanvasControls({
   selectedResolution,
   selectedSize,
-  brushSize,
-  isBrushPopupOpen,
   onPromptModalOpen,
-  onBrushToggle,
-  onBrushSizeChange,
   onGenerateClick,
   isGenerating = false,
   canGenerate = false,
@@ -64,36 +56,6 @@ export function CanvasControls({
       <button className="w-10 h-10 flex items-center justify-center text-text-secondary hover:text-text-primary rounded-button">
         <Download className="w-4 h-4" />
       </button>
-
-      <button className="w-10 h-10 flex items-center justify-center text-text-secondary hover:text-text-primary rounded-button">
-        <Bookmark className="w-4 h-4" />
-      </button>
-
-      <div className="relative">
-        <button
-          className="w-10 h-10 flex items-center justify-center text-text-secondary hover:text-text-primary rounded-button"
-          onClick={onBrushToggle}
-        >
-          <Brush className="w-4 h-4" />
-        </button>
-
-        {isBrushPopupOpen && (
-          <div
-            className="absolute -top-16 left-1/2 -translate-x-1/2 bg-surface rounded-lg shadow-lg p-2 z-50"
-            style={{ width: "140px" }}
-          >
-            <input 
-              type="range" 
-              min="1" 
-              max="50" 
-              value={brushSize} 
-              onChange={(e) => onBrushSizeChange(Number(e.target.value))}
-              className="w-full"
-            />
-            <div className="text-[10px] text-text-tertiary mt-1 text-center">Size: {brushSize}</div>
-          </div>
-        )}
-      </div>
     </div>
   )
 }
