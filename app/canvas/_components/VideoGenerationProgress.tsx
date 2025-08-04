@@ -5,27 +5,59 @@ interface VideoGenerationProgressProps {
   isVisible: boolean;
   webhookStatus?: string;
   elapsedMinutes?: number;
+  elapsedSeconds?: number;
 }
 
 export function VideoGenerationProgress({ 
   progress, 
   isVisible, 
   webhookStatus,
-  elapsedMinutes = 0 
+  elapsedMinutes = 0,
+  elapsedSeconds = 0
 }: VideoGenerationProgressProps) {
   if (!isVisible) return null;
 
   const getStatusMessage = () => {
-    if (webhookStatus === 'pending' && elapsedMinutes < 5) {
-      return `Generating video... (${elapsedMinutes} min elapsed)`;
-    } else if (webhookStatus === 'pending' && elapsedMinutes >= 5) {
-      return 'Processing is taking longer than expected. Checking status...';
-    } else if (webhookStatus === 'timeout') {
-      return 'Checking status via fallback...';
-    } else if (webhookStatus === 'delivered') {
-      return 'Processing video...';
+    // 단계별 메시지 표시
+    if (progress < 20) {
+      return 'Initializing AI model...';
+    } else if (progress < 40) {
+      return 'Analyzing image and preparing effects...';
+    } else if (progress < 80) {
+      return 'Generating motion... This may take a few minutes...';
+    } else if (progress < 95) {
+      return 'Finalizing video and encoding...';
+    } else {
+      return 'Almost done...';
     }
-    return 'Generating video...';
+  };
+  
+  const getTimeDisplay = () => {
+    if (elapsedSeconds < 60) {
+      return `${elapsedSeconds}s elapsed`;
+    } else {
+      const mins = Math.floor(elapsedSeconds / 60);
+      const secs = elapsedSeconds % 60;
+      return `${mins}m ${secs}s elapsed`;
+    }
+  };
+  
+  const getEstimatedTime = () => {
+    // 225초(3분 45초) 기준으로 예상 시간 계산
+    const totalExpectedSeconds = 225;
+    const estimatedRemainingSeconds = Math.max(0, totalExpectedSeconds - elapsedSeconds);
+    
+    if (estimatedRemainingSeconds === 0) {
+      return 'Finishing up...';
+    }
+    
+    const mins = Math.floor(estimatedRemainingSeconds / 60);
+    const secs = estimatedRemainingSeconds % 60;
+    
+    if (mins === 0) {
+      return `~${secs}s remaining`;
+    }
+    return `~${mins}m ${secs}s remaining`;
   };
 
   return (
@@ -37,7 +69,7 @@ export function VideoGenerationProgress({
           style={{ width: `${progress}%` }}
         >
           {/* Animated shine effect */}
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12 animate-shimmer" />
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent w-1/2 -skew-x-12 animate-shimmer" />
         </div>
       </div>
       
@@ -49,8 +81,15 @@ export function VideoGenerationProgress({
         </div>
         
         {/* Status message */}
-        <div className="text-white text-sm font-medium px-4 py-2 bg-black/50 rounded-lg">
+        <div className="text-white text-sm font-medium px-4 py-2 bg-black/50 rounded-lg mb-2">
           {getStatusMessage()}
+        </div>
+        
+        {/* Time display */}
+        <div className="text-white/80 text-xs px-3 py-1 bg-black/30 rounded-lg">
+          <span>{getTimeDisplay()}</span>
+          {progress < 95 && <span className="mx-2">•</span>}
+          {progress < 95 && <span>{getEstimatedTime()}</span>}
         </div>
         
         {/* Webhook status indicator */}
