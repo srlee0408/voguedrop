@@ -26,6 +26,11 @@ interface CanvasProps {
   selectedHistoryVideos?: GeneratedVideo[];
   uploadedImage?: string | null;
   onRemoveContent?: (index: number, type: 'image' | 'video') => void;
+  onSlotSelect?: (index: number, video: GeneratedVideo | null) => void;
+  selectedSlotIndex?: number | null;
+  activeVideo?: GeneratedVideo | null;
+  onDownloadClick?: () => void;
+  isDownloading?: boolean;
 }
 
 export function Canvas({
@@ -47,6 +52,11 @@ export function Canvas({
   selectedHistoryVideos = [],
   uploadedImage = null,
   onRemoveContent,
+  onSlotSelect,
+  selectedSlotIndex,
+  activeVideo,
+  onDownloadClick,
+  isDownloading = false,
 }: CanvasProps) {
   const {
     images,
@@ -122,13 +132,25 @@ export function Canvas({
             return (
               <div
                 key={image.id}
-                className="relative bg-surface rounded-lg overflow-hidden h-full"
+                className={`relative bg-surface rounded-lg overflow-hidden h-full cursor-pointer transition-all ${
+                  selectedSlotIndex === index ? 'ring-2 ring-primary' : ''
+                }`}
+                onClick={() => {
+                  if (displayContent.type === 'video' && displayContent.data) {
+                    onSlotSelect?.(index, displayContent.data as GeneratedVideo);
+                  } else {
+                    onSlotSelect?.(index, null);
+                  }
+                }}
               >
               {/* Pin button - 비디오가 있는 슬롯에만 표시 */}
               {displayContent.type === 'video' && displayContent.data && (
                 <button
                   className="absolute top-4 right-4 w-10 h-10 bg-surface/90 backdrop-blur rounded-full flex items-center justify-center z-20 hover:bg-surface transition-colors"
-                  onClick={() => handleToggleFavorite(index, displayContent.data as GeneratedVideo)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleToggleFavorite(index, displayContent.data as GeneratedVideo);
+                  }}
                   aria-label={
                     favoriteStates.get((displayContent.data as GeneratedVideo).id) ?? 
                     (displayContent.data as GeneratedVideo).isFavorite 
@@ -151,7 +173,8 @@ export function Canvas({
               {displayContent.type !== 'empty' && onRemoveContent && (
                 <button
                   className="absolute top-4 right-16 w-10 h-10 bg-black/60 backdrop-blur rounded-full flex items-center justify-center z-20 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/80"
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation();
                     if (displayContent.type === 'video' && displayContent.data) {
                       onRemoveContent(index, 'video');
                     } else if (displayContent.type === 'image' && displayContent.data) {
@@ -210,6 +233,9 @@ export function Canvas({
               canGenerate={canGenerate}
               selectedDuration={selectedDuration}
               onDurationChange={onDurationChange}
+              onDownloadClick={onDownloadClick}
+              activeVideo={activeVideo}
+              isDownloading={isDownloading}
             />
           </div>
         )}

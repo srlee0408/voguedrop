@@ -27,8 +27,11 @@ npm run start
 # 린트 검사
 npm run lint
 
-# 타입 체크 (package.json에 추가 필요)
-npm run type-check
+# 테스트 실행
+npm run test
+
+# 테스트 실행 (단일 실행)
+npm run test:run
 ```
 
 ### 빌드 전 필수 체크
@@ -44,9 +47,17 @@ npm run type-check
 - **AI Integration**: fal.ai API로 영상 생성
 
 ### 주요 워크플로우
-1. **AI 영상 생성**: 이미지 업로드 → 효과 선택 → fal.ai API 호출 → 영상 생성
+1. **AI 영상 생성 (Job-based Architecture)**:
+   - 이미지 업로드 → Supabase Storage 저장
+   - 효과 선택 (최대 2개) → job 생성 및 DB 기록
+   - fal.ai API 비동기 호출 (webhook URL 포함)
+   - 클라이언트 3초 간격 polling으로 진행상황 추적
+   - Webhook 수신 시 job 상태 업데이트
+   - 5분 후 webhook 미수신 시 fal.ai 직접 polling (fallback)
+   - 완료된 영상 Supabase Storage 저장 및 메타데이터 업데이트
 2. **사용자 인증**: Supabase Auth로 이메일/비밀번호 인증
 3. **데이터 저장**: 생성된 영상과 메타데이터를 Supabase에 저장
+4. **슬롯 기반 UI**: Canvas에서 4개 슬롯으로 컨텐츠 관리
 
 ## 프로젝트 구조 패턴
 
@@ -72,6 +83,14 @@ types/
 ├── api.ts            # API 요청/응답 타입
 └── [feature].ts      # 기능별 타입 (필요시)
 ```
+
+### 데이터베이스 스키마
+주요 테이블:
+- `video_generations`: 영상 생성 작업 추적 (job_id, status, webhook 상태)
+- `effect_templates`: AI 효과 템플릿 (카테고리별)
+- `categories`: 효과 카테고리 관리
+- `media_assets`: 파일 스토리지 관리
+- `video_generation_logs`: 상세 로깅
 
 ## 코딩 표준
 
@@ -110,34 +129,77 @@ export async function POST(request: NextRequest) {
 }
 ```
 
+### 비동기 Job 처리 패턴
+```typescript
+// 1. Job 생성 및 비동기 작업 시작
+POST /api/canvas/generate-async
+- Job ID 생성 및 DB 기록
+- fal.ai API 호출 (webhook URL 포함)
+- Job ID 반환
+
+// 2. 상태 확인 (Polling)
+GET /api/canvas/jobs/[jobId]/poll
+- DB에서 job 상태 확인
+- 5분 이상 경과 시 fal.ai 직접 조회
+
+// 3. Webhook 수신
+POST /api/webhooks/fal
+- 서명 검증
+- Job 상태 업데이트
+- 결과 저장
+```
+
 ## 현재 개발 상태 (MVP)
 
 ### 완료된 기능
-- 프로젝트 초기 설정
-- 기본 레이아웃 구조
-- 갤러리 아이템 컴포넌트
+- ✅ **Epic 1**: 사용자 인증 시스템 (완료)
+  - 이메일/비밀번호 회원가입 및 로그인
+  - Supabase Auth 통합
+  - 세션 관리 및 보호된 라우트
+- ✅ **Epic 2**: Canvas AI Studio (완료)
+  - 이미지 업로드 (드래그앤드롭 지원)
+  - 효과 선택 UI (최대 2개 효과 선택)
+  - AI 영상 생성 (fal.ai Hailo 모델)
+  - 실시간 진행상황 추적
+  - 영상 히스토리 및 즐겨찾기
+  - 슬롯 기반 컨텐츠 관리 (4 슬롯)
+  - 영상 다운로드 기능
+- ✅ **Epic 3**: 갤러리 시스템 (완료)
+  - 영상 목록 및 필터링
+  - 반응형 그리드 레이아웃
+  - 카테고리별 브라우징
 
-### 진행 중인 Epic
-- **Epic 2**: Canvas AI Studio (Story 2.1 진행 중)
-  - 이미지 업로드 기능 구현 필요
-  - 효과 선택 UI 구현 필요
-  - AI 생성 API 연동 필요
-
-### 다음 단계
-1. Story 2.1: 이미지 업로드 완성
-2. Story 2.2: 효과 선택 UI
-3. Story 2.3: AI 영상 생성
-4. Story 2.4: 영상 미리보기 및 다운로드
+### 기술적 구현 사항
+- **Job 기반 비동기 처리**: 영상 생성 요청을 job으로 관리
+- **Webhook 시스템**: fal.ai 서명 검증 및 상태 업데이트
+- **Progress Tracking**: 실시간 진행률 시뮬레이션 및 표시
+- **Fallback 메커니즘**: Webhook 실패 시 직접 polling
+- **Favorites 기능**: 생성된 영상 즐겨찾기 관리
+- **Stagewise 통합**: 개발 도구 통합 (포트 3100/3000)
 
 ## 환경 변수 설정
 ```bash
-# .env.local
+# .env.local (클라이언트에서 접근 가능)
 NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+NEXT_PUBLIC_FAL_PUBLISHABLE_KEY=your-fal-publishable-key
 
 # .env (서버 전용)
 SUPABASE_SERVICE_KEY=your-service-key
 FAL_API_KEY=your-fal-api-key
+WEBHOOK_SECRET=your-webhook-secret
+```
+
+### Vercel 배포 설정
+```json
+// vercel.json
+{
+  "functions": {
+    "app/api/canvas/generate-async/route.ts": {
+      "maxDuration": 60
+    }
+  }
+}
 ```
 
 ## 개발 시 주의사항
@@ -216,3 +278,15 @@ Co-Authored-By: Claude <noreply@anthropic.com>
   - `@typescript-eslint/no-explicit-any`: `any` 대신 구체적인 타입 정의
   - React Hook 의존성 경고: `useCallback` 사용 또는 의존성 배열 업데이트
   - 타입 캐스팅이 필요한 경우: `as` 키워드 사용 (최소한으로)
+
+### fal.ai API 디버깅
+- Webhook 수신 확인: `/api/canvas/jobs/[jobId]/check-webhook` 엔드포인트 활용
+- Progress 추적: VideoGenerationProgress 컴포넌트의 상태 표시 확인
+- 로그 확인: video_generation_logs 테이블에서 상세 로그 조회
+
+## BMAD 개발 프로세스 (Cursor Rules)
+프로젝트는 BMAD(Business Model Accelerated Development) 방법론을 사용합니다:
+- `.bmad-core/` 디렉토리에 개발 프로세스 정의
+- Story 기반 개발: 각 기능은 Epic과 Story로 관리
+- `@dev` 명령으로 개발자 페르소나 활성화 가능
+- 개발 완료 시 Story 파일의 Dev Agent Record 섹션만 업데이트

@@ -1,5 +1,6 @@
-import { Wand2, Download, ChevronDown } from "lucide-react"
+import { Wand2, Download, ChevronDown, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import type { GeneratedVideo } from "@/types/canvas"
 
 interface CanvasControlsProps {
   selectedResolution: string
@@ -10,6 +11,9 @@ interface CanvasControlsProps {
   canGenerate?: boolean
   selectedDuration?: string
   onDurationChange?: (duration: string) => void
+  onDownloadClick?: () => void
+  activeVideo?: GeneratedVideo | null
+  isDownloading?: boolean
 }
 
 export function CanvasControls({
@@ -21,6 +25,9 @@ export function CanvasControls({
   canGenerate = false,
   selectedDuration = "6",
   onDurationChange,
+  onDownloadClick,
+  activeVideo,
+  isDownloading = false,
 }: CanvasControlsProps) {
   return (
     <div className="flex items-center gap-2 bg-surface-secondary p-2 rounded-lg border border-border">
@@ -53,8 +60,17 @@ export function CanvasControls({
         {selectedResolution} ({selectedSize})
       </button>
 
-      <button className="w-10 h-10 flex items-center justify-center text-text-secondary hover:text-text-primary rounded-button">
-        <Download className="w-4 h-4" />
+      <button 
+        className="w-10 h-10 flex items-center justify-center text-text-secondary hover:text-text-primary rounded-button disabled:opacity-50 disabled:cursor-not-allowed"
+        onClick={onDownloadClick}
+        disabled={!activeVideo || isDownloading}
+        title={!activeVideo ? "Select a video to download" : "Download video"}
+      >
+        {isDownloading ? (
+          <Loader2 className="w-4 h-4 animate-spin" />
+        ) : (
+          <Download className="w-4 h-4" />
+        )}
       </button>
     </div>
   )

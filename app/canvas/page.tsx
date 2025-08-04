@@ -39,6 +39,9 @@ export default function CanvasPage() {
   const [currentWebhookStatus, setCurrentWebhookStatus] = useState<string>("")
   const [currentElapsedMinutes, setCurrentElapsedMinutes] = useState<number>(0)
   const [currentElapsedSeconds, setCurrentElapsedSeconds] = useState<number>(0)
+  const [selectedSlotIndex, setSelectedSlotIndex] = useState<number | null>(null)
+  const [activeVideo, setActiveVideo] = useState<GeneratedVideo | null>(null)
+  const [isDownloading, setIsDownloading] = useState(false)
   
   // 페이지 이탈 방지
   useBeforeUnload(isGenerating, 'Video generation is in progress. Leaving the page will cancel the generation.')
@@ -328,8 +331,49 @@ export default function CanvasPage() {
     }
   };
 
+  // 슬롯 선택 핸들러
+  const handleSlotSelect = (index: number, video: GeneratedVideo | null) => {
+    setSelectedSlotIndex(index);
+    setActiveVideo(video);
+  };
 
-
+  // 다운로드 핸들러
+  const handleDownload = async () => {
+    if (!activeVideo || !activeVideo.url) return;
+    
+    if (isDownloading) return;
+    
+    // 파일명 생성: voguedrop_날짜_효과명.mp4
+    const date = new Date(activeVideo.createdAt).toISOString().split('T')[0];
+    const effectName = selectedEffects[0]?.name.toLowerCase().replace(/\s+/g, '-') || 'video';
+    const filename = `voguedrop_${date}_${effectName}.mp4`;
+    
+    setIsDownloading(true);
+    
+    try {
+      const response = await fetch(activeVideo.url);
+      if (!response.ok) throw new Error('Download failed');
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+    } catch (error) {
+      console.error('Download failed:', error);
+      setGenerationError('다운로드에 실패했습니다. 다시 시도해주세요.');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   return (
     <EffectsDataProvider>
@@ -369,6 +413,11 @@ export default function CanvasPage() {
             selectedHistoryVideos={selectedHistoryVideos}
             uploadedImage={uploadedImage}
             onRemoveContent={handleRemoveContent}
+            onSlotSelect={handleSlotSelect}
+            selectedSlotIndex={selectedSlotIndex}
+            activeVideo={activeVideo}
+            onDownloadClick={handleDownload}
+            isDownloading={isDownloading}
           />
         </div>
 
