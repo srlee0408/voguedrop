@@ -58,7 +58,11 @@ export default function CanvasPage() {
         // Deselect
         return prev.filter(e => e.id !== effect.id);
       } else {
-        // Add selection
+        // Add selection (최대 2개까지만)
+        if (prev.length >= 2) {
+          // 첫 번째 요소를 제거하고 새로운 것을 추가
+          return [...prev.slice(1), effect];
+        }
         return [...prev, effect];
       }
     });
@@ -138,7 +142,7 @@ export default function CanvasPage() {
             // 중복 제거하고 추가
             const existingIds = new Set(prev.map(v => v.id));
             const uniqueNewVideos = newVideos.filter(v => !existingIds.has(v.id));
-            return [...uniqueNewVideos, ...prev].slice(0, 4);
+            return [...uniqueNewVideos, ...prev].slice(0, 2);
           });
 
           // 첫 번째 비디오 선택

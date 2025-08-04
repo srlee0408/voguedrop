@@ -17,13 +17,13 @@ interface EffectsSectionProps {
 
 export function EffectsSection({ onEffectClick, selectedEffects, onEffectRemove }: EffectsSectionProps) {
 
-  // Always show 4 slots
-  const slots = [0, 1, 2, 3];
+  // Always show 2 slots
+  const slots = [0, 1];
   
   return (
     <div className="mb-4">
       <h2 className="text-sm font-medium mb-3 text-foreground">Selected Effects</h2>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-1">
         {slots.map((slotIndex) => {
           const effect = selectedEffects?.[slotIndex];
           
