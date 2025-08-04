@@ -1,7 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Play } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { HomeHeader } from "./HomeHeader";
@@ -55,10 +55,6 @@ export function HeroSection({ texts }: HeroSectionProps) {
                   <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </Link>
-              <Button size="lg" variant="outline" className="border-border hover:bg-surface/10 w-full sm:w-auto px-8 py-4 text-lg font-semibold">
-                <Play className="mr-2 w-4 h-4" />
-                {texts.cta.secondary}
-              </Button>
             </div>
           </div>
           
