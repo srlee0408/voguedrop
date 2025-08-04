@@ -1,4 +1,4 @@
-import { X, Info, Search, Play, Download, Loader2, Star } from "lucide-react"
+import { X, Info, Play, Download, Loader2, Star } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import Image from "next/image"
 import { useEffect, useState, useCallback } from "react"
@@ -22,10 +22,10 @@ interface LibraryModalProps {
 export function LibraryModal({ isOpen, onClose }: LibraryModalProps) {
   const [dbVideos, setDbVideos] = useState<VideoGeneration[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [searchTerm, setSearchTerm] = useState("")
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
   const [favoriteStates, setFavoriteStates] = useState<Map<string, boolean>>(new Map())
+  const [downloadingVideos, setDownloadingVideos] = useState<Set<string>>(new Set())
   const { user } = useAuth()
 
   const fetchVideos = useCallback(async () => {
@@ -106,35 +106,64 @@ export function LibraryModal({ isOpen, onClose }: LibraryModalProps) {
   }
 
   // 다운로드 핸들러
-  const handleDownload = (video: VideoGeneration) => {
+  const handleDownload = async (video: VideoGeneration) => {
     if (!video.output_video_url) return
+    
+    const videoId = video.job_id || String(video.id)
+    
+    // 이미 다운로드 중인지 확인
+    if (downloadingVideos.has(videoId)) return
     
     // 파일명 생성: voguedrop_날짜_효과명.mp4
     const date = new Date(video.created_at).toISOString().split('T')[0]
     const effectName = video.selected_effects[0]?.name.toLowerCase().replace(/\s+/g, '-') || 'video'
     const filename = `voguedrop_${date}_${effectName}.mp4`
     
-    // 다운로드 트리거
-    const a = document.createElement('a')
-    a.href = video.output_video_url
-    a.download = filename
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
+    // 다운로드 시작
+    setDownloadingVideos(prev => new Set(prev).add(videoId))
+    
+    try {
+      // 비디오를 fetch로 다운로드
+      const response = await fetch(video.output_video_url)
+      if (!response.ok) throw new Error('Download failed')
+      
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      
+      // 다운로드 트리거
+      const a = document.createElement('a')
+      a.style.display = 'none'
+      a.href = url
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      
+      // 정리
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+      
+    } catch (error) {
+      console.error('Download failed:', error)
+      // 에러 발생 시 사용자에게 알림 (toast나 alert 사용 가능)
+      alert('다운로드에 실패했습니다. 다시 시도해주세요.')
+    } finally {
+      // 다운로드 상태 해제
+      setDownloadingVideos(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(videoId)
+        return newSet
+      })
+    }
   }
 
 
-  // Filter videos based on search and date
+  // Filter videos based on date
   const filteredVideos = dbVideos.filter(video => {
-    const matchesSearch = !searchTerm || 
-      video.prompt.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      video.selected_effects.some(e => e.name.toLowerCase().includes(searchTerm.toLowerCase()))
-    
     const videoDate = new Date(video.created_at)
     const matchesStartDate = !startDate || videoDate >= new Date(startDate)
     const matchesEndDate = !endDate || videoDate <= new Date(endDate + 'T23:59:59')
     
-    return matchesSearch && matchesStartDate && matchesEndDate
+    return matchesStartDate && matchesEndDate
   })
 
   if (!isOpen) return null
@@ -171,16 +200,6 @@ export function LibraryModal({ isOpen, onClose }: LibraryModalProps) {
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
             />
-          </div>
-          <div className="relative">
-            <Input
-              type="text"
-              placeholder="Search clips..."
-              className="bg-gray-50 text-gray-900 text-sm pl-10 pr-4 py-2 w-64 border-gray-300 focus:border-primary"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
           </div>
         </div>
 
@@ -224,9 +243,14 @@ export function LibraryModal({ isOpen, onClose }: LibraryModalProps) {
                     </a>
                     <button 
                       onClick={() => handleDownload(video)}
-                      className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center text-white"
+                      disabled={downloadingVideos.has(video.job_id || String(video.id))}
+                      className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center text-white disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <Download className="w-4 h-4" />
+                      {downloadingVideos.has(video.job_id || String(video.id)) ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Download className="w-4 h-4" />
+                      )}
                     </button>
                     <button 
                       onClick={() => handleToggleFavorite(video)}
