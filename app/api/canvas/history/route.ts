@@ -37,7 +37,8 @@ export async function GET(request: NextRequest) {
       effects: video.selected_effects || [],
       sourceImageUrl: video.input_image_url,
       prompt: video.prompt,
-      modelType: video.model_type
+      modelType: video.model_type,
+      isFavorite: video.is_favorite || false
     }));
 
     return NextResponse.json({

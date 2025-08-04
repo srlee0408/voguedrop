@@ -22,10 +22,8 @@ export default function CanvasPage() {
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false)
   const [isModelModalOpen, setIsModelModalOpen] = useState(false)
   const [isPrompterOpen, setIsPrompterOpen] = useState(false)
-  const [isBrushPopupOpen, setIsBrushPopupOpen] = useState(false)
   const [promptText, setPromptText] = useState("")
   const [negativePrompt, setNegativePrompt] = useState("")
-  const [brushSize, setBrushSize] = useState(20)
   const [selectedResolution] = useState("1:1")
   const [selectedSize] = useState("1024×1024")
   const [selectedModelId, setSelectedModelId] = useState<string>("")
@@ -34,11 +32,13 @@ export default function CanvasPage() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [selectedEffects, setSelectedEffects] = useState<EffectTemplateWithMedia[]>([])
   const [generationError, setGenerationError] = useState<string | null>(null)
-  const [selectedVideoId, setSelectedVideoId] = useState<number | null>(null)
+  const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null)
+  const [selectedHistoryVideos, setSelectedHistoryVideos] = useState<GeneratedVideo[]>([])
   const [selectedDuration, setSelectedDuration] = useState<string>("6")
   const [generatingProgress, setGeneratingProgress] = useState<Map<string, number>>(new Map())
   const [currentWebhookStatus, setCurrentWebhookStatus] = useState<string>("")
   const [currentElapsedMinutes, setCurrentElapsedMinutes] = useState<number>(0)
+  const [currentElapsedSeconds, setCurrentElapsedSeconds] = useState<number>(0)
   
   // 페이지 이탈 방지
   useBeforeUnload(isGenerating, 'Video generation is in progress. Leaving the page will cancel the generation.')
@@ -77,11 +77,44 @@ export default function CanvasPage() {
 
   const handleVideoSelect = (video: GeneratedVideo) => {
     setSelectedVideoId(video.id);
-    // TODO: 비디오 재생 로직 추가
+    
+    // 이미 선택된 비디오인지 확인
+    const isAlreadySelected = selectedHistoryVideos.some(v => v.id === video.id);
+    
+    if (isAlreadySelected) {
+      // 이미 선택된 경우 제거
+      setSelectedHistoryVideos(prev => prev.filter(v => v.id !== video.id));
+    } else {
+      // 새로 선택하는 경우 맨 끝에 추가
+      setSelectedHistoryVideos(prev => {
+        // 업로드 이미지가 있으면 3개, 없으면 4개까지
+        const maxVideos = uploadedImage ? 3 : 4;
+        if (prev.length >= maxVideos) {
+          // 가장 오래된 선택 제거하고 새로운 것 추가
+          return [...prev.slice(1), video];
+        }
+        return [...prev, video];
+      });
+    }
   };
 
   // Generate 버튼 활성화 조건 계산
   const canGenerate = !!uploadedImage && selectedEffects.length > 0;
+
+  // 콘텐츠 제거 핸들러
+  const handleRemoveContent = (index: number, type: 'image' | 'video') => {
+    if (type === 'image' && index === 0 && uploadedImage) {
+      // 업로드된 이미지 제거
+      setUploadedImage(null);
+    } else if (type === 'video') {
+      // 선택된 히스토리 비디오 제거
+      const videoIndex = uploadedImage ? index - 1 : index;
+      if (videoIndex >= 0 && videoIndex < selectedHistoryVideos.length) {
+        const videoToRemove = selectedHistoryVideos[videoIndex];
+        setSelectedHistoryVideos(prev => prev.filter(v => v.id !== videoToRemove.id));
+      }
+    }
+  };
 
   const handleGenerateVideo = async () => {
     if (!uploadedImage) {
@@ -135,9 +168,11 @@ export default function CanvasPage() {
             const jobStartTime = jobStartTimes.get(job.jobId) || Date.now();
             const elapsedTime = Date.now() - jobStartTime;
             const elapsedMinutes = Math.floor(elapsedTime / 60000);
+            const elapsedSeconds = Math.floor(elapsedTime / 1000);
             
             // UI 상태 업데이트
             setCurrentElapsedMinutes(elapsedMinutes);
+            setCurrentElapsedSeconds(elapsedSeconds);
             
             // 5분 경과 체크
             if (elapsedMinutes >= 5 && elapsedTime % 60000 < 2000) { // 매 분마다 한 번만 체크
@@ -174,12 +209,34 @@ export default function CanvasPage() {
             
             // 진행률 업데이트 (시뮬레이션 - 실제로는 API에서 progress 정보가 와야 함)
             if (statusData.status === 'processing') {
-              // 진행률 시뮬레이션: 경과 시간에 기반한 선형 진행률
-              // 5분(300초) 동안 0%에서 90%까지 도달
+              // 진행률 시뮬레이션: 200-250초 기준으로 단계별 진행률 계산
               const currentTime = Date.now();
               const startTime = jobStartTimes.get(job.jobId) || currentTime;
               const elapsedSeconds = (currentTime - startTime) / 1000;
-              const targetProgress = Math.min((elapsedSeconds / 300) * 90, 90); // 최대 90%까지
+              
+              let targetProgress = 0;
+              
+              // 단계별 진행률 계산 (총 225초 기준)
+              if (elapsedSeconds < 40) {
+                // 0-40초: 초기 처리 (0-20%)
+                targetProgress = (elapsedSeconds / 40) * 20;
+              } else if (elapsedSeconds < 80) {
+                // 40-80초: 이미지 분석 (20-40%)
+                targetProgress = 20 + ((elapsedSeconds - 40) / 40) * 20;
+              } else if (elapsedSeconds < 200) {
+                // 80-200초: AI 영상 생성 (40-80%) - 가장 오래 걸리는 구간
+                targetProgress = 40 + ((elapsedSeconds - 80) / 120) * 40;
+              } else if (elapsedSeconds < 240) {
+                // 200-240초: 후처리 및 인코딩 (80-95%)
+                targetProgress = 80 + ((elapsedSeconds - 200) / 40) * 15;
+              } else {
+                // 240초 이상: 최종 완료 단계 (95-99%)
+                targetProgress = Math.min(95 + ((elapsedSeconds - 240) / 10) * 4, 99);
+              }
+              
+              // 약간의 랜덤성 추가 (±2%)
+              const randomOffset = (Math.random() - 0.5) * 4;
+              targetProgress = Math.max(0, Math.min(99, targetProgress + randomOffset));
               
               setGeneratingProgress(prev => {
                 const newMap = new Map(prev);
@@ -209,7 +266,8 @@ export default function CanvasPage() {
             url: job.result.videoUrl,
             thumbnail: job.result.thumbnailUrl,
             createdAt: new Date(job.createdAt),
-            modelType: job.modelType as "seedance" | "hailo"
+            modelType: job.modelType as "seedance" | "hailo",
+            isFavorite: job.result.isFavorite || false
           }));
 
           setGeneratedVideos(prev => {
@@ -244,6 +302,7 @@ export default function CanvasPage() {
           setGeneratingProgress(new Map());
           setCurrentWebhookStatus("");
           setCurrentElapsedMinutes(0);
+          setCurrentElapsedSeconds(0);
           
           const failedJobs = jobStatuses.filter(job => job.status === 'failed');
           if (failedJobs.length === jobStatuses.length) {
@@ -294,14 +353,9 @@ export default function CanvasPage() {
           <Canvas
             selectedResolution={selectedResolution}
             selectedSize={selectedSize}
-            brushSize={brushSize}
-            isBrushPopupOpen={isBrushPopupOpen}
             onPromptModalOpen={() => setIsPromptModalOpen(true)}
-            onBrushToggle={() => setIsBrushPopupOpen(!isBrushPopupOpen)}
-            onBrushSizeChange={setBrushSize}
             showControls={true}
             generatedVideos={Array.from(generatedVideos.values())}
-            selectedVideoId={selectedVideoId}
             onVideoSelect={handleVideoSelect}
             onGenerateClick={handleGenerateVideo}
             isGenerating={isGenerating}
@@ -311,6 +365,10 @@ export default function CanvasPage() {
             generatingProgress={generatingProgress}
             webhookStatus={currentWebhookStatus}
             elapsedMinutes={currentElapsedMinutes}
+            elapsedSeconds={currentElapsedSeconds}
+            selectedHistoryVideos={selectedHistoryVideos}
+            uploadedImage={uploadedImage}
+            onRemoveContent={handleRemoveContent}
           />
         </div>
 

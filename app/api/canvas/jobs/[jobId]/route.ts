@@ -48,7 +48,8 @@ export async function GET(
       progress: getProgressPercentage(data.status),
       result: data.status === 'completed' ? {
         videoUrl: data.output_video_url,
-        thumbnailUrl: data.input_image_url
+        thumbnailUrl: data.input_image_url,
+        isFavorite: data.is_favorite || false
       } : null,
       error: data.status === 'failed' ? data.error_message : null
     };

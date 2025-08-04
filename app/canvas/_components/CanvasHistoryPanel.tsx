@@ -1,4 +1,4 @@
-import { Play, Clock, Loader2 } from "lucide-react";
+import { Play, Clock, Loader2, Star } from "lucide-react";
 import Image from "next/image";
 import { formatRelativeTime } from "@/lib/utils/session";
 import type { GeneratedVideo } from "@/types/canvas";
@@ -9,14 +9,14 @@ import type { VideoGeneration } from "@/lib/db/video-generations";
 
 interface CanvasHistoryPanelProps {
   generatedVideos: GeneratedVideo[];
-  selectedVideoId?: number | null;
   onVideoSelect?: (video: GeneratedVideo) => void;
+  selectedHistoryVideos?: GeneratedVideo[];
 }
 
 export function CanvasHistoryPanel({
   generatedVideos,
-  selectedVideoId,
   onVideoSelect,
+  selectedHistoryVideos = [],
 }: CanvasHistoryPanelProps) {
   const [dbVideos, setDbVideos] = useState<GeneratedVideo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -48,13 +48,14 @@ export function CanvasHistoryPanel({
         
         // Convert DB format to GeneratedVideo format
         const convertedVideos: GeneratedVideo[] = (videos || [])
-          .filter((v: VideoGeneration) => v.status === 'completed' && v.output_video_url)
+          .filter((v: VideoGeneration) => v.status === 'completed' && v.output_video_url && v.job_id)
           .map((v: VideoGeneration) => ({
-            id: v.id,
+            id: v.job_id!,  // job_id를 ID로 사용
             url: v.output_video_url!,
             createdAt: new Date(v.created_at),
             thumbnail: v.input_image_url,
-            modelType: v.model_type
+            modelType: v.model_type,
+            isFavorite: v.is_favorite || false
           }));
         
         setDbVideos(convertedVideos);
@@ -90,7 +91,7 @@ export function CanvasHistoryPanel({
             key={video.id}
             onClick={() => onVideoSelect?.(video)}
             className={`relative w-20 h-20 bg-surface/10 rounded-md overflow-hidden transition-all group ${
-              video.id === selectedVideoId
+              selectedHistoryVideos.some(v => v.id === video.id)
                 ? "border-2 border-primary"
                 : "border border-transparent hover:border-border"
             }`}
@@ -113,6 +114,13 @@ export function CanvasHistoryPanel({
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-muted">
                 <Play className="w-8 h-8 text-muted-foreground" />
+              </div>
+            )}
+            
+            {/* Favorite indicator */}
+            {video.isFavorite && (
+              <div className="absolute top-1 right-1 bg-black/60 p-1 rounded">
+                <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
               </div>
             )}
             
