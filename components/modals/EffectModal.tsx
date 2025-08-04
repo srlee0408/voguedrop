@@ -1,5 +1,4 @@
 import { BaseModal } from "./BaseModal"
-import { useState } from "react"
 import type { EffectTemplateWithMedia } from "@/types/database"
 import { useEffectsData } from "@/app/canvas/_hooks/useEffectsData"
 import { HoverVideo } from "@/components/ui/hover-video"
@@ -12,10 +11,9 @@ interface EffectModalProps {
 }
 
 export function EffectModal({ isOpen, onClose, onSelectEffect, selectedEffects = [] }: EffectModalProps) {
-  const { getEffectsByCategory, categories, isLoading, error } = useEffectsData()
-  const [selectedCategory, setSelectedCategory] = useState("All")
+  const { getEffectsByCategory, isLoading, error } = useEffectsData()
   
-  const effects = getEffectsByCategory(selectedCategory)
+  const effects = getEffectsByCategory("All")
 
   const handleEffectClick = (effect: EffectTemplateWithMedia) => {
     if (onSelectEffect) {
@@ -41,29 +39,7 @@ export function EffectModal({ isOpen, onClose, onSelectEffect, selectedEffects =
         </div>
       ) : (
         <>
-          <div className="flex gap-2 overflow-x-auto mb-6 pb-2">
-            <button
-              className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap ${
-                selectedCategory === "All" ? "bg-primary text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              }`}
-              onClick={() => setSelectedCategory("All")}
-            >
-              All
-            </button>
-            {categories.map((category) => (
-              <button
-                key={category.id}
-                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap capitalize ${
-                  category.name === selectedCategory.toLowerCase() ? "bg-primary text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                }`}
-                onClick={() => setSelectedCategory(category.name)}
-              >
-                {category.name}
-              </button>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-4 gap-4 overflow-y-auto max-h-[400px] pr-2">
+          <div className="grid grid-cols-4 gap-4 overflow-y-auto max-h-[500px] pr-2">
             {effects.map((effect) => (
               <div 
                 key={effect.id} 
@@ -82,8 +58,8 @@ export function EffectModal({ isOpen, onClose, onSelectEffect, selectedEffects =
                     <span className="text-gray-700 font-medium text-center">{effect.name}</span>
                   </div>
                 )}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4 pointer-events-none">
-                  <span className="text-white font-medium">{effect.name}</span>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-4 pointer-events-none">
+                  <span className="text-white font-medium drop-shadow-lg">{effect.name}</span>
                 </div>
                 {isEffectSelected(effect.id) && (
                   <div className="absolute top-2 right-2 w-6 h-6 bg-primary rounded-full flex items-center justify-center pointer-events-none">
