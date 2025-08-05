@@ -191,7 +191,7 @@ export async function POST(request: NextRequest) {
             model_type: model,
             webhook_status: 'pending'
           })
-          .select()
+          .select('id, job_id, status')
           .single();
 
         if (error) {
@@ -233,7 +233,7 @@ export async function POST(request: NextRequest) {
       
       try {
         const webhookUrl = `${webhookBaseUrl}/api/webhooks/fal-ai?jobId=${job.jobId}`;
-        console.log('🔗 Webhook URL:', webhookUrl);
+        // Webhook URL configured
         
         // Mock 모드에서는 fal.ai API 호출을 건너뛰고 5초 후 자동 완료
         if (isMockMode) {
@@ -274,12 +274,12 @@ export async function POST(request: NextRequest) {
               });
               
               if (!mockResponse.ok) {
-                console.error('Mock webhook call failed:', await mockResponse.text());
+                // Mock webhook call failed
               } else {
-                console.log('✅ Mock webhook call successful for job:', job.jobId);
+                // Mock webhook call successful
               }
-            } catch (error) {
-              console.error('Mock webhook error:', error);
+            } catch {
+              // Mock webhook error
             }
           }, 5000);
           
@@ -317,7 +317,7 @@ export async function POST(request: NextRequest) {
 
         // fal.ai queue API 호출
         const queueUrl = `https://queue.fal.run/${endpoint}?fal_webhook=${encodeURIComponent(webhookUrl)}`;
-        console.log('🚀 Calling fal.ai queue:', queueUrl);
+        // Calling fal.ai queue
         
         const response = await fetch(queueUrl, {
           method: 'POST',
@@ -360,15 +360,10 @@ export async function POST(request: NextRequest) {
           .eq('job_id', job.jobId);
           
         if (updateError) {
-          console.error('❌ Failed to update status to processing:', updateError);
-          console.error('Update details:', {
-            job_id: job.jobId,
-            fal_request_id: result.request_id,
-            error: updateError
-          });
+          // Failed to update status to processing
           await jobLogger?.error('Failed to update database with fal request ID', updateError);
         } else {
-          console.log('✅ Successfully updated status to processing for job:', job.jobId);
+          // Successfully updated status to processing
           await jobLogger?.statusChange('pending', 'processing', {
             fal_request_id: result.request_id
           });
@@ -449,7 +444,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(response);
 
   } catch (error) {
-    console.error('API error:', error);
+    // API error occurred
     
     if (logger) {
       await logger.error('Unhandled API error', error instanceof Error ? error : new Error(String(error)));

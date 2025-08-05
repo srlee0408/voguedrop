@@ -31,7 +31,7 @@ export async function GET(
     
     const { data: job, error } = await supabase
       .from('video_generations')
-      .select('*')
+      .select('job_id, status, created_at, input_image_url, output_video_url, error_message, webhook_status, fal_request_id, model_type')
       .eq('job_id', jobId)
       .single();
 
@@ -59,7 +59,7 @@ export async function GET(
     const elapsedMinutes = Math.floor((Date.now() - new Date(job.created_at).getTime()) / 60000);
     
     if (job.webhook_status === 'pending' && elapsedMinutes >= 5) {
-      console.log(`Webhook timeout for job ${jobId} after ${elapsedMinutes} minutes`);
+      // Webhook timeout after 5 minutes
       
       // Service client로 webhook_status 업데이트
       const { createServiceClient } = await import('@/lib/supabase/service');
@@ -92,7 +92,7 @@ export async function GET(
 
         if (response.ok) {
           const statusData = await response.json();
-          console.log('fal.ai poll status:', statusData);
+          // fal.ai status received
 
           // 완료된 경우
           if (statusData.status === 'COMPLETED') {

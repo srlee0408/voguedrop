@@ -162,16 +162,14 @@ export async function toggleVideoFavorite(
   videoId: number | string,
   isFavorite: boolean,
   supabaseClient?: SupabaseClient
-): Promise<VideoGeneration> {
+): Promise<{ id: number; job_id: string; is_favorite: boolean }> {
   // 인증된 클라이언트가 제공되면 사용, 아니면 기본 클라이언트 사용
   const client = supabaseClient || supabase;
   
-  console.log('toggleVideoFavorite called with:', { videoId, isFavorite, videoIdType: typeof videoId, hasAuthClient: !!supabaseClient });
-
-  // 먼저 비디오가 존재하는지 확인
+  // 먼저 비디오가 존재하는지 확인 (필요한 필드만 선택)
   let selectQuery = client
     .from('video_generations')
-    .select('*');
+    .select('id, job_id, user_id');
 
   if (typeof videoId === 'string') {
     selectQuery = selectQuery.eq('job_id', videoId);
@@ -182,11 +180,8 @@ export async function toggleVideoFavorite(
   const { data: existingData, error: selectError } = await selectQuery.single();
 
   if (selectError || !existingData) {
-    console.error('Video not found:', { videoId, error: selectError });
     throw new Error(`비디오를 찾을 수 없습니다. (ID: ${videoId})`);
   }
-
-  console.log('Found video:', { id: existingData.id, job_id: existingData.job_id, user_id: existingData.user_id });
 
   // 업데이트 수행
   const { data, error } = await client
@@ -196,14 +191,12 @@ export async function toggleVideoFavorite(
       updated_at: new Date().toISOString()
     })
     .eq('id', existingData.id)  // 항상 numeric id로 업데이트
-    .select()
+    .select('id, job_id, is_favorite')
     .single();
 
   if (error) {
-    console.error('Error updating favorite:', error);
     throw new Error('즐겨찾기 상태 변경에 실패했습니다.');
   }
 
-  console.log('Successfully updated favorite status');
   return data;
 }

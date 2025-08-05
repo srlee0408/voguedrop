@@ -6,13 +6,11 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth/AuthContext";
 
 interface CanvasHistoryPanelProps {
-  generatedVideos: GeneratedVideo[];
   onVideoSelect?: (video: GeneratedVideo) => void;
   selectedHistoryVideos?: GeneratedVideo[];
 }
 
 export function CanvasHistoryPanel({
-  generatedVideos,
   onVideoSelect,
   selectedHistoryVideos = [],
 }: CanvasHistoryPanelProps) {
@@ -58,7 +56,7 @@ export function CanvasHistoryPanel({
     }
 
     fetchVideoHistory();
-  }, [user, generatedVideos]); // Re-fetch when user or new videos change
+  }, [user]); // Re-fetch only when user changes
   return (
     <div className="w-24 flex flex-col items-center space-y-2 ml-4">
       {/* History Title */}

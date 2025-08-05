@@ -24,14 +24,13 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    console.log('Toggling favorite for video:', videoId, 'to:', isFavorite, 'user:', user.id);
-
     // 인증된 supabase 클라이언트와 함께 호출
     const updatedVideo = await toggleVideoFavorite(videoId, isFavorite, supabase);
 
     return NextResponse.json({ 
       success: true, 
-      data: updatedVideo 
+      videoId: updatedVideo.job_id,
+      isFavorite: updatedVideo.is_favorite
     });
   } catch (error) {
     console.error('Error toggling favorite:', error);

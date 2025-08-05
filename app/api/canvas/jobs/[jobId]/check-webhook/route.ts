@@ -18,7 +18,7 @@ async function checkFalApiStatus(falRequestId: string, modelType: string) {
     // Queue API status endpoint
     const statusUrl = `https://queue.fal.run/${endpoint}/requests/${falRequestId}/status`;
     
-    console.log(`Checking fal.ai status for ${falRequestId} at:`, statusUrl);
+    // Check fal.ai status
     
     const response = await fetch(statusUrl, {
       headers: {
@@ -27,14 +27,12 @@ async function checkFalApiStatus(falRequestId: string, modelType: string) {
     });
 
     if (!response.ok) {
-      console.error('Failed to check fal.ai status:', response.status);
-      const errorText = await response.text();
-      console.error('Error response:', errorText);
+      // Failed to check fal.ai status
       return { completed: false, status: 'error' };
     }
 
     const statusData = await response.json();
-    console.log('fal.ai status response:', statusData);
+    // Process fal.ai status response
 
     // Queue API 상태 확인
     if (statusData.status === 'COMPLETED') {
@@ -49,7 +47,7 @@ async function checkFalApiStatus(falRequestId: string, modelType: string) {
 
       if (resultResponse.ok) {
         const resultData = await resultResponse.json();
-        console.log('fal.ai result data:', resultData);
+        // Process fal.ai result data
         
         // response 객체 안에 실제 결과가 있을 수 있음
         const videoUrl = resultData.video?.url || resultData.response?.video?.url;
@@ -61,7 +59,7 @@ async function checkFalApiStatus(falRequestId: string, modelType: string) {
             videoUrl: videoUrl
           };
         } else {
-          console.error('No video URL found in result:', resultData);
+          // No video URL found in result
           return {
             completed: true,
             status: 'failed',
@@ -69,7 +67,7 @@ async function checkFalApiStatus(falRequestId: string, modelType: string) {
           };
         }
       } else {
-        console.error('Failed to get result:', resultResponse.status);
+        // Failed to get result
         return {
           completed: true,
           status: 'failed',
@@ -107,8 +105,8 @@ async function checkFalApiStatus(falRequestId: string, modelType: string) {
             error: errorData.error || errorData.message || 'Video generation failed'
           };
         }
-      } catch (e) {
-        console.error('Error fetching failure details:', e);
+      } catch {
+        // Error fetching failure details
       }
       
       return {
@@ -120,7 +118,7 @@ async function checkFalApiStatus(falRequestId: string, modelType: string) {
 
     return { completed: false, status: statusData.status || 'unknown' };
   } catch (error) {
-    console.error('Error checking fal.ai status:', error);
+    // Error checking fal.ai status
     return { completed: false, status: 'error', error: error instanceof Error ? error.message : 'Unknown error' };
   }
 }
@@ -145,7 +143,7 @@ export async function GET(
     
     const { data: job, error } = await supabase
       .from('video_generations')
-      .select('*')
+      .select('job_id, status, created_at, webhook_status, fal_request_id, model_type')
       .eq('job_id', jobId)
       .single();
 
@@ -171,7 +169,7 @@ export async function GET(
 
     // 5분 경과 후 webhook이 pending 상태면 fal.ai API 직접 확인
     if (job.webhook_status === 'pending' && elapsedMinutes >= 5 && job.fal_request_id) {
-      console.log(`Webhook timeout for job ${jobId} after ${elapsedMinutes} minutes, checking fal.ai directly`);
+      // Webhook timeout, checking fal.ai directly
       
       responseData.webhookCheckRequired = true;
       responseData.message = 'Webhook 수신 지연으로 fal.ai API 직접 확인 중';
@@ -204,9 +202,9 @@ export async function GET(
           .eq('job_id', jobId);
           
         if (updateError) {
-          console.error('Failed to update job status:', updateError);
+          // Failed to update job status
         } else {
-          console.log(`Job ${jobId} updated via fal.ai check:`, updateData);
+          // Job updated via fal.ai check
           responseData.status = updateData.status || job.status;
         }
       }
@@ -220,8 +218,8 @@ export async function GET(
 
     return NextResponse.json(responseData);
 
-  } catch (error) {
-    console.error('Check webhook error:', error);
+  } catch {
+    // Check webhook error
     return NextResponse.json(
       { error: '서버 오류가 발생했습니다.' },
       { status: 500 }

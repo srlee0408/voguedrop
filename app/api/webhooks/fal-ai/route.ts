@@ -16,8 +16,7 @@ interface FalWebhookPayload {
 }
 
 export async function POST(request: NextRequest) {
-  console.log('🔔 Webhook received at:', new Date().toISOString());
-  console.log('Headers:', Object.fromEntries(request.headers.entries()));
+  // Webhook received
   
   try {
     // 1. Job ID 추출
@@ -36,7 +35,7 @@ export async function POST(request: NextRequest) {
     
     // Mock 모드가 아닌 경우에만 헤더 검증
     if (!webhookHeaders && process.env.NEXT_PUBLIC_MOCK_MODE !== 'true') {
-      console.error('Missing webhook headers');
+      // Missing webhook headers
       return NextResponse.json(
         { error: 'Invalid webhook headers' },
         { status: 401 }
@@ -57,7 +56,7 @@ export async function POST(request: NextRequest) {
       );
       
       if (!isValid) {
-        console.error('Invalid webhook signature');
+        // Invalid webhook signature
         return NextResponse.json(
           { error: 'Invalid signature' },
           { status: 401 }
@@ -68,13 +67,7 @@ export async function POST(request: NextRequest) {
     // 5. 요청 본문 파싱
     const body: FalWebhookPayload = JSON.parse(bodyBuffer.toString());
     
-    console.log('Webhook received:', {
-      jobId,
-      status: body.status,
-      requestId: body.request_id
-    });
-    
-    console.log('Full webhook payload:', JSON.stringify(body, null, 2));
+    // Processing webhook payload
 
     // 6. Supabase에서 job 업데이트 (Service Role 사용)
     const { createServiceClient } = await import('@/lib/supabase/service');
@@ -82,9 +75,9 @@ export async function POST(request: NextRequest) {
     
     if (body.status === 'OK' && body.payload?.video?.url) {
       // 성공 케이스
-      console.log(`Updating job ${jobId} with video URL:`, body.payload.video.url);
+      // Updating job with video URL
       
-      const { data: updateData, error } = await supabase
+      const { error } = await supabase
         .from('video_generations')
         .update({
           status: 'completed',
@@ -94,22 +87,18 @@ export async function POST(request: NextRequest) {
           updated_at: new Date().toISOString()
         })
         .eq('job_id', jobId)
-        .select()
+        .select('id, job_id')
         .single();
       
       if (error) {
-        console.error('Error updating successful generation:', error);
-        console.error('Update query details:', {
-          job_id: jobId,
-          video_url: body.payload.video.url
-        });
+        // Error updating successful generation
         return NextResponse.json(
           { error: 'Database update failed', details: error },
           { status: 500 }
         );
       }
       
-      console.log(`Job ${jobId} completed successfully, DB updated:`, updateData);
+      // Job completed successfully
     } else {
       // 실패 케이스
       const errorMessage = body.error || 
@@ -128,14 +117,14 @@ export async function POST(request: NextRequest) {
         .eq('job_id', jobId);
       
       if (error) {
-        console.error('Error updating failed generation:', error);
+        // Error updating failed generation
         return NextResponse.json(
           { error: 'Database update failed' },
           { status: 500 }
         );
       }
       
-      console.log(`Job ${jobId} failed:`, errorMessage);
+      // Job failed
     }
 
     // 7. 성공 응답 반환
@@ -146,7 +135,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Webhook processing error:', error);
+    // Webhook processing error
     
     // Webhook은 재시도될 수 있으므로, 5xx 에러 반환
     return NextResponse.json(

@@ -193,9 +193,6 @@ export function Canvas({
 
       {/* Right History Panel */}
       <CanvasHistoryPanel
-        generatedVideos={slotContents
-          .filter(content => content?.type === 'video')
-          .map(content => content!.data as GeneratedVideo)}
         onVideoSelect={onVideoSelect}
         selectedHistoryVideos={[]}
       />
