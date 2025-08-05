@@ -15,6 +15,70 @@ import type { EffectTemplateWithMedia } from "@/types/database"
 import { useBeforeUnload } from "./_hooks/useBeforeUnload"
 import { EffectsDataProvider } from "./_hooks/useEffectsData"
 
+// 진행률 계산 유틸리티 함수들
+const calculateProgressForElapsedTime = (elapsedSeconds: number, expectedDuration: number = 190): number => {
+  // 체크포인트 기반 진행률 계산 (최대 90%까지만)
+  const checkpoints = [
+    { time: 10, progress: 5 },
+    { time: 30, progress: 15 },
+    { time: 60, progress: 30 },
+    { time: 100, progress: 50 },
+    { time: 140, progress: 70 },
+    { time: 170, progress: 83 },
+    { time: 190, progress: 90 }
+  ];
+  
+  let targetProgress = 0;
+  
+  // 현재 시간에 해당하는 체크포인트 찾기
+  for (let i = 0; i < checkpoints.length; i++) {
+    const checkpoint = checkpoints[i];
+    const nextCheckpoint = checkpoints[i + 1];
+    
+    if (elapsedSeconds >= checkpoint.time) {
+      if (!nextCheckpoint || elapsedSeconds < nextCheckpoint.time) {
+        // 현재 체크포인트와 다음 체크포인트 사이
+        if (nextCheckpoint) {
+          const timeRatio = (elapsedSeconds - checkpoint.time) / (nextCheckpoint.time - checkpoint.time);
+          const progressDiff = nextCheckpoint.progress - checkpoint.progress;
+          targetProgress = checkpoint.progress + (progressDiff * timeRatio);
+        } else {
+          // 마지막 체크포인트 이후
+          targetProgress = checkpoint.progress;
+        }
+        break;
+      }
+    } else if (i === 0) {
+      // 첫 체크포인트 이전
+      targetProgress = (elapsedSeconds / checkpoint.time) * checkpoint.progress;
+      break;
+    }
+  }
+  
+  // 예상 시간 초과 시 처리
+  if (elapsedSeconds > expectedDuration) {
+    // 90%에서 천천히 감속 (85-90% 사이 유지)
+    const overtime = elapsedSeconds - expectedDuration;
+    const slowdown = Math.log(1 + overtime / expectedDuration) * 2;
+    targetProgress = Math.max(85, 90 - slowdown);
+  }
+  
+  // 부드러운 증가를 위한 작은 증분 추가 (0.1-0.3%)
+  const smoothIncrement = 0.1 + (Math.random() * 0.2);
+  targetProgress += smoothIncrement;
+  
+  // 90% 상한선 적용
+  return Math.min(targetProgress, 90);
+};
+
+const calculateCompletionAnimationDuration = (currentProgress: number): number => {
+  // 애니메이션 시간 동적 계산
+  // 진행률이 낮을수록 더 긴 애니메이션 시간 (최대 3초)
+  // 진행률이 높을수록 더 짧은 애니메이션 시간 (최소 0.5초)
+  const remainingProgress = 100 - currentProgress;
+  return Math.min(3000, Math.max(500, (remainingProgress / 100) * 3000));
+};
+
 export default function CanvasPage() {
   const [isLibraryOpen, setIsLibraryOpen] = useState(false)
   const [isEffectModalOpen, setIsEffectModalOpen] = useState(false)
@@ -268,60 +332,9 @@ export default function CanvasPage() {
                 const currentTime = Date.now();
                 const startTime = jobStartTimes.get(job.jobId) || currentTime;
                 const elapsedSeconds = (currentTime - startTime) / 1000;
-                const expectedDuration = 225; // 3분 45초
                 
-                let targetProgress = 0;
-                
-                // 체크포인트 기반 진행률 계산 (최대 90%까지만)
-                const checkpoints = [
-                  { time: 10, progress: 5 },
-                  { time: 30, progress: 15 },
-                  { time: 60, progress: 30 },
-                  { time: 120, progress: 55 },
-                  { time: 180, progress: 75 },
-                  { time: 210, progress: 85 },
-                  { time: 225, progress: 90 }
-                ];
-                
-                // 현재 시간에 해당하는 체크포인트 찾기
-                for (let i = 0; i < checkpoints.length; i++) {
-                  const checkpoint = checkpoints[i];
-                  const nextCheckpoint = checkpoints[i + 1];
-                  
-                  if (elapsedSeconds >= checkpoint.time) {
-                    if (!nextCheckpoint || elapsedSeconds < nextCheckpoint.time) {
-                      // 현재 체크포인트와 다음 체크포인트 사이
-                      if (nextCheckpoint) {
-                        const timeRatio = (elapsedSeconds - checkpoint.time) / (nextCheckpoint.time - checkpoint.time);
-                        const progressDiff = nextCheckpoint.progress - checkpoint.progress;
-                        targetProgress = checkpoint.progress + (progressDiff * timeRatio);
-                      } else {
-                        // 마지막 체크포인트 이후
-                        targetProgress = checkpoint.progress;
-                      }
-                      break;
-                    }
-                  } else if (i === 0) {
-                    // 첫 체크포인트 이전
-                    targetProgress = (elapsedSeconds / checkpoint.time) * checkpoint.progress;
-                    break;
-                  }
-                }
-                
-                // 예상 시간 초과 시 처리
-                if (elapsedSeconds > expectedDuration) {
-                  // 90%에서 천천히 감속 (85-90% 사이 유지)
-                  const overtime = elapsedSeconds - expectedDuration;
-                  const slowdown = Math.log(1 + overtime / expectedDuration) * 2;
-                  targetProgress = Math.max(85, 90 - slowdown);
-                }
-                
-                // 부드러운 증가를 위한 작은 증분 추가 (0.1-0.3%)
-                const smoothIncrement = 0.1 + (Math.random() * 0.2);
-                targetProgress += smoothIncrement;
-                
-                // 90% 상한선 적용
-                targetProgress = Math.min(targetProgress, 90);
+                // 유틸리티 함수를 사용하여 진행률 계산
+                const targetProgress = calculateProgressForElapsedTime(elapsedSeconds);
                 
                 setGeneratingProgress(prev => {
                   const newMap = new Map(prev);
@@ -338,9 +351,16 @@ export default function CanvasPage() {
                 jobCompletedMap.set(job.jobId, true);
                 completionStartTimes.set(job.jobId, Date.now());
                 
-                // 완료 애니메이션 (90% -> 100%)
+                // 현재 진행률 가져오기
+                const currentProgressValue = generatingProgress.get(originalIndex.toString()) || 0;
+                
+                // 유틸리티 함수를 사용하여 애니메이션 시간 계산
+                const animationDuration = calculateCompletionAnimationDuration(currentProgressValue);
+                
+                console.log(`[VideoGeneration] Completion animation: ${currentProgressValue}% -> 100% in ${animationDuration}ms`);
+                
+                // 완료 애니메이션
                 const animateToComplete = () => {
-                  const animationDuration = 1000; // 1초간 애니메이션
                   const startTime = completionStartTimes.get(job.jobId) || Date.now();
                   const elapsed = Date.now() - startTime;
                   const ratio = Math.min(elapsed / animationDuration, 1);
@@ -350,8 +370,8 @@ export default function CanvasPage() {
                   
                   setGeneratingProgress(prev => {
                     const newMap = new Map(prev);
-                    const currentProgress = prev.get(originalIndex.toString()) || 90;
-                    const targetProgress = currentProgress + (100 - currentProgress) * easeOut;
+                    const startProgress = currentProgressValue;
+                    const targetProgress = startProgress + (100 - startProgress) * easeOut;
                     newMap.set(originalIndex.toString(), Math.floor(targetProgress));
                     return newMap;
                   });
