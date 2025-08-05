@@ -2,15 +2,27 @@ import { X, Info, Play, Download, Loader2, Star } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import Image from "next/image"
 import { useEffect, useState, useCallback } from "react"
-import { type VideoGeneration } from "@/lib/db/video-generations"
 import { useAuth } from "@/lib/auth/AuthContext"
-import { createClient } from "@/lib/supabase/client"
 
 interface LibraryClip {
   title: string
   date: string
   duration: string
   image: string
+}
+
+interface VideoData {
+  id: number
+  job_id: string
+  status: string
+  input_image_url: string
+  output_video_url: string
+  created_at: string
+  is_favorite: boolean
+  selected_effects: Array<{
+    id: number
+    name: string
+  }>
 }
 
 interface LibraryModalProps {
@@ -22,7 +34,7 @@ interface LibraryModalProps {
 }
 
 export function LibraryModal({ isOpen, onClose, favoriteVideos = new Set(), onToggleFavorite }: LibraryModalProps) {
-  const [dbVideos, setDbVideos] = useState<VideoGeneration[]>([])
+  const [dbVideos, setDbVideos] = useState<VideoData[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
@@ -33,26 +45,18 @@ export function LibraryModal({ isOpen, onClose, favoriteVideos = new Set(), onTo
     try {
       setIsLoading(true)
       if (!user) {
-        console.log('No authenticated user')
         setDbVideos([])
         return
       }
       
-      const supabase = createClient()
-      const { data: videos, error } = await supabase
-        .from('video_generations')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('is_favorite', { ascending: false })
-        .order('created_at', { ascending: false })
-        .limit(100)
+      const response = await fetch('/api/canvas/library?limit=100')
       
-      if (error) {
-        console.error('Failed to fetch videos:', error)
-        return
+      if (!response.ok) {
+        throw new Error('Failed to fetch videos')
       }
       
-      setDbVideos((videos || []).filter((v: VideoGeneration) => v.status === 'completed' && v.output_video_url))
+      const data = await response.json()
+      setDbVideos(data.videos || [])
     } catch (error) {
       console.error('Failed to fetch videos:', error)
     } finally {
@@ -70,13 +74,13 @@ export function LibraryModal({ isOpen, onClose, favoriteVideos = new Set(), onTo
   }, [isOpen, user, fetchVideos])
 
   // 즐겨찾기 토글 핸들러
-  const handleToggleFavorite = (video: VideoGeneration) => {
+  const handleToggleFavorite = (video: VideoData) => {
     const videoId = video.job_id || String(video.id)
     onToggleFavorite?.(videoId)
   }
 
   // 다운로드 핸들러
-  const handleDownload = async (video: VideoGeneration) => {
+  const handleDownload = async (video: VideoData) => {
     if (!video.output_video_url) return
     
     const videoId = video.job_id || String(video.id)
