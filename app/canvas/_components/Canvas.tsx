@@ -20,9 +20,7 @@ interface CanvasProps {
   selectedDuration?: string;
   onDurationChange?: (duration: string) => void;
   generatingProgress?: Map<string, number>;
-  webhookStatus?: string;
-  elapsedMinutes?: number;
-  elapsedSeconds?: number;
+  generatingJobIds?: Map<string, string>;
   selectedHistoryVideos?: GeneratedVideo[];
   uploadedImage?: string | null;
   onRemoveContent?: (index: number, type: 'image' | 'video') => void;
@@ -46,9 +44,7 @@ export function Canvas({
   selectedDuration = "6",
   onDurationChange,
   generatingProgress = new Map(),
-  webhookStatus = "",
-  elapsedMinutes = 0,
-  elapsedSeconds = 0,
+  generatingJobIds = new Map(),
   selectedHistoryVideos = [],
   uploadedImage = null,
   onRemoveContent,
@@ -212,9 +208,7 @@ export function Canvas({
               <VideoGenerationProgress 
                 progress={progress}
                 isVisible={isGeneratingThisSlot}
-                webhookStatus={webhookStatus}
-                elapsedMinutes={elapsedMinutes}
-                elapsedSeconds={elapsedSeconds}
+                jobId={generatingJobIds.get(index.toString())}
               />
             </div>
             );

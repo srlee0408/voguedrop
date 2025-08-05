@@ -1,53 +1,54 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 
 interface VideoGenerationProgressProps {
   progress: number;
   isVisible: boolean;
-  webhookStatus?: string;
-  elapsedMinutes?: number;
-  elapsedSeconds?: number;
+  jobId?: string;
 }
 
 export function VideoGenerationProgress({ 
   progress, 
-  isVisible, 
-  webhookStatus,
-  elapsedMinutes = 0,
-  elapsedSeconds = 0
+  isVisible,
+  jobId
 }: VideoGenerationProgressProps) {
-  if (!isVisible) return null;
-
-  const getStatusMessage = () => {
-    // 단계별 메시지 표시
-    if (progress < 20) {
+  const previousProgressRef = useRef(progress);
+  const startTimeRef = useRef<number>(Date.now());
+  
+  // 로깅용 함수들 (UI에는 표시 안함)
+  const getStatusMessage = (currentProgress: number) => {
+    if (currentProgress < 20) {
       return 'Initializing AI model...';
-    } else if (progress < 40) {
+    } else if (currentProgress < 40) {
       return 'Analyzing image and preparing effects...';
-    } else if (progress < 80) {
+    } else if (currentProgress < 80) {
       return 'Generating motion... This may take a few minutes...';
-    } else if (progress < 95) {
+    } else if (currentProgress < 95) {
       return 'Finalizing video and encoding...';
     } else {
       return 'Almost done...';
     }
   };
   
-  const getTimeDisplay = () => {
+  const getElapsedTime = () => {
+    const elapsedMs = Date.now() - startTimeRef.current;
+    const elapsedSeconds = Math.floor(elapsedMs / 1000);
+    
     if (elapsedSeconds < 60) {
-      return `${elapsedSeconds}s elapsed`;
+      return `${elapsedSeconds}s`;
     } else {
       const mins = Math.floor(elapsedSeconds / 60);
       const secs = elapsedSeconds % 60;
-      return `${mins}m ${secs}s elapsed`;
+      return `${mins}m ${secs}s`;
     }
   };
   
-  const getEstimatedTime = () => {
-    // 225초(3분 45초) 기준으로 예상 시간 계산
-    const totalExpectedSeconds = 225;
+  const getEstimatedRemaining = (currentProgress: number) => {
+    const elapsedMs = Date.now() - startTimeRef.current;
+    const elapsedSeconds = Math.floor(elapsedMs / 1000);
+    const totalExpectedSeconds = 225; // 3분 45초 기준
     const estimatedRemainingSeconds = Math.max(0, totalExpectedSeconds - elapsedSeconds);
     
-    if (estimatedRemainingSeconds === 0) {
+    if (estimatedRemainingSeconds === 0 || currentProgress >= 95) {
       return 'Finishing up...';
     }
     
@@ -55,10 +56,35 @@ export function VideoGenerationProgress({
     const secs = estimatedRemainingSeconds % 60;
     
     if (mins === 0) {
-      return `~${secs}s remaining`;
+      return `~${secs}s`;
     }
-    return `~${mins}m ${secs}s remaining`;
+    return `~${mins}m ${secs}s`;
   };
+  
+  // Progress 변화 시 로깅
+  useEffect(() => {
+    if (isVisible && progress !== previousProgressRef.current) {
+      console.log('[VideoGeneration]', {
+        jobId: jobId || 'unknown',
+        progress: progress,
+        status: getStatusMessage(progress),
+        elapsedTime: getElapsedTime(),
+        estimatedRemaining: getEstimatedRemaining(progress),
+        timestamp: new Date().toISOString()
+      });
+      
+      previousProgressRef.current = progress;
+    }
+  }, [progress, isVisible, jobId]);
+  
+  // 컴포넌트 마운트 시 시작 시간 초기화
+  useEffect(() => {
+    if (isVisible) {
+      startTimeRef.current = Date.now();
+    }
+  }, [isVisible]);
+  
+  if (!isVisible) return null;
 
   return (
     <div className="absolute inset-0 z-30 bg-black/60 flex items-center justify-center">
@@ -73,48 +99,12 @@ export function VideoGenerationProgress({
         </div>
       </div>
       
-      {/* Progress info container */}
+      {/* Progress info container - 퍼센트만 표시 */}
       <div className="text-center">
         {/* Percentage display with shadow for better visibility */}
-        <div className="text-white text-7xl font-bold drop-shadow-2xl mb-4">
+        <div className="text-white text-7xl font-bold drop-shadow-2xl">
           {Math.round(progress)}%
         </div>
-        
-        {/* Status message */}
-        <div className="text-white text-sm font-medium px-4 py-2 bg-black/50 rounded-lg mb-2">
-          {getStatusMessage()}
-        </div>
-        
-        {/* Time display */}
-        <div className="text-white/80 text-xs px-3 py-1 bg-black/30 rounded-lg">
-          <span>{getTimeDisplay()}</span>
-          {progress < 95 && <span className="mx-2">•</span>}
-          {progress < 95 && <span>{getEstimatedTime()}</span>}
-        </div>
-        
-        {/* Webhook status indicator */}
-        {webhookStatus && (
-          <div className="mt-2 text-xs text-gray-400">
-            {webhookStatus === 'pending' && elapsedMinutes >= 5 && (
-              <span className="flex items-center justify-center gap-1">
-                <span className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse" />
-                Webhook pending... starting fal.ai direct check
-              </span>
-            )}
-            {webhookStatus === 'delivered' && (
-              <span className="flex items-center justify-center gap-1">
-                <span className="w-2 h-2 bg-green-500 rounded-full" />
-                Webhook received
-              </span>
-            )}
-            {webhookStatus === 'timeout' && (
-              <span className="flex items-center justify-center gap-1">
-                <span className="w-2 h-2 bg-orange-500 rounded-full" />
-                Webhook timeout - using backup path
-              </span>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );

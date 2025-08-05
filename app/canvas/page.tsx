@@ -36,9 +36,7 @@ export default function CanvasPage() {
   const [selectedHistoryVideos, setSelectedHistoryVideos] = useState<GeneratedVideo[]>([])
   const [selectedDuration, setSelectedDuration] = useState<string>("6")
   const [generatingProgress, setGeneratingProgress] = useState<Map<string, number>>(new Map())
-  const [currentWebhookStatus, setCurrentWebhookStatus] = useState<string>("")
-  const [currentElapsedMinutes, setCurrentElapsedMinutes] = useState<number>(0)
-  const [currentElapsedSeconds, setCurrentElapsedSeconds] = useState<number>(0)
+  const [generatingJobIds, setGeneratingJobIds] = useState<Map<string, string>>(new Map())
   const [selectedSlotIndex, setSelectedSlotIndex] = useState<number | null>(null)
   const [activeVideo, setActiveVideo] = useState<GeneratedVideo | null>(null)
   const [isDownloading, setIsDownloading] = useState(false)
@@ -156,13 +154,16 @@ export default function CanvasPage() {
 
       // 진행률 초기화 - 각 작업을 슬롯 인덱스와 매핑
       const progressMap = new Map<string, number>();
+      const jobIdsMap = new Map<string, string>();
       const jobStartTimes = new Map<string, number>(); // 작업 시작 시간 기록
       
       data.jobs.forEach((job: { jobId: string }, index: number) => {
         progressMap.set(index.toString(), 0);
+        jobIdsMap.set(index.toString(), job.jobId);
         jobStartTimes.set(job.jobId, Date.now());
       });
       setGeneratingProgress(progressMap);
+      setGeneratingJobIds(jobIdsMap);
 
       // 2. 폴링 시작
       const pollJobs = async () => {
@@ -173,9 +174,8 @@ export default function CanvasPage() {
             const elapsedMinutes = Math.floor(elapsedTime / 60000);
             const elapsedSeconds = Math.floor(elapsedTime / 1000);
             
-            // UI 상태 업데이트
-            setCurrentElapsedMinutes(elapsedMinutes);
-            setCurrentElapsedSeconds(elapsedSeconds);
+            // UI 상태 업데이트 - 로그로만 출력
+            console.log('[VideoGeneration] Elapsed time:', { elapsedMinutes, elapsedSeconds });
             
             // 5분 경과 체크
             if (elapsedMinutes >= 5 && elapsedTime % 60000 < 2000) { // 매 분마다 한 번만 체크
@@ -185,8 +185,8 @@ export default function CanvasPage() {
               const webhookCheckResponse = await fetch(`/api/canvas/jobs/${job.jobId}/check-webhook`);
               const webhookCheckData = await webhookCheckResponse.json();
               
-              // webhook 상태 UI 업데이트
-              setCurrentWebhookStatus(webhookCheckData.webhookStatus || 'pending');
+              // webhook 상태 로그 출력
+              console.log('[VideoGeneration] Webhook status:', webhookCheckData.webhookStatus || 'pending');
               
               if (webhookCheckData.webhookCheckRequired) {
                 console.log(`Job ${job.jobId}: webhook 미수신으로 fal.ai 직접 확인 필요`);
@@ -195,9 +195,9 @@ export default function CanvasPage() {
                 const pollResponse = await fetch(`/api/canvas/jobs/${job.jobId}/poll`);
                 const pollData = await pollResponse.json();
                 
-                // webhook 상태 업데이트
+                // webhook 상태 로그 출력
                 if (pollData.webhookStatus) {
-                  setCurrentWebhookStatus(pollData.webhookStatus);
+                  console.log('[VideoGeneration] Webhook status updated:', pollData.webhookStatus);
                 }
                 
                 if (pollData.status === 'completed' || pollData.status === 'failed') {
@@ -301,11 +301,9 @@ export default function CanvasPage() {
           // 모든 작업 완료
           setIsGenerating(false);
           
-          // 진행률 및 webhook 상태 초기화
+          // 진행률 초기화
           setGeneratingProgress(new Map());
-          setCurrentWebhookStatus("");
-          setCurrentElapsedMinutes(0);
-          setCurrentElapsedSeconds(0);
+          setGeneratingJobIds(new Map());
           
           const failedJobs = jobStatuses.filter(job => job.status === 'failed');
           if (failedJobs.length === jobStatuses.length) {
@@ -326,8 +324,7 @@ export default function CanvasPage() {
       );
       setIsGenerating(false);
       setGeneratingProgress(new Map());
-      setCurrentWebhookStatus("");
-      setCurrentElapsedMinutes(0);
+      setGeneratingJobIds(new Map());
     }
   };
 
@@ -407,9 +404,7 @@ export default function CanvasPage() {
             selectedDuration={selectedDuration}
             onDurationChange={setSelectedDuration}
             generatingProgress={generatingProgress}
-            webhookStatus={currentWebhookStatus}
-            elapsedMinutes={currentElapsedMinutes}
-            elapsedSeconds={currentElapsedSeconds}
+            generatingJobIds={generatingJobIds}
             selectedHistoryVideos={selectedHistoryVideos}
             uploadedImage={uploadedImage}
             onRemoveContent={handleRemoveContent}
