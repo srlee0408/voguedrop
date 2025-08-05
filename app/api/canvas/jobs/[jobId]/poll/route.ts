@@ -47,13 +47,11 @@ export async function GET(
       return NextResponse.json({
         jobId: job.job_id,
         status: job.status,
-        modelType: job.model_type,
         result: job.status === 'completed' ? {
           videoUrl: job.output_video_url,
           thumbnailUrl: job.input_image_url
         } : null,
-        error: job.error_message,
-        webhookStatus: job.webhook_status
+        error: job.error_message
       });
     }
 
@@ -131,12 +129,10 @@ export async function GET(
                 return NextResponse.json({
                   jobId: job.job_id,
                   status: 'completed',
-                  modelType: job.model_type,
                   result: {
                     videoUrl: videoUrl,
                     thumbnailUrl: job.input_image_url
-                  },
-                  webhookStatus: job.webhook_status
+                  }
                 });
               }
             }
@@ -158,26 +154,20 @@ export async function GET(
             return NextResponse.json({
               jobId: job.job_id,
               status: 'failed',
-              modelType: job.model_type,
-              error: statusData.error || 'Video generation failed',
-              webhookStatus: job.webhook_status
+              error: statusData.error || 'Video generation failed'
             });
           } else if (statusData.status === 'IN_QUEUE') {
             return NextResponse.json({
               jobId: job.job_id,
               status: 'processing',
-              modelType: job.model_type,
               progress: 25,
-              queuePosition: statusData.queue_position,
-              webhookStatus: job.webhook_status
+              queuePosition: statusData.queue_position
             });
           } else if (statusData.status === 'IN_PROGRESS') {
             return NextResponse.json({
               jobId: job.job_id,
               status: 'processing',
-              modelType: job.model_type,
-              progress: 50,
-              webhookStatus: job.webhook_status
+              progress: 50
             });
           }
         }
@@ -190,9 +180,7 @@ export async function GET(
     return NextResponse.json({
       jobId: job.job_id,
       status: job.status,
-      modelType: job.model_type,
-      progress: job.status === 'processing' ? 50 : 0,
-      webhookStatus: job.webhook_status
+      progress: job.status === 'processing' ? 50 : 0
     });
 
   } catch (error) {

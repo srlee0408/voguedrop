@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
-import { getOrCreateSessionId } from '@/lib/utils/session.server';
+import { createClient } from '@/lib/supabase/server';
 
 export async function GET(request: NextRequest) {
   try {
@@ -8,14 +7,22 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '20');
     const offset = parseInt(searchParams.get('offset') || '0');
 
-    // 세션 ID 가져오기 (익명 사용자 지원)
-    const sessionId = await getOrCreateSessionId();
+    // 인증된 Supabase 클라이언트 생성
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      return NextResponse.json(
+        { error: '로그인이 필요합니다.' },
+        { status: 401 }
+      );
+    }
 
-    // video_generations 테이블에서 완료된 영상만 조회
+    // video_generations 테이블에서 완료된 영상만 조회 (민감한 정보 제외)
     const { data, error, count } = await supabase
       .from('video_generations')
-      .select('*', { count: 'exact' })
-      .eq('user_id', sessionId)
+      .select('id, job_id, input_image_url, output_video_url, created_at, is_favorite', { count: 'exact' })
+      .eq('user_id', user.id)
       .eq('status', 'completed')
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
@@ -28,24 +35,19 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 응답 데이터 포맷팅
+    // 응답 데이터 포맷팅 (민감한 정보 제외)
     const formattedVideos = (data || []).map(video => ({
-      id: video.id,
+      id: video.job_id,
       videoUrl: video.output_video_url,
       thumbnail: video.input_image_url,
       createdAt: video.created_at,
-      effects: video.selected_effects || [],
-      sourceImageUrl: video.input_image_url,
-      prompt: video.prompt,
-      modelType: video.model_type,
       isFavorite: video.is_favorite || false
     }));
 
     return NextResponse.json({
       videos: formattedVideos,
       total: count || 0,
-      hasMore: (offset + limit) < (count || 0),
-      sessionId
+      hasMore: (offset + limit) < (count || 0)
     });
 
   } catch (error) {

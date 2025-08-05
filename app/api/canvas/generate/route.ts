@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { generateVideo, combineEffectPrompts } from '@/lib/fal-ai';
+import { generateVideo } from '@/lib/fal-ai';
 import {
   checkDailyGenerationLimit
 } from '@/lib/db/video-generations';
-import type { EffectTemplate } from '@/types/canvas';
 import { uploadBase64Image } from '@/lib/supabase/storage';
 import { createClient } from '@/lib/supabase/server';
 
@@ -11,7 +10,7 @@ export const maxDuration = 60; // Vercel 함수 타임아웃 60초
 
 interface GenerateVideoRequest {
   imageUrl: string;
-  selectedEffects: EffectTemplate[];
+  effectIds: number[];
   basePrompt?: string;
   modelType?: 'seedance' | 'hailo';
   userId?: string;
@@ -21,8 +20,8 @@ interface GenerateVideoRequest {
 export async function POST(request: NextRequest) {
   try {
     // Supabase 클라이언트 생성 및 인증 확인
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const supabaseClient = await createClient();
+    const { data: { user } } = await supabaseClient.auth.getUser();
     
     if (!user) {
       return NextResponse.json(
@@ -35,7 +34,7 @@ export async function POST(request: NextRequest) {
     const body: GenerateVideoRequest = await request.json();
     const { 
       imageUrl, 
-      selectedEffects = [], 
+      effectIds = [], 
       basePrompt = '',
       duration = '5'
     } = body;
@@ -64,8 +63,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 3. 효과 프롬프트 결합
-    const combinedPrompt = combineEffectPrompts(selectedEffects, basePrompt);
+    // 3. 효과 ID로 프롬프트 조회 및 결합
+    let selectedEffects: Array<{ id: number; name: string; prompt: string }> = [];
+    let combinedPrompt = basePrompt || '';
+    
+    if (effectIds.length > 0) {
+      const { data: effects, error: effectsError } = await supabaseClient
+        .from('effect_templates')
+        .select('id, name, prompt')
+        .in('id', effectIds)
+        .eq('is_active', true);
+        
+      if (effectsError) {
+        return NextResponse.json(
+          { error: '효과 정보를 불러오는데 실패했습니다.' },
+          { status: 500 }
+        );
+      }
+      
+      if (effects) {
+        selectedEffects = effects;
+        const effectPrompts = effects.map(e => e.prompt).filter(p => p && p.trim());
+        if (effectPrompts.length > 0) {
+          combinedPrompt = combinedPrompt 
+            ? `${combinedPrompt}. ${effectPrompts.join('. ')}`
+            : effectPrompts.join('. ');
+        }
+      }
+    }
     
     if (!combinedPrompt) {
       return NextResponse.json(
@@ -110,7 +135,7 @@ export async function POST(request: NextRequest) {
     const models: Array<'seedance' | 'hailo'> = ['hailo']; // 임시로 hailo만 사용
     const generations = await Promise.all(
       models.map(async (model) => {
-        const { data, error } = await supabase
+        const { data, error } = await supabaseClient
           .from('video_generations')
           .insert({
             user_id: userId,
@@ -139,7 +164,7 @@ export async function POST(request: NextRequest) {
     // 5. 상태를 processing으로 업데이트
     await Promise.all(
       generations.map(async (gen) => {
-        const { error } = await supabase
+        const { error } = await supabaseClient
           .from('video_generations')
           .update({ 
             status: 'processing',
@@ -172,7 +197,7 @@ export async function POST(request: NextRequest) {
           });
 
           // 성공시 DB 업데이트
-          const { data: updatedGeneration, error: updateError } = await supabase
+          const { data: updatedGeneration, error: updateError } = await supabaseClient
             .from('video_generations')
             .update({
               status: 'completed',
@@ -197,7 +222,7 @@ export async function POST(request: NextRequest) {
           };
         } catch (error) {
           // 실패시 DB 업데이트
-          const { error: updateError } = await supabase
+          const { error: updateError } = await supabaseClient
             .from('video_generations')
             .update({
               status: 'failed',

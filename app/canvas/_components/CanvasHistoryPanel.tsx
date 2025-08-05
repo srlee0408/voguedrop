@@ -4,8 +4,6 @@ import { formatRelativeTime } from "@/lib/utils/session";
 import type { GeneratedVideo } from "@/types/canvas";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { createClient } from "@/lib/supabase/client";
-import type { VideoGeneration } from "@/lib/db/video-generations";
 
 interface CanvasHistoryPanelProps {
   generatedVideos: GeneratedVideo[];
@@ -22,7 +20,7 @@ export function CanvasHistoryPanel({
   const [isLoading, setIsLoading] = useState(true);
   const { user } = useAuth();
 
-  // Fetch user's video history from database
+  // Fetch user's video history from API
   useEffect(() => {
     async function fetchVideoHistory() {
       try {
@@ -33,29 +31,22 @@ export function CanvasHistoryPanel({
           return;
         }
         
-        const supabase = createClient();
-        const { data: videos, error } = await supabase
-          .from('video_generations')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(50);
-
-        if (error) {
-          console.error('Failed to fetch videos:', error);
-          return;
+        // API 호출로 변경
+        const response = await fetch('/api/canvas/history?limit=50');
+        if (!response.ok) {
+          throw new Error('Failed to fetch video history');
         }
         
-        // Convert DB format to GeneratedVideo format
-        const convertedVideos: GeneratedVideo[] = (videos || [])
-          .filter((v: VideoGeneration) => v.status === 'completed' && v.output_video_url && v.job_id)
-          .map((v: VideoGeneration) => ({
-            id: v.job_id!,  // job_id를 ID로 사용
-            url: v.output_video_url!,
-            createdAt: new Date(v.created_at),
-            thumbnail: v.input_image_url,
-            modelType: v.model_type,
-            isFavorite: v.is_favorite || false
+        const data = await response.json();
+        
+        // API 응답 형식을 GeneratedVideo 형식으로 변환
+        const convertedVideos: GeneratedVideo[] = (data.videos || [])
+          .map((v: {id: string; videoUrl: string; createdAt: string; thumbnail: string; isFavorite: boolean}) => ({
+            id: v.id,
+            url: v.videoUrl,
+            createdAt: new Date(v.createdAt),
+            thumbnail: v.thumbnail,
+            isFavorite: v.isFavorite || false
           }));
         
         setDbVideos(convertedVideos);

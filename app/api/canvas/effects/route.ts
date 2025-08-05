@@ -5,7 +5,6 @@ interface EffectWithRelations {
   id: number
   name: string
   category_id: number
-  prompt: string
   preview_media_id: number | null
   display_order: number
   is_active: boolean
@@ -39,7 +38,6 @@ export async function GET(request: NextRequest) {
           id,
           name,
           category_id,
-          prompt,
           preview_media_id,
           display_order,
           is_active,
@@ -90,7 +88,6 @@ export async function GET(request: NextRequest) {
         id,
         name,
         category_id,
-        prompt,
         preview_media_id,
         display_order,
         is_active,

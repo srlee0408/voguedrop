@@ -27,7 +27,7 @@ export async function GET(
     
     const { data, error } = await supabase
       .from('video_generations')
-      .select('*')
+      .select('job_id, status, created_at, updated_at, output_video_url, input_image_url, is_favorite, error_message')
       .eq('job_id', jobId)
       .single();
 
@@ -38,11 +38,10 @@ export async function GET(
       );
     }
 
-    // 클라이언트에 반환할 데이터 구성
+    // 클라이언트에 반환할 데이터 구성 (민감한 정보 제외)
     const response = {
       jobId: data.job_id,
       status: data.status,
-      modelType: data.model_type,
       createdAt: data.created_at,
       updatedAt: data.updated_at,
       progress: getProgressPercentage(data.status),

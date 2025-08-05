@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { combineEffectPrompts } from '@/lib/fal-ai';
 import { checkDailyGenerationLimit } from '@/lib/db/video-generations';
-import type { EffectTemplate } from '@/types/canvas';
 import { uploadBase64Image } from '@/lib/supabase/storage';
 import { createClient } from '@/lib/supabase/server';
 import { createVideoGenerationLogger, measureAndLog } from '@/lib/logging/video-generation-logger';
@@ -9,7 +7,7 @@ import { nanoid } from 'nanoid';
 
 interface GenerateVideoRequest {
   imageUrl: string;
-  selectedEffects: EffectTemplate[];
+  effectIds: number[];
   basePrompt?: string;
   modelType?: 'seedance' | 'hailo';
   userId?: string;
@@ -45,7 +43,7 @@ export async function POST(request: NextRequest) {
     const body: GenerateVideoRequest = await request.json();
     const { 
       imageUrl, 
-      selectedEffects = [], 
+      effectIds = [], 
       basePrompt = '',
       duration = '5'
     } = body;
@@ -54,10 +52,10 @@ export async function POST(request: NextRequest) {
     
     await logger.info('Request data parsed', {
       has_image_url: !!imageUrl,
-      effects_count: selectedEffects.length,
+      effects_count: effectIds.length,
       has_base_prompt: !!basePrompt,
       duration,
-      selected_effects: selectedEffects.map(e => ({ id: e.id, name: e.name }))
+      effect_ids: effectIds
     });
 
     if (!imageUrl) {
@@ -94,13 +92,41 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 3. 효과 프롬프트 결합
-    await logger.info('Combining effect prompts');
-    const combinedPrompt = combineEffectPrompts(selectedEffects, basePrompt);
+    // 3. 효과 ID로 프롬프트 조회 및 결합
+    await logger.info('Fetching effect prompts from database');
+    
+    let selectedEffects: Array<{ id: number; name: string; prompt: string }> = [];
+    let combinedPrompt = basePrompt || '';
+    
+    if (effectIds.length > 0) {
+      const { data: effects, error: effectsError } = await supabase
+        .from('effect_templates')
+        .select('id, name, prompt')
+        .in('id', effectIds)
+        .eq('is_active', true);
+        
+      if (effectsError) {
+        await logger.error('Failed to fetch effect templates', effectsError);
+        return NextResponse.json(
+          { error: '효과 정보를 불러오는데 실패했습니다.' },
+          { status: 500 }
+        );
+      }
+      
+      if (effects) {
+        selectedEffects = effects;
+        const effectPrompts = effects.map(e => e.prompt).filter(p => p && p.trim());
+        if (effectPrompts.length > 0) {
+          combinedPrompt = combinedPrompt 
+            ? `${combinedPrompt}. ${effectPrompts.join('. ')}`
+            : effectPrompts.join('. ');
+        }
+      }
+    }
     
     await logger.info('Prompt combination completed', {
-      combined_prompt: combinedPrompt,
-      prompt_length: combinedPrompt?.length || 0
+      prompt_length: combinedPrompt?.length || 0,
+      effects_found: selectedEffects.length
     });
     
     if (!combinedPrompt) {
@@ -412,7 +438,6 @@ export async function POST(request: NextRequest) {
       success: true,
       jobs: results.map(r => ({
         jobId: r.jobId,
-        model: r.model,
         status: r.success ? 'processing' : 'failed',
         error: r.error
       })),

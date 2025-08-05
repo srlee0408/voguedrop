@@ -15,7 +15,6 @@ import type { EffectTemplateWithMedia } from "@/types/database"
 import { useBeforeUnload } from "./_hooks/useBeforeUnload"
 import { EffectsDataProvider } from "./_hooks/useEffectsData"
 import { useAuth } from "@/lib/auth/AuthContext"
-import { createClient } from "@/lib/supabase/client"
 
 // 진행률 계산 유틸리티 함수들
 const calculateProgressForElapsedTime = (elapsedSeconds: number, expectedDuration: number = 190): number => {
@@ -118,16 +117,18 @@ export default function CanvasPage() {
     async function loadFavorites() {
       if (!user) return
       
-      const supabase = createClient()
-      const { data: videos } = await supabase
-        .from('video_generations')
-        .select('job_id, is_favorite')
-        .eq('user_id', user.id)
-        .eq('is_favorite', true)
-      
-      if (videos) {
-        const favoriteIds = new Set(videos.map(v => v.job_id).filter(Boolean))
-        setFavoriteVideos(favoriteIds)
+      try {
+        const response = await fetch('/api/canvas/favorites')
+        if (!response.ok) {
+          throw new Error('Failed to fetch favorites')
+        }
+        
+        const data = await response.json()
+        if (data.favoriteIds) {
+          setFavoriteVideos(new Set(data.favoriteIds))
+        }
+      } catch (error) {
+        console.error('Failed to load favorites:', error)
       }
     }
     
@@ -277,7 +278,7 @@ export default function CanvasPage() {
         },
         body: JSON.stringify({
           imageUrl: currentGeneratingImage,
-          selectedEffects,
+          effectIds: selectedEffects.map(effect => effect.id),
           basePrompt: promptText,
           duration: selectedDuration,
         }),
