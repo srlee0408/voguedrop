@@ -27,8 +27,9 @@ export default function CanvasPage() {
   const [selectedResolution] = useState("1:1")
   const [selectedSize] = useState("1024×1024")
   const [selectedModelId, setSelectedModelId] = useState<string>("")
-  const [uploadedImage, setUploadedImage] = useState<string | null>(null)
-  const [generatedVideos, setGeneratedVideos] = useState<Map<string, GeneratedVideo>>(new Map())
+  // FIFO 방식 슬롯 콘텐츠 관리
+  const [slotContents, setSlotContents] = useState<Array<{type: 'image' | 'video', data: string | GeneratedVideo} | null>>([null, null, null, null])
+  const [currentGeneratingImage, setCurrentGeneratingImage] = useState<string | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
   const [selectedEffects, setSelectedEffects] = useState<EffectTemplateWithMedia[]>([])
   const [generationError, setGenerationError] = useState<string | null>(null)
@@ -86,39 +87,73 @@ export default function CanvasPage() {
       // 이미 선택된 경우 제거
       setSelectedHistoryVideos(prev => prev.filter(v => v.id !== video.id));
     } else {
-      // 새로 선택하는 경우 맨 끝에 추가
-      setSelectedHistoryVideos(prev => {
-        // 업로드 이미지가 있으면 3개, 없으면 4개까지
-        const maxVideos = uploadedImage ? 3 : 4;
-        if (prev.length >= maxVideos) {
-          // 가장 오래된 선택 제거하고 새로운 것 추가
-          return [...prev.slice(1), video];
+      // 새로 선택하는 경우
+      setSlotContents(prev => {
+        // 첫 번째 슬롯이 이미지인 경우 두 번째 슬롯부터 추가
+        if (prev[0]?.type === 'image') {
+          const newSlots = [...prev];
+          // 두 번째 슬롯부터 비디오 추가 (FIFO 방식)
+          const videosToAdd = [{ type: 'video' as const, data: video }];
+          const existingVideos = prev.slice(1).filter(slot => slot?.type === 'video');
+          const allVideos = [...videosToAdd, ...existingVideos.slice(0, 2)]; // 최대 3개까지
+          
+          // 첫 번째는 이미지 유지, 나머지는 비디오로 채우기
+          newSlots[0] = prev[0]; // 이미지 유지
+          allVideos.forEach((v, i) => {
+            if (i < 3) newSlots[i + 1] = v;
+          });
+          
+          // 남은 슬롯은 null로 채우기
+          for (let i = allVideos.length + 1; i < 4; i++) {
+            newSlots[i] = null;
+          }
+          
+          return newSlots;
+        } else {
+          // 첫 번째 슬롯이 이미지가 아닌 경우 기존 FIFO 방식
+          const newSlots = [
+            { type: 'video' as const, data: video },
+            ...prev.slice(0, 3).filter(Boolean)
+          ];
+          while (newSlots.length < 4) {
+            newSlots.push(null);
+          }
+          return newSlots;
         }
-        return [...prev, video];
       });
+      setSelectedHistoryVideos(prev => [...prev, video]);
     }
   };
 
   // Generate 버튼 활성화 조건 계산
-  const canGenerate = !!uploadedImage && selectedEffects.length > 0;
+  const canGenerate = !!currentGeneratingImage && selectedEffects.length > 0;
 
   // 콘텐츠 제거 핸들러
   const handleRemoveContent = (index: number, type: 'image' | 'video') => {
-    if (type === 'image' && index === 0 && uploadedImage) {
-      // 업로드된 이미지 제거
-      setUploadedImage(null);
-    } else if (type === 'video') {
-      // 선택된 히스토리 비디오 제거
-      const videoIndex = uploadedImage ? index - 1 : index;
-      if (videoIndex >= 0 && videoIndex < selectedHistoryVideos.length) {
-        const videoToRemove = selectedHistoryVideos[videoIndex];
-        setSelectedHistoryVideos(prev => prev.filter(v => v.id !== videoToRemove.id));
+    setSlotContents(prev => {
+      const newSlots = [...prev];
+      newSlots[index] = null;
+      
+      // 빈 슬롯을 제거하고 다시 정렬 (FIFO 유지)
+      const nonNullSlots = newSlots.filter(slot => slot !== null);
+      const result: Array<{type: 'image' | 'video', data: string | GeneratedVideo} | null> = [...nonNullSlots];
+      
+      // null로 채우기
+      while (result.length < 4) {
+        result.push(null);
       }
+      
+      return result;
+    });
+    
+    // 첫 번째 슬롯의 이미지가 제거되면 currentGeneratingImage도 초기화
+    if (index === 0 && type === 'image') {
+      setCurrentGeneratingImage(null);
     }
   };
 
   const handleGenerateVideo = async () => {
-    if (!uploadedImage) {
+    if (!currentGeneratingImage) {
       setGenerationError('Please upload an image first.');
       return;
     }
@@ -139,7 +174,7 @@ export default function CanvasPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          imageUrl: uploadedImage,
+          imageUrl: currentGeneratingImage,
           selectedEffects,
           basePrompt: promptText,
           duration: selectedDuration,
@@ -273,16 +308,14 @@ export default function CanvasPage() {
             isFavorite: job.result.isFavorite || false
           }));
 
-          setGeneratedVideos(prev => {
-            // 중복 제거하고 추가
-            const existingIds = new Set(Array.from(prev.values()).map(v => v.id));
-            const uniqueNewVideos = newVideos.filter(v => !existingIds.has(v.id));
-            const newMap = new Map(prev);
-            uniqueNewVideos.forEach(video => {
-              newMap.set(video.id.toString(), video);
+          // 첫 번째 슬롯의 이미지를 비디오로 교체
+          if (newVideos.length > 0 && slotContents[0]?.type === 'image') {
+            setSlotContents(prev => {
+              const newSlots = [...prev];
+              newSlots[0] = { type: 'video', data: newVideos[0] };
+              return newSlots;
             });
-            return newMap;
-          });
+          }
 
           // 첫 번째 비디오 선택
           if (newVideos.length > 0 && !selectedVideoId) {
@@ -383,7 +416,29 @@ export default function CanvasPage() {
             onPrompterToggle={() => setIsPrompterOpen(!isPrompterOpen)}
             promptText={promptText}
             onPromptChange={setPromptText}
-            onImageUpload={setUploadedImage}
+            onImageUpload={(imageUrl) => {
+              setSlotContents(prev => {
+                // 첫 번째 슬롯이 이미지인 경우 교체만 함
+                if (prev[0]?.type === 'image') {
+                  const newSlots = [...prev];
+                  newSlots[0] = { type: 'image' as const, data: imageUrl };
+                  return newSlots;
+                } 
+                // 첫 번째 슬롯이 비어있거나 영상인 경우 FIFO 방식 적용
+                else {
+                  const newSlots = [
+                    { type: 'image' as const, data: imageUrl },
+                    ...prev.slice(0, 3).filter(Boolean) // 마지막 슬롯 제거
+                  ];
+                  // null로 채우기
+                  while (newSlots.length < 4) {
+                    newSlots.push(null);
+                  }
+                  return newSlots;
+                }
+              });
+              setCurrentGeneratingImage(imageUrl);
+            }}
             isGenerating={isGenerating}
             generationError={generationError}
             onEffectModalOpen={() => setIsEffectModalOpen(true)}
@@ -396,7 +451,7 @@ export default function CanvasPage() {
             selectedSize={selectedSize}
             onPromptModalOpen={() => setIsPromptModalOpen(true)}
             showControls={true}
-            generatedVideos={Array.from(generatedVideos.values())}
+            slotContents={slotContents}
             onVideoSelect={handleVideoSelect}
             onGenerateClick={handleGenerateVideo}
             isGenerating={isGenerating}
@@ -405,8 +460,6 @@ export default function CanvasPage() {
             onDurationChange={setSelectedDuration}
             generatingProgress={generatingProgress}
             generatingJobIds={generatingJobIds}
-            selectedHistoryVideos={selectedHistoryVideos}
-            uploadedImage={uploadedImage}
             onRemoveContent={handleRemoveContent}
             onSlotSelect={handleSlotSelect}
             selectedSlotIndex={selectedSlotIndex}

@@ -18,13 +18,14 @@ interface GenerateVideoRequest {
 
 export async function POST(request: NextRequest) {
   let logger: ReturnType<typeof createVideoGenerationLogger> | null = null;
+  const isMockMode = process.env.NEXT_PUBLIC_MOCK_MODE === 'true';
   
   try {
     // Generate job ID early for logging
     const temporaryJobId = `job_${nanoid()}`;
     logger = createVideoGenerationLogger(temporaryJobId);
     
-    await logger.info('Video generation request received');
+    await logger.info('Video generation request received', { mockMode: isMockMode });
 
     // Supabase 클라이언트 생성 및 인증 확인
     const supabase = await createClient();
@@ -207,6 +208,62 @@ export async function POST(request: NextRequest) {
       try {
         const webhookUrl = `${webhookBaseUrl}/api/webhooks/fal-ai?jobId=${job.jobId}`;
         console.log('🔗 Webhook URL:', webhookUrl);
+        
+        // Mock 모드에서는 fal.ai API 호출을 건너뛰고 5초 후 자동 완료
+        if (isMockMode) {
+          await jobLogger?.info('Mock mode enabled - skipping fal.ai API call');
+          
+          // 상태를 processing으로 업데이트
+          const { createServiceClient } = await import('@/lib/supabase/service');
+          const serviceSupabase = createServiceClient();
+          
+          await serviceSupabase
+            .from('video_generations')
+            .update({
+              status: 'processing',
+              fal_request_id: `mock_${job.jobId}`,
+              updated_at: new Date().toISOString()
+            })
+            .eq('job_id', job.jobId);
+          
+          // 5초 후 webhook 시뮬레이션
+          setTimeout(async () => {
+            try {
+              const mockResponse = await fetch(webhookUrl, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'X-Webhook-Secret': process.env.WEBHOOK_SECRET || 'test-secret'
+                },
+                body: JSON.stringify({
+                  request_id: `mock_${job.jobId}`,
+                  gateway_request_id: 'mock-gateway-id',
+                  status: 'OK',
+                  payload: {
+                    video: {
+                      url: 'https://v3.fal.media/files/lion/aFP5JZElM7NIblwIcEcBi_output.mp4'
+                    }
+                  }
+                })
+              });
+              
+              if (!mockResponse.ok) {
+                console.error('Mock webhook call failed:', await mockResponse.text());
+              } else {
+                console.log('✅ Mock webhook call successful for job:', job.jobId);
+              }
+            } catch (error) {
+              console.error('Mock webhook error:', error);
+            }
+          }, 5000);
+          
+          return {
+            success: true,
+            jobId: job.jobId,
+            requestId: `mock_${job.jobId}`,
+            model: job.model
+          };
+        }
         
         // 모델별 엔드포인트 설정
         const endpoint = job.model === 'seedance' 

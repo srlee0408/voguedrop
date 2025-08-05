@@ -12,7 +12,7 @@ interface CanvasProps {
   selectedSize?: string;
   onPromptModalOpen?: () => void;
   showControls?: boolean;
-  generatedVideos?: GeneratedVideo[];
+  slotContents?: Array<{type: 'image' | 'video', data: string | GeneratedVideo} | null>;
   onVideoSelect?: (video: GeneratedVideo) => void;
   onGenerateClick?: () => void;
   isGenerating?: boolean;
@@ -21,8 +21,6 @@ interface CanvasProps {
   onDurationChange?: (duration: string) => void;
   generatingProgress?: Map<string, number>;
   generatingJobIds?: Map<string, string>;
-  selectedHistoryVideos?: GeneratedVideo[];
-  uploadedImage?: string | null;
   onRemoveContent?: (index: number, type: 'image' | 'video') => void;
   onSlotSelect?: (index: number, video: GeneratedVideo | null) => void;
   selectedSlotIndex?: number | null;
@@ -36,7 +34,7 @@ export function Canvas({
   selectedSize = "1920×1080",
   onPromptModalOpen,
   showControls = false,
-  generatedVideos = [],
+  slotContents = [null, null, null, null],
   onVideoSelect,
   onGenerateClick,
   isGenerating = false,
@@ -45,8 +43,6 @@ export function Canvas({
   onDurationChange,
   generatingProgress = new Map(),
   generatingJobIds = new Map(),
-  selectedHistoryVideos = [],
-  uploadedImage = null,
   onRemoveContent,
   onSlotSelect,
   selectedSlotIndex,
@@ -97,27 +93,17 @@ export function Canvas({
         {/* Main Images - 4 Columns */}
         <div className="grid grid-cols-4 gap-4 flex-1 p-4">
           {images.map((image, index) => {
-            // 표시할 콘텐츠 결정 로직
+            // 슬롯 콘텐츠 가져오기
+            const content = slotContents[index];
             let displayContent: { type: 'video' | 'image' | 'empty', data?: GeneratedVideo | string } = { type: 'empty' };
             
-            // 1. 업로드된 이미지가 있고 첫 번째 슬롯인 경우
-            if (uploadedImage && index === 0) {
-              displayContent = { type: 'image', data: uploadedImage };
-            }
-            // 2. 생성된 비디오가 있는 경우 (왼쪽부터)
-            else if (generatedVideos && generatedVideos[index]) {
-              displayContent = { type: 'video', data: generatedVideos[index] };
-            }
-            // 3. 선택된 히스토리 비디오가 있는 경우 - 왼쪽부터 채우기
-            else if (selectedHistoryVideos.length > 0) {
-              // 왼쪽부터 채우기
-              const videoIndex = uploadedImage ? index - 1 : index;
-              if (videoIndex >= 0 && videoIndex < selectedHistoryVideos.length) {
-                displayContent = { type: 'video', data: selectedHistoryVideos[videoIndex] };
-              }
-            }
-            // 4. 기본 이미지가 있는 경우
-            else if (image.url) {
+            if (content) {
+              displayContent = {
+                type: content.type,
+                data: content.data
+              };
+            } else if (image.url) {
+              // 콘텐츠가 없으면 기본 이미지 표시
               displayContent = { type: 'image', data: image.url };
             }
             
@@ -237,9 +223,11 @@ export function Canvas({
 
       {/* Right History Panel */}
       <CanvasHistoryPanel
-        generatedVideos={generatedVideos}
+        generatedVideos={slotContents
+          .filter(content => content?.type === 'video')
+          .map(content => content!.data as GeneratedVideo)}
         onVideoSelect={onVideoSelect}
-        selectedHistoryVideos={selectedHistoryVideos}
+        selectedHistoryVideos={[]}
       />
     </div>
   );

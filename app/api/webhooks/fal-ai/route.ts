@@ -34,7 +34,8 @@ export async function POST(request: NextRequest) {
     // 2. Webhook 헤더 추출
     const webhookHeaders = extractWebhookHeaders(request.headers);
     
-    if (!webhookHeaders) {
+    // Mock 모드가 아닌 경우에만 헤더 검증
+    if (!webhookHeaders && process.env.NEXT_PUBLIC_MOCK_MODE !== 'true') {
       console.error('Missing webhook headers');
       return NextResponse.json(
         { error: 'Invalid webhook headers' },
@@ -45,8 +46,8 @@ export async function POST(request: NextRequest) {
     // 3. 요청 본문 가져오기
     const bodyBuffer = Buffer.from(await request.arrayBuffer());
     
-    // 4. 서명 검증 (프로덕션에서는 필수)
-    if (process.env.NODE_ENV === 'production') {
+    // 4. 서명 검증 (프로덕션에서는 필수, Mock 모드에서는 스킵)
+    if (process.env.NODE_ENV === 'production' && process.env.NEXT_PUBLIC_MOCK_MODE !== 'true' && webhookHeaders) {
       const isValid = await verifyWebhookSignature(
         webhookHeaders.requestId,
         webhookHeaders.userId,
