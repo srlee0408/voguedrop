@@ -9,7 +9,8 @@ interface ImageSectionProps {
 }
 
 export function ImageSection({ 
-  onImageUpload
+  onImageUpload,
+  isGenerating = false
 }: ImageSectionProps) {
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -69,7 +70,9 @@ export function ImageSection({
 
 
   const handleClick = () => {
-    fileInputRef.current?.click();
+    if (!isGenerating) {
+      fileInputRef.current?.click();
+    }
   };
 
   return (
@@ -78,9 +81,15 @@ export function ImageSection({
       <div className="flex gap-1.5">
         {/* Upload button - always visible */}
         <button
-          className="w-16 h-16 bg-primary rounded-md flex items-center justify-center border border-primary hover:bg-primary/90 transition-colors group"
+          className={`w-16 h-16 rounded-md flex items-center justify-center border transition-all ${
+            isGenerating 
+              ? "bg-primary/50 border-primary/50 cursor-not-allowed opacity-50" 
+              : "bg-primary border-primary hover:bg-primary/90 cursor-pointer group"
+          }`}
           onClick={handleClick}
-          aria-label="Add image"
+          aria-label={isGenerating ? "Image upload disabled during generation" : "Add image"}
+          disabled={isGenerating}
+          title={isGenerating ? "영상 생성 중에는 이미지를 업로드할 수 없습니다" : "이미지 업로드"}
         >
           <Plus className="w-5 h-5 text-primary-foreground" />
         </button>
@@ -107,6 +116,7 @@ export function ImageSection({
         accept="image/jpeg,image/png"
         onChange={handleFileSelect}
         className="hidden"
+        disabled={isGenerating}
       />
       
       {/* 에러 메시지 표시 */}
