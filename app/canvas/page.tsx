@@ -166,6 +166,19 @@ export default function CanvasPage() {
     setIsGenerating(true);
     setGenerationError(null);
 
+    // 즉시 진행률 맵 초기화 - Generate 버튼 클릭 즉시 로딩 표시
+    const initialProgressMap = new Map<string, number>();
+    const initialJobIdsMap = new Map<string, string>();
+    
+    // 효과 개수만큼 슬롯을 0%로 초기화
+    selectedEffects.forEach((_, index) => {
+      initialProgressMap.set(index.toString(), 0);
+      initialJobIdsMap.set(index.toString(), `pending-${index}`);
+    });
+    
+    setGeneratingProgress(initialProgressMap);
+    setGeneratingJobIds(initialJobIdsMap);
+
     try {
       // 1. 비동기 작업 시작
       const response = await fetch('/api/canvas/generate-async', {
@@ -187,15 +200,18 @@ export default function CanvasPage() {
         throw new Error(data.error || 'Video generation failed.');
       }
 
-      // 진행률 초기화 - 각 작업을 슬롯 인덱스와 매핑
+      // 진행률 관련 맵 업데이트
       const progressMap = new Map<string, number>();
       const jobIdsMap = new Map<string, string>();
       const jobStartTimes = new Map<string, number>(); // 작업 시작 시간 기록
+      const jobCompletedMap = new Map<string, boolean>(); // 완료 상태 추적
+      const completionStartTimes = new Map<string, number>(); // 완료 애니메이션 시작 시간
       
       data.jobs.forEach((job: { jobId: string }, index: number) => {
         progressMap.set(index.toString(), 0);
         jobIdsMap.set(index.toString(), job.jobId);
         jobStartTimes.set(job.jobId, Date.now());
+        jobCompletedMap.set(job.jobId, false);
       });
       setGeneratingProgress(progressMap);
       setGeneratingJobIds(jobIdsMap);
@@ -245,49 +261,108 @@ export default function CanvasPage() {
             const statusResponse = await fetch(`/api/canvas/jobs/${job.jobId}`);
             const statusData = await statusResponse.json();
             
-            // 진행률 업데이트 (시뮬레이션 - 실제로는 API에서 progress 정보가 와야 함)
+            // 진행률 업데이트
             if (statusData.status === 'processing') {
-              // 진행률 시뮬레이션: 200-250초 기준으로 단계별 진행률 계산
-              const currentTime = Date.now();
-              const startTime = jobStartTimes.get(job.jobId) || currentTime;
-              const elapsedSeconds = (currentTime - startTime) / 1000;
-              
-              let targetProgress = 0;
-              
-              // 단계별 진행률 계산 (총 225초 기준)
-              if (elapsedSeconds < 40) {
-                // 0-40초: 초기 처리 (0-20%)
-                targetProgress = (elapsedSeconds / 40) * 20;
-              } else if (elapsedSeconds < 80) {
-                // 40-80초: 이미지 분석 (20-40%)
-                targetProgress = 20 + ((elapsedSeconds - 40) / 40) * 20;
-              } else if (elapsedSeconds < 200) {
-                // 80-200초: AI 영상 생성 (40-80%) - 가장 오래 걸리는 구간
-                targetProgress = 40 + ((elapsedSeconds - 80) / 120) * 40;
-              } else if (elapsedSeconds < 240) {
-                // 200-240초: 후처리 및 인코딩 (80-95%)
-                targetProgress = 80 + ((elapsedSeconds - 200) / 40) * 15;
-              } else {
-                // 240초 이상: 최종 완료 단계 (95-99%)
-                targetProgress = Math.min(95 + ((elapsedSeconds - 240) / 10) * 4, 99);
+              // 완료되지 않은 작업만 진행률 업데이트
+              if (!jobCompletedMap.get(job.jobId)) {
+                const currentTime = Date.now();
+                const startTime = jobStartTimes.get(job.jobId) || currentTime;
+                const elapsedSeconds = (currentTime - startTime) / 1000;
+                const expectedDuration = 225; // 3분 45초
+                
+                let targetProgress = 0;
+                
+                // 체크포인트 기반 진행률 계산 (최대 90%까지만)
+                const checkpoints = [
+                  { time: 10, progress: 5 },
+                  { time: 30, progress: 15 },
+                  { time: 60, progress: 30 },
+                  { time: 120, progress: 55 },
+                  { time: 180, progress: 75 },
+                  { time: 210, progress: 85 },
+                  { time: 225, progress: 90 }
+                ];
+                
+                // 현재 시간에 해당하는 체크포인트 찾기
+                for (let i = 0; i < checkpoints.length; i++) {
+                  const checkpoint = checkpoints[i];
+                  const nextCheckpoint = checkpoints[i + 1];
+                  
+                  if (elapsedSeconds >= checkpoint.time) {
+                    if (!nextCheckpoint || elapsedSeconds < nextCheckpoint.time) {
+                      // 현재 체크포인트와 다음 체크포인트 사이
+                      if (nextCheckpoint) {
+                        const timeRatio = (elapsedSeconds - checkpoint.time) / (nextCheckpoint.time - checkpoint.time);
+                        const progressDiff = nextCheckpoint.progress - checkpoint.progress;
+                        targetProgress = checkpoint.progress + (progressDiff * timeRatio);
+                      } else {
+                        // 마지막 체크포인트 이후
+                        targetProgress = checkpoint.progress;
+                      }
+                      break;
+                    }
+                  } else if (i === 0) {
+                    // 첫 체크포인트 이전
+                    targetProgress = (elapsedSeconds / checkpoint.time) * checkpoint.progress;
+                    break;
+                  }
+                }
+                
+                // 예상 시간 초과 시 처리
+                if (elapsedSeconds > expectedDuration) {
+                  // 90%에서 천천히 감속 (85-90% 사이 유지)
+                  const overtime = elapsedSeconds - expectedDuration;
+                  const slowdown = Math.log(1 + overtime / expectedDuration) * 2;
+                  targetProgress = Math.max(85, 90 - slowdown);
+                }
+                
+                // 부드러운 증가를 위한 작은 증분 추가 (0.1-0.3%)
+                const smoothIncrement = 0.1 + (Math.random() * 0.2);
+                targetProgress += smoothIncrement;
+                
+                // 90% 상한선 적용
+                targetProgress = Math.min(targetProgress, 90);
+                
+                setGeneratingProgress(prev => {
+                  const newMap = new Map(prev);
+                  const currentProgress = prev.get(originalIndex.toString()) || 0;
+                  // 이전 값보다 큰 경우에만 업데이트 (단조 증가 보장)
+                  const newProgress = Math.max(currentProgress, targetProgress);
+                  newMap.set(originalIndex.toString(), Math.floor(newProgress));
+                  return newMap;
+                });
               }
-              
-              // 약간의 랜덤성 추가 (±2%)
-              const randomOffset = (Math.random() - 0.5) * 4;
-              targetProgress = Math.max(0, Math.min(99, targetProgress + randomOffset));
-              
-              setGeneratingProgress(prev => {
-                const newMap = new Map(prev);
-                newMap.set(originalIndex.toString(), Math.floor(targetProgress));
-                return newMap;
-              });
             } else if (statusData.status === 'completed') {
-              // 완료 시 100%로 설정
-              setGeneratingProgress(prev => {
-                const newMap = new Map(prev);
-                newMap.set(originalIndex.toString(), 100);
-                return newMap;
-              });
+              // 완료 시 동적 애니메이션 시작
+              if (!jobCompletedMap.get(job.jobId)) {
+                jobCompletedMap.set(job.jobId, true);
+                completionStartTimes.set(job.jobId, Date.now());
+                
+                // 완료 애니메이션 (90% -> 100%)
+                const animateToComplete = () => {
+                  const animationDuration = 1000; // 1초간 애니메이션
+                  const startTime = completionStartTimes.get(job.jobId) || Date.now();
+                  const elapsed = Date.now() - startTime;
+                  const ratio = Math.min(elapsed / animationDuration, 1);
+                  
+                  // easeOut 효과
+                  const easeOut = 1 - Math.pow(1 - ratio, 3);
+                  
+                  setGeneratingProgress(prev => {
+                    const newMap = new Map(prev);
+                    const currentProgress = prev.get(originalIndex.toString()) || 90;
+                    const targetProgress = currentProgress + (100 - currentProgress) * easeOut;
+                    newMap.set(originalIndex.toString(), Math.floor(targetProgress));
+                    return newMap;
+                  });
+                  
+                  if (ratio < 1) {
+                    setTimeout(animateToComplete, 16); // 60fps
+                  }
+                };
+                
+                animateToComplete();
+              }
             }
             
             return { ...statusData, originalIndex };
