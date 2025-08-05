@@ -17,14 +17,15 @@ interface LibraryModalProps {
   isOpen: boolean
   onClose: () => void
   clips?: LibraryClip[]
+  favoriteVideos?: Set<string>
+  onToggleFavorite?: (videoId: string) => void
 }
 
-export function LibraryModal({ isOpen, onClose }: LibraryModalProps) {
+export function LibraryModal({ isOpen, onClose, favoriteVideos = new Set(), onToggleFavorite }: LibraryModalProps) {
   const [dbVideos, setDbVideos] = useState<VideoGeneration[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
-  const [favoriteStates, setFavoriteStates] = useState<Map<string, boolean>>(new Map())
   const [downloadingVideos, setDownloadingVideos] = useState<Set<string>>(new Set())
   const { user } = useAuth()
 
@@ -69,40 +70,9 @@ export function LibraryModal({ isOpen, onClose }: LibraryModalProps) {
   }, [isOpen, user, fetchVideos])
 
   // 즐겨찾기 토글 핸들러
-  const handleToggleFavorite = async (video: VideoGeneration) => {
-    const currentFavorite = favoriteStates.get(video.job_id || '') ?? video.is_favorite ?? false
-    const newFavoriteState = !currentFavorite
-    
-    // 낙관적 업데이트
-    setFavoriteStates(prev => new Map(prev).set(video.job_id || '', newFavoriteState))
-    
-    try {
-      const response = await fetch('/api/canvas/favorite', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          videoId: video.job_id || video.id,
-          isFavorite: newFavoriteState
-        })
-      })
-      
-      if (!response.ok) {
-        // 실패시 상태 롤백
-        setFavoriteStates(prev => new Map(prev).set(video.job_id || '', currentFavorite))
-        console.error('Failed to toggle favorite')
-      } else {
-        // 성공시 로컬 상태 업데이트
-        setDbVideos(prev => prev.map(v => 
-          (v.job_id === video.job_id || v.id === video.id) 
-            ? { ...v, is_favorite: newFavoriteState }
-            : v
-        ))
-      }
-    } catch (error) {
-      // 에러시 상태 롤백
-      setFavoriteStates(prev => new Map(prev).set(video.job_id || '', currentFavorite))
-      console.error('Error toggling favorite:', error)
-    }
+  const handleToggleFavorite = (video: VideoGeneration) => {
+    const videoId = video.job_id || String(video.id)
+    onToggleFavorite?.(videoId)
   }
 
   // 다운로드 핸들러
@@ -157,14 +127,26 @@ export function LibraryModal({ isOpen, onClose }: LibraryModalProps) {
   }
 
 
-  // Filter videos based on date
-  const filteredVideos = dbVideos.filter(video => {
-    const videoDate = new Date(video.created_at)
-    const matchesStartDate = !startDate || videoDate >= new Date(startDate)
-    const matchesEndDate = !endDate || videoDate <= new Date(endDate + 'T23:59:59')
-    
-    return matchesStartDate && matchesEndDate
-  })
+  // Filter and sort videos based on date and favorites
+  const filteredVideos = dbVideos
+    .filter(video => {
+      const videoDate = new Date(video.created_at)
+      const matchesStartDate = !startDate || videoDate >= new Date(startDate)
+      const matchesEndDate = !endDate || videoDate <= new Date(endDate + 'T23:59:59')
+      
+      return matchesStartDate && matchesEndDate
+    })
+    .sort((a, b) => {
+      const aIsFavorite = favoriteVideos.has(a.job_id || String(a.id)) || a.is_favorite
+      const bIsFavorite = favoriteVideos.has(b.job_id || String(b.id)) || b.is_favorite
+      
+      // 즐겨찾기 먼저 정렬
+      if (aIsFavorite && !bIsFavorite) return -1
+      if (!aIsFavorite && bIsFavorite) return 1
+      
+      // 그 다음 날짜순 정렬
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    })
 
   if (!isOpen) return null
 
@@ -217,61 +199,64 @@ export function LibraryModal({ isOpen, onClose }: LibraryModalProps) {
               <p className="text-gray-500">No videos found</p>
             </div>
           ) : (
-            filteredVideos.map((video) => (
-              <div
-                key={video.id}
-                className="bg-gray-100 rounded-lg overflow-hidden aspect-square relative"
-              >
-                <div className="relative group w-full h-full">
-                  {video.input_image_url && (
-                    <Image
-                      src={video.input_image_url}
-                      alt={`Video ${video.id}`}
-                      className="object-cover"
-                      fill
-                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                    />
-                  )}
-                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                    <a 
-                      href={video.output_video_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center text-white"
-                    >
-                      <Play className="w-4 h-4" />
-                    </a>
-                    <button 
-                      onClick={() => handleDownload(video)}
-                      disabled={downloadingVideos.has(video.job_id || String(video.id))}
-                      className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {downloadingVideos.has(video.job_id || String(video.id)) ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Download className="w-4 h-4" />
-                      )}
-                    </button>
-                    <button 
-                      onClick={() => handleToggleFavorite(video)}
-                      className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center text-white"
-                    >
-                      <Star className={`w-4 h-4 ${
-                        favoriteStates.get(video.job_id || '') ?? video.is_favorite
-                          ? "fill-current text-yellow-400"
-                          : ""
-                      }`} />
-                    </button>
-                  </div>
-                  {/* Favorite indicator */}
-                  <div className="absolute top-2 right-2">
-                    {(favoriteStates.get(video.job_id || '') ?? video.is_favorite) && (
-                      <Star className="w-4 h-4 text-yellow-400 fill-current" />
+            filteredVideos.map((video) => {
+              // 즐겨찾기 상태를 한 곳에서 계산
+              const videoId = video.job_id || String(video.id)
+              const isFavorite = favoriteVideos.has(videoId)
+              
+              return (
+                <div
+                  key={video.id}
+                  className="bg-gray-100 rounded-lg overflow-hidden aspect-square relative"
+                >
+                  <div className="relative group w-full h-full">
+                    {video.input_image_url && (
+                      <Image
+                        src={video.input_image_url}
+                        alt={`Video ${video.id}`}
+                        className="object-cover"
+                        fill
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                      />
                     )}
+                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                      <a 
+                        href={video.output_video_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center text-white"
+                      >
+                        <Play className="w-4 h-4" />
+                      </a>
+                      <button 
+                        onClick={() => handleDownload(video)}
+                        disabled={downloadingVideos.has(videoId)}
+                        className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {downloadingVideos.has(videoId) ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Download className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
+                    {/* Favorite button - 우측 상단에 항상 표시 */}
+                    <div className="absolute top-2 right-2">
+                      <button
+                        onClick={() => handleToggleFavorite(video)}
+                        className="bg-black/60 p-1.5 rounded-full hover:bg-black/80 transition-colors"
+                      >
+                        <Star className={`w-5 h-5 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] ${
+                          isFavorite
+                            ? "text-yellow-400 fill-current"
+                            : "text-white/70 hover:text-white"
+                        }`} />
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))
+              )
+            })
           )}
           </div>
         </div>

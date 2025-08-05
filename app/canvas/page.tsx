@@ -14,6 +14,8 @@ import type { GeneratedVideo } from "@/types/canvas"
 import type { EffectTemplateWithMedia } from "@/types/database"
 import { useBeforeUnload } from "./_hooks/useBeforeUnload"
 import { EffectsDataProvider } from "./_hooks/useEffectsData"
+import { useAuth } from "@/lib/auth/AuthContext"
+import { createClient } from "@/lib/supabase/client"
 
 // 진행률 계산 유틸리티 함수들
 const calculateProgressForElapsedTime = (elapsedSeconds: number, expectedDuration: number = 190): number => {
@@ -105,9 +107,32 @@ export default function CanvasPage() {
   const [selectedSlotIndex, setSelectedSlotIndex] = useState<number | null>(null)
   const [activeVideo, setActiveVideo] = useState<GeneratedVideo | null>(null)
   const [isDownloading, setIsDownloading] = useState(false)
+  const [favoriteVideos, setFavoriteVideos] = useState<Set<string>>(new Set())
+  const { user } = useAuth()
   
   // 페이지 이탈 방지
   useBeforeUnload(isGenerating, 'Video generation is in progress. Leaving the page will cancel the generation.')
+  
+  // 초기 즐겨찾기 상태 로드
+  useEffect(() => {
+    async function loadFavorites() {
+      if (!user) return
+      
+      const supabase = createClient()
+      const { data: videos } = await supabase
+        .from('video_generations')
+        .select('job_id, is_favorite')
+        .eq('user_id', user.id)
+        .eq('is_favorite', true)
+      
+      if (videos) {
+        const favoriteIds = new Set(videos.map(v => v.job_id).filter(Boolean))
+        setFavoriteVideos(favoriteIds)
+      }
+    }
+    
+    loadFavorites()
+  }, [user])
   
   // 에러 메시지 자동 제거
   useEffect(() => {
@@ -500,6 +525,95 @@ export default function CanvasPage() {
     }
   };
 
+  // 즐겨찾기 토글 핸들러
+  const handleToggleFavorite = async (videoId: string) => {
+    const isFavorite = favoriteVideos.has(videoId);
+    const newFavoriteState = !isFavorite;
+    
+    // 낙관적 업데이트
+    setFavoriteVideos(prev => {
+      const newSet = new Set(prev);
+      if (newFavoriteState) {
+        newSet.add(videoId);
+      } else {
+        newSet.delete(videoId);
+      }
+      return newSet;
+    });
+
+    // slotContents 업데이트
+    setSlotContents(prev => prev.map(slot => {
+      if (slot?.type === 'video' && (slot.data as GeneratedVideo).id === videoId) {
+        return {
+          ...slot,
+          data: { ...slot.data as GeneratedVideo, isFavorite: newFavoriteState }
+        };
+      }
+      return slot;
+    }));
+    
+    try {
+      const response = await fetch('/api/canvas/favorite', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          videoId: videoId,
+          isFavorite: newFavoriteState
+        })
+      });
+      
+      if (!response.ok) {
+        // 실패시 상태 롤백
+        setFavoriteVideos(prev => {
+          const newSet = new Set(prev);
+          if (isFavorite) {
+            newSet.add(videoId);
+          } else {
+            newSet.delete(videoId);
+          }
+          return newSet;
+        });
+        
+        // slotContents 롤백
+        setSlotContents(prev => prev.map(slot => {
+          if (slot?.type === 'video' && (slot.data as GeneratedVideo).id === videoId) {
+            return {
+              ...slot,
+              data: { ...slot.data as GeneratedVideo, isFavorite: isFavorite }
+            };
+          }
+          return slot;
+        }));
+        
+        console.error('Failed to toggle favorite');
+      }
+    } catch (error) {
+      // 에러시 상태 롤백
+      setFavoriteVideos(prev => {
+        const newSet = new Set(prev);
+        if (isFavorite) {
+          newSet.add(videoId);
+        } else {
+          newSet.delete(videoId);
+        }
+        return newSet;
+      });
+      
+      // slotContents 롤백
+      setSlotContents(prev => prev.map(slot => {
+        if (slot?.type === 'video' && (slot.data as GeneratedVideo).id === videoId) {
+          return {
+            ...slot,
+            data: { ...slot.data as GeneratedVideo, isFavorite: isFavorite }
+          };
+        }
+        return slot;
+      }));
+      
+      console.error('Error toggling favorite:', error);
+    }
+  };
+
   return (
     <EffectsDataProvider>
       <div className="min-h-screen flex flex-col bg-background text-foreground">
@@ -561,10 +675,17 @@ export default function CanvasPage() {
             activeVideo={activeVideo}
             onDownloadClick={handleDownload}
             isDownloading={isDownloading}
+            favoriteVideos={favoriteVideos}
+            onToggleFavorite={handleToggleFavorite}
           />
         </div>
 
-        <LibraryModal isOpen={isLibraryOpen} onClose={() => setIsLibraryOpen(false)} />
+        <LibraryModal 
+          isOpen={isLibraryOpen} 
+          onClose={() => setIsLibraryOpen(false)} 
+          favoriteVideos={favoriteVideos}
+          onToggleFavorite={handleToggleFavorite}
+        />
         
         <EffectModal 
           isOpen={isEffectModalOpen} 

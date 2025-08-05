@@ -1,4 +1,4 @@
-import { Play, Clock, Loader2, Star } from "lucide-react";
+import { Play, Clock, Loader2 } from "lucide-react";
 import Image from "next/image";
 import { formatRelativeTime } from "@/lib/utils/session";
 import type { GeneratedVideo } from "@/types/canvas";
@@ -86,7 +86,7 @@ export function CanvasHistoryPanel({
           <p className="text-xs text-muted-foreground">No videos yet</p>
         </div>
       ) : (
-        dbVideos.slice(0, 4).map((video) => (
+        dbVideos.slice(0,4).map((video) => (
           <button
             key={video.id}
             onClick={() => onVideoSelect?.(video)}
@@ -117,12 +117,6 @@ export function CanvasHistoryPanel({
               </div>
             )}
             
-            {/* Favorite indicator */}
-            {video.isFavorite && (
-              <div className="absolute top-1 right-1 bg-black/60 p-1 rounded">
-                <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
-              </div>
-            )}
             
             {/* Time indicator */}
             <div className="absolute bottom-1 right-1 bg-black/60 px-1 py-0.5 rounded text-xs text-white flex items-center gap-0.5">

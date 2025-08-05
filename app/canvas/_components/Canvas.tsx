@@ -5,7 +5,6 @@ import { CanvasHistoryPanel } from "./CanvasHistoryPanel";
 import { VideoGenerationProgress } from "./VideoGenerationProgress";
 import { useCanvas } from "../_hooks/useCanvas";
 import type { GeneratedVideo } from "@/types/canvas";
-import { useState } from "react";
 
 interface CanvasProps {
   selectedResolution?: string;
@@ -27,6 +26,8 @@ interface CanvasProps {
   activeVideo?: GeneratedVideo | null;
   onDownloadClick?: () => void;
   isDownloading?: boolean;
+  favoriteVideos?: Set<string>;
+  onToggleFavorite?: (videoId: string) => void;
 }
 
 export function Canvas({
@@ -49,43 +50,12 @@ export function Canvas({
   activeVideo,
   onDownloadClick,
   isDownloading = false,
+  favoriteVideos = new Set(),
+  onToggleFavorite,
 }: CanvasProps) {
   const {
     images,
   } = useCanvas();
-  
-  // 즐겨찾기 상태를 추적하기 위한 로컬 상태
-  const [favoriteStates, setFavoriteStates] = useState<Map<string, boolean>>(new Map());
-  
-  // 즐겨찾기 토글 핸들러
-  const handleToggleFavorite = async (index: number, video: GeneratedVideo) => {
-    const currentFavorite = favoriteStates.get(video.id) ?? video.isFavorite ?? false;
-    const newFavoriteState = !currentFavorite;
-    
-    // 낙관적 업데이트
-    setFavoriteStates(prev => new Map(prev).set(video.id, newFavoriteState));
-    
-    try {
-      const response = await fetch('/api/canvas/favorite', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          videoId: video.id,
-          isFavorite: newFavoriteState
-        })
-      });
-      
-      if (!response.ok) {
-        // 실패시 상태 롤백
-        setFavoriteStates(prev => new Map(prev).set(video.id, currentFavorite));
-        console.error('Failed to toggle favorite');
-      }
-    } catch (error) {
-      // 에러시 상태 롤백
-      setFavoriteStates(prev => new Map(prev).set(video.id, currentFavorite));
-      console.error('Error toggling favorite:', error);
-    }
-  };
 
   return (
     <div className="flex-1 flex bg-background">
@@ -131,10 +101,10 @@ export function Canvas({
                   className="absolute top-4 right-4 w-10 h-10 bg-surface/90 backdrop-blur rounded-full flex items-center justify-center z-20 hover:bg-surface transition-colors"
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleToggleFavorite(index, displayContent.data as GeneratedVideo);
+                    onToggleFavorite?.((displayContent.data as GeneratedVideo).id);
                   }}
                   aria-label={
-                    favoriteStates.get((displayContent.data as GeneratedVideo).id) ?? 
+                    favoriteVideos.has((displayContent.data as GeneratedVideo).id) || 
                     (displayContent.data as GeneratedVideo).isFavorite 
                       ? "Remove from favorites" 
                       : "Add to favorites"
@@ -142,7 +112,7 @@ export function Canvas({
                 >
                   <Pin
                     className={`w-5 h-5 ${
-                      favoriteStates.get((displayContent.data as GeneratedVideo).id) ?? 
+                      favoriteVideos.has((displayContent.data as GeneratedVideo).id) || 
                       (displayContent.data as GeneratedVideo).isFavorite
                         ? "text-primary fill-current"
                         : "text-foreground/80"
