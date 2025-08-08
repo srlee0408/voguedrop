@@ -18,6 +18,9 @@ interface TimelineProps {
   onDeleteSoundClip?: (id: string) => void;
   onResizeTextClip?: (id: string, newDuration: number) => void;
   onResizeSoundClip?: (id: string, newDuration: number) => void;
+  onReorderVideoClips?: (clips: Array<{ id: string; duration: number; thumbnails: number }>) => void;
+  onReorderTextClips?: (clips: TextClipType[]) => void;
+  onReorderSoundClips?: (clips: SoundClipType[]) => void;
 }
 
 export default function Timeline({ 
@@ -33,6 +36,9 @@ export default function Timeline({
   onDeleteSoundClip,
   onResizeTextClip,
   onResizeSoundClip,
+  onReorderVideoClips,
+  onReorderTextClips,
+  onReorderSoundClips,
 }: TimelineProps) {
   const [activeClip, setActiveClip] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -40,6 +46,9 @@ export default function Timeline({
   const [dragStartX, setDragStartX] = useState(0);
   const [startWidth, setStartWidth] = useState(0);
   const [resizeHandle, setResizeHandle] = useState<'left' | 'right' | null>(null);
+  const [draggedClip, setDraggedClip] = useState<{ id: string; type: 'video' | 'text' | 'sound'; index: number } | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [dragOverType, setDragOverType] = useState<'video' | 'text' | 'sound' | null>(null);
 
   const handleMouseDown = (e: React.MouseEvent, clipId: string) => {
     if ((e.target as HTMLElement).classList.contains('resize-handle')) {
@@ -48,6 +57,50 @@ export default function Timeline({
     setIsDragging(true);
     setActiveClip(clipId);
     setDragStartX(e.clientX);
+  };
+
+  const handleDragStart = (e: React.DragEvent, id: string, type: 'video' | 'text' | 'sound', index: number) => {
+    setDraggedClip({ id, type, index });
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent, type: 'video' | 'text' | 'sound', index: number) => {
+    e.preventDefault();
+    if (draggedClip && draggedClip.type === type) {
+      setDragOverIndex(index);
+      setDragOverType(type);
+    }
+  };
+
+  const handleDragEnd = () => {
+    setDraggedClip(null);
+    setDragOverIndex(null);
+    setDragOverType(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, type: 'video' | 'text' | 'sound', dropIndex: number) => {
+    e.preventDefault();
+    
+    if (!draggedClip || draggedClip.type !== type) return;
+    
+    if (type === 'video' && onReorderVideoClips) {
+      const newClips = [...clips];
+      const [movedClip] = newClips.splice(draggedClip.index, 1);
+      newClips.splice(dropIndex, 0, movedClip);
+      onReorderVideoClips(newClips);
+    } else if (type === 'text' && onReorderTextClips) {
+      const newClips = [...textClips];
+      const [movedClip] = newClips.splice(draggedClip.index, 1);
+      newClips.splice(dropIndex, 0, movedClip);
+      onReorderTextClips(newClips);
+    } else if (type === 'sound' && onReorderSoundClips) {
+      const newClips = [...soundClips];
+      const [movedClip] = newClips.splice(draggedClip.index, 1);
+      newClips.splice(dropIndex, 0, movedClip);
+      onReorderSoundClips(newClips);
+    }
+    
+    handleDragEnd();
   };
 
   const handleResizeStart = (e: React.MouseEvent, clipId: string, handle: 'left' | 'right') => {
@@ -147,12 +200,19 @@ export default function Timeline({
           </div>
           <div className="flex-1 p-2 overflow-x-auto">
             <div className="flex gap-2 items-center">
-              {clips.map((clip) => (
+              {clips.map((clip, index) => (
                 <div 
                   key={clip.id}
                   data-clip-id={clip.id}
-                  className="group relative timeline-clip"
+                  className={`group relative timeline-clip ${
+                    dragOverType === 'video' && dragOverIndex === index ? 'opacity-50' : ''
+                  }`}
                   style={{ width: `${clip.duration}px` }}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, clip.id, 'video', index)}
+                  onDragOver={(e) => handleDragOver(e, 'video', index)}
+                  onDrop={(e) => handleDrop(e, 'video', index)}
+                  onDragEnd={handleDragEnd}
                 >
                   <div 
                     className="w-full h-16 bg-black rounded cursor-pointer hover:bg-gray-900 transition-colors"
@@ -199,15 +259,26 @@ export default function Timeline({
           </div>
           <div className="flex-1 p-2 overflow-x-auto">
             <div className="flex gap-2 items-center min-h-[40px]">
-              {textClips.map((clip) => (
-                <TextClip
+              {textClips.map((clip, index) => (
+                <div
                   key={clip.id}
-                  clip={clip}
-                  onEdit={onEditTextClip}
-                  onDelete={onDeleteTextClip}
-                  onResize={onResizeTextClip}
-                  isActive={activeClip === clip.id}
-                />
+                  className={`${
+                    dragOverType === 'text' && dragOverIndex === index ? 'opacity-50' : ''
+                  }`}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, clip.id, 'text', index)}
+                  onDragOver={(e) => handleDragOver(e, 'text', index)}
+                  onDrop={(e) => handleDrop(e, 'text', index)}
+                  onDragEnd={handleDragEnd}
+                >
+                  <TextClip
+                    clip={clip}
+                    onEdit={onEditTextClip}
+                    onDelete={onDeleteTextClip}
+                    onResize={onResizeTextClip}
+                    isActive={activeClip === clip.id}
+                  />
+                </div>
               ))}
             </div>
           </div>
@@ -228,15 +299,26 @@ export default function Timeline({
           </div>
           <div className="flex-1 p-2 overflow-x-auto">
             <div className="flex gap-2 items-center min-h-[40px]">
-              {soundClips.map((clip) => (
-                <SoundClip
+              {soundClips.map((clip, index) => (
+                <div
                   key={clip.id}
-                  clip={clip}
-                  onEdit={onEditSoundClip}
-                  onDelete={onDeleteSoundClip}
-                  onResize={onResizeSoundClip}
-                  isActive={activeClip === clip.id}
-                />
+                  className={`${
+                    dragOverType === 'sound' && dragOverIndex === index ? 'opacity-50' : ''
+                  }`}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, clip.id, 'sound', index)}
+                  onDragOver={(e) => handleDragOver(e, 'sound', index)}
+                  onDrop={(e) => handleDrop(e, 'sound', index)}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SoundClip
+                    clip={clip}
+                    onEdit={onEditSoundClip}
+                    onDelete={onDeleteSoundClip}
+                    onResize={onResizeSoundClip}
+                    isActive={activeClip === clip.id}
+                  />
+                </div>
               ))}
             </div>
           </div>

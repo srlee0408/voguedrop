@@ -61,3 +61,17 @@ export interface EditorState {
   playheadPosition: number;
   zoom: number;
 }
+
+export interface LibraryVideo {
+  id: string;
+  job_id: string;
+  status: string;
+  input_image_url: string;
+  output_video_url: string;
+  created_at: string;
+  is_favorite: boolean;
+  selected_effects: Array<{
+    id: number;
+    name: string;
+  }>;
+}

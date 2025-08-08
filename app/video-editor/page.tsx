@@ -8,7 +8,7 @@ import ControlBar from './_components/ControlBar';
 import VideoLibraryModal from './_components/VideoLibraryModal';
 import SoundLibraryModal from './_components/SoundLibraryModal';
 import TextEditorModal from './_components/TextEditorModal';
-import { TextClip, SoundClip } from '@/types/video-editor';
+import { TextClip, SoundClip, LibraryVideo } from '@/types/video-editor';
 
 export default function VideoEditorPage() {
   const [showVideoLibrary, setShowVideoLibrary] = useState(false);
@@ -38,11 +38,13 @@ export default function VideoEditorPage() {
     setShowTextEditor(true);
   };
 
-  const handleAddToTimeline = () => {
+  const handleAddToTimeline = (video: LibraryVideo) => {
     const newClip = {
-      id: `clip-${Date.now()}`,
+      id: video.id || `clip-${Date.now()}`,
       duration: 160,
       thumbnails: 1,
+      url: video.output_video_url,
+      thumbnail: video.input_image_url,
     };
     setTimelineClips([...timelineClips, newClip]);
     setShowVideoLibrary(false);
@@ -118,6 +120,18 @@ export default function VideoEditorPage() {
     ));
   };
 
+  const handleReorderVideoClips = (newClips: typeof timelineClips) => {
+    setTimelineClips(newClips);
+  };
+
+  const handleReorderTextClips = (newClips: TextClip[]) => {
+    setTextClips(newClips);
+  };
+
+  const handleReorderSoundClips = (newClips: SoundClip[]) => {
+    setSoundClips(newClips);
+  };
+
   return (
     <div className="bg-background text-foreground min-h-screen">
       <div className="flex flex-col h-screen">
@@ -140,6 +154,9 @@ export default function VideoEditorPage() {
           onDeleteSoundClip={handleDeleteSoundClip}
           onResizeTextClip={handleResizeTextClip}
           onResizeSoundClip={handleResizeSoundClip}
+          onReorderVideoClips={handleReorderVideoClips}
+          onReorderTextClips={handleReorderTextClips}
+          onReorderSoundClips={handleReorderSoundClips}
         />
 
         <ControlBar 
