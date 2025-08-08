@@ -93,7 +93,7 @@ export function LoginForm() {
           required
           value={formData.email}
           onChange={handleChange}
-          className="w-full rounded-lg bg-background border border-border px-4 py-3 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
+          className="input-base"
           placeholder="you@example.com"
         />
       </div>
@@ -110,7 +110,7 @@ export function LoginForm() {
           required
           value={formData.password}
           onChange={handleChange}
-          className="w-full rounded-lg bg-background border border-border px-4 py-3 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
+          className="input-base"
           placeholder="••••••••"
         />
       </div>

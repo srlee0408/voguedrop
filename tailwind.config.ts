@@ -77,8 +77,12 @@ const config: Config = {
         surface: {
           DEFAULT: "rgb(var(--surface) / <alpha-value>)",
           foreground: "rgb(var(--surface-foreground) / <alpha-value>)",
+          secondary: "rgb(var(--surface-secondary) / <alpha-value>)",
+          tertiary: "rgb(var(--surface-tertiary) / <alpha-value>)",
         },
+        "text-primary": "rgb(var(--foreground) / <alpha-value>)",
         "text-secondary": "rgb(var(--muted-foreground) / <alpha-value>)",
+        "text-tertiary": "rgba(var(--foreground) / 0.5)",
         gray: tokens.colors.gray,
         error: tokens.colors.error,
         warning: tokens.colors.warning,

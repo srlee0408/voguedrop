@@ -219,3 +219,72 @@
 .animate-fadeOut { animation: fadeOut var(--transition-slow) ease-out; }
 .animate-slideUp { animation: slideUp var(--transition-normal) ease-out; }
 .animate-slideDown { animation: slideDown var(--transition-normal) ease-out; }
+
+/* Common Input Styles */
+@layer components {
+  /* Base input style for all inputs */
+  .input-base {
+    @apply w-full rounded-lg bg-background border border-border px-4 py-3;
+    @apply text-foreground placeholder:text-muted-foreground;
+    @apply focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary;
+    @apply transition-colors;
+  }
+  
+  /* Small input variant */
+  .input-sm {
+    @apply px-3 py-1 text-sm;
+  }
+  
+  /* Input with border */
+  .input-bordered {
+    @apply border-border focus:border-primary;
+  }
+  
+  /* Textarea base style (same as input base) */
+  .textarea-base {
+    @apply w-full rounded-lg bg-background border border-border px-4 py-3;
+    @apply text-foreground placeholder:text-muted-foreground;
+    @apply focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary;
+    @apply transition-colors;
+    @apply resize-none;
+  }
+  
+  /* Prompter textarea style */
+  .textarea-prompter {
+    @apply w-full min-h-[80px] p-3 text-sm;
+    @apply bg-background text-white border border-border rounded-md;
+    @apply resize-none;
+    @apply focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary;
+    @apply placeholder:text-muted-foreground;
+  }
+  
+  /* Dark input style (for light backgrounds) */
+  .input-dark {
+    @apply bg-black/10 text-black placeholder:text-black/50;
+    @apply focus:bg-black/15;
+  }
+  
+  /* Light input style (for dark backgrounds) */
+  .input-light {
+    @apply bg-white/10 text-white placeholder:text-white/50;
+    @apply focus:bg-white/15;
+  }
+  
+  /* Auth input style (deprecated - use input-base instead) */
+  .input-auth {
+    @apply w-full rounded-lg bg-background border border-border px-4 py-3;
+    @apply text-foreground placeholder:text-muted-foreground;
+    @apply focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary;
+    @apply transition-colors;
+  }
+  
+  /* Error state for inputs */
+  .input-error {
+    @apply border-destructive focus:ring-destructive;
+  }
+  
+  /* Success state for inputs */
+  .input-success {
+    @apply border-primary focus:ring-primary;
+  }
+}

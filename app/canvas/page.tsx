@@ -10,6 +10,8 @@ import { EffectModal } from "@/components/modals/EffectModal"
 import { PromptModal } from "@/components/modals/PromptModal"
 import { CameraModal } from "@/components/modals/CameraModal"
 import { ModelModal } from "@/components/modals/ModelModal"
+import { ProjectTitleModal } from "@/components/modals/ProjectTitleModal"
+import { useRouter } from "next/navigation"
 import type { GeneratedVideo } from "@/types/canvas"
 import type { EffectTemplateWithMedia } from "@/types/database"
 import { useBeforeUnload } from "./_hooks/useBeforeUnload"
@@ -81,11 +83,13 @@ const calculateCompletionAnimationDuration = (currentProgress: number): number =
 };
 
 export default function CanvasPage() {
+  const router = useRouter()
   const [isLibraryOpen, setIsLibraryOpen] = useState(false)
   const [isEffectModalOpen, setIsEffectModalOpen] = useState(false)
   const [isPromptModalOpen, setIsPromptModalOpen] = useState(false)
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false)
   const [isModelModalOpen, setIsModelModalOpen] = useState(false)
+  const [isProjectTitleModalOpen, setIsProjectTitleModalOpen] = useState(false)
   const [isPrompterOpen, setIsPrompterOpen] = useState(false)
   const [promptText, setPromptText] = useState("")
   const [negativePrompt, setNegativePrompt] = useState("")
@@ -618,7 +622,11 @@ export default function CanvasPage() {
   return (
     <EffectsDataProvider>
       <div className="min-h-screen flex flex-col bg-background text-foreground">
-        <Header onLibraryClick={() => setIsLibraryOpen(true)} />
+        <Header 
+          onLibraryClick={() => setIsLibraryOpen(true)}
+          activePage="clip"
+          onEditClick={() => setIsProjectTitleModalOpen(true)}
+        />
 
         <div className="flex flex-1">
           <LeftPanel
@@ -716,6 +724,14 @@ export default function CanvasPage() {
           onClose={() => setIsModelModalOpen(false)}
           onSelectModel={setSelectedModelId}
           selectedModelId={selectedModelId}
+        />
+
+        <ProjectTitleModal
+          isOpen={isProjectTitleModalOpen}
+          onClose={() => setIsProjectTitleModalOpen(false)}
+          onConfirm={(title) => {
+            router.push(`/video-editor?title=${encodeURIComponent(title)}`)
+          }}
         />
       </div>
     </EffectsDataProvider>

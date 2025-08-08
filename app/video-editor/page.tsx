@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-import EditorHeader from './_components/Header';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { Header } from '@/components/layout/Header';
 import VideoPreview from './_components/VideoPreview';
 import Timeline from './_components/Timeline';
 import ControlBar from './_components/ControlBar';
@@ -11,6 +12,17 @@ import TextEditorModal from './_components/TextEditorModal';
 import { TextClip, SoundClip, LibraryVideo } from '@/types/video-editor';
 
 export default function VideoEditorPage() {
+  const searchParams = useSearchParams();
+  const [projectTitle, setProjectTitle] = useState('Untitled Project');
+  
+  // URL 파라미터에서 프로젝트 제목 읽기
+  useEffect(() => {
+    const title = searchParams.get('title');
+    if (title) {
+      setProjectTitle(decodeURIComponent(title));
+    }
+  }, [searchParams]);
+  
   // 타임라인 스케일: 1초당 몇 px로 표시할지 결정
   const PIXELS_PER_SECOND = 40;
   const [showVideoLibrary, setShowVideoLibrary] = useState(false);
@@ -219,7 +231,11 @@ export default function VideoEditorPage() {
 
   return (
     <div className="bg-background text-foreground h-screen overflow-hidden flex flex-col">
-      <EditorHeader />
+      <Header 
+        activePage="edit"
+        projectTitle={projectTitle}
+        onProjectTitleChange={setProjectTitle}
+      />
       
       <div className="flex-1 flex overflow-hidden">
         <VideoPreview 

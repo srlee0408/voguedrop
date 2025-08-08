@@ -55,7 +55,7 @@ export function PrompterSection({
                 value={promptText}
                 onChange={(e) => onPromptChange?.(e.target.value)}
                 placeholder="Describe the motion or effect you want to create..."
-                className="w-full min-h-[80px] p-3 text-sm bg-background border border-border rounded-md resize-none focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+                className="textarea-prompter"
                 maxLength={500}
               />
               <div className="flex justify-between text-xs text-muted-foreground">
