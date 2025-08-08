@@ -30,6 +30,11 @@ export interface TextStyle {
   color: string;
   alignment: 'left' | 'center' | 'right';
   fontWeight?: 'normal' | 'bold' | 'medium';
+  verticalPosition?: 'top' | 'middle' | 'bottom';
+  positionX?: number; // 0-100 (%) 커스텀 위치
+  positionY?: number; // 0-100 (%) 커스텀 위치
+  backgroundColor?: string; // 배경색 (옵션)
+  backgroundOpacity?: number; // 배경 투명도 0-1
 }
 
 export type TextEffect = 
