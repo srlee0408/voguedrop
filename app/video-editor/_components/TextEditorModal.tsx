@@ -55,11 +55,14 @@ export default function TextEditorModal({
   const [content, setContent] = useState(editingClip?.content || '');
   const [style, setStyle] = useState<TextStyle>(
     editingClip?.style || {
-      fontSize: 24,
+      fontSize: 24, // 기본 크기를 크게 변경
       fontFamily: 'default',
       color: '#FFFFFF',
       alignment: 'center',
-      fontWeight: 'normal',
+      fontWeight: 'bold', // 기본 bold로 변경
+      verticalPosition: 'middle',
+      backgroundColor: '',
+      backgroundOpacity: 0.7,
     }
   );
   const [selectedEffect, setSelectedEffect] = useState<TextEffect>(
