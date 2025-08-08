@@ -14,6 +14,7 @@ export default function VideoLibraryModal({ onClose, onAddToTimeline }: VideoLib
   const [libraryVideos, setLibraryVideos] = useState<LibraryVideo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [addingVideoId, setAddingVideoId] = useState<string | null>(null);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -125,10 +126,22 @@ export default function VideoLibraryModal({ onClose, onAddToTimeline }: VideoLib
                         
                         {/* Add button */}
                         <button 
-                          onClick={() => onAddToTimeline(video)}
-                          className="w-full px-3 py-2 bg-[#38f47cf9] rounded-button text-black text-sm font-medium hover:bg-[#38f47cf9]/80 transition-colors"
+                          onClick={async () => {
+                            setAddingVideoId(video.id);
+                            await onAddToTimeline(video);
+                            setAddingVideoId(null);
+                          }}
+                          disabled={addingVideoId === video.id}
+                          className="w-full px-3 py-2 bg-[#38f47cf9] rounded-button text-black text-sm font-medium hover:bg-[#38f47cf9]/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          Add to Timeline
+                          {addingVideoId === video.id ? (
+                            <div className="flex items-center justify-center gap-2">
+                              <div className="w-3 h-3 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
+                              <span>Adding...</span>
+                            </div>
+                          ) : (
+                            'Add to Timeline'
+                          )}
                         </button>
                       </div>
                     </div>

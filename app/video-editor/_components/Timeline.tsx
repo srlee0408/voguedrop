@@ -5,8 +5,18 @@ import { TextClip as TextClipType, SoundClip as SoundClipType } from '@/types/vi
 import TextClip from './TextClip';
 import SoundClip from './SoundClip';
 
+type VideoTimelineClip = {
+  id: string;
+  duration: number; // current width in px
+  thumbnails: number;
+  thumbnail?: string;
+  url?: string;
+  title?: string;
+  max_duration_px?: number; // maximum width in px, derived from real video length
+};
+
 interface TimelineProps {
-  clips: Array<{ id: string; duration: number; thumbnails: number; thumbnail?: string; url?: string }>;
+  clips: Array<VideoTimelineClip>;
   textClips?: TextClipType[];
   soundClips?: SoundClipType[];
   onAddClip: () => void;
@@ -18,11 +28,11 @@ interface TimelineProps {
   onDeleteSoundClip?: (id: string) => void;
   onResizeTextClip?: (id: string, newDuration: number) => void;
   onResizeSoundClip?: (id: string, newDuration: number) => void;
-  onReorderVideoClips?: (clips: Array<{ id: string; duration: number; thumbnails: number }>) => void;
+  onReorderVideoClips?: (clips: Array<VideoTimelineClip>) => void;
   onReorderTextClips?: (clips: TextClipType[]) => void;
   onReorderSoundClips?: (clips: SoundClipType[]) => void;
-  onDeleteVideoClip?: (id: string) => void;
   onResizeVideoClip?: (id: string, newDuration: number) => void;
+  pixelsPerSecond?: number;
 }
 
 export default function Timeline({ 
@@ -41,8 +51,8 @@ export default function Timeline({
   onReorderVideoClips,
   onReorderTextClips,
   onReorderSoundClips,
-  onDeleteVideoClip,
   onResizeVideoClip,
+  pixelsPerSecond = 40,
 }: TimelineProps) {
   const [activeClip, setActiveClip] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -125,12 +135,16 @@ export default function Timeline({
         const delta = e.clientX - dragStartX;
         const clipElement = document.querySelector(`[data-clip-id="${activeClip}"]`) as HTMLElement;
         if (clipElement) {
+          const clipData = clips.find(c => c.id === activeClip);
+          const maxPx = clipData?.max_duration_px ?? Infinity;
           let newWidth;
           if (resizeHandle === 'left') {
             newWidth = Math.max(80, startWidth - delta);
           } else {
             newWidth = Math.max(80, startWidth + delta);
           }
+          // 실제 영상 길이 초과 불가
+          newWidth = Math.min(newWidth, maxPx);
           clipElement.style.width = `${newWidth}px`;
         }
       } else if (isDragging) {
@@ -150,7 +164,10 @@ export default function Timeline({
         }
         // 리사이징 종료 시, 실제 duration을 업데이트
         if (clipElement && isResizing && onResizeVideoClip) {
-          const newWidth = clipElement.offsetWidth;
+          let newWidth = clipElement.offsetWidth;
+          const clipData = clips.find(c => c.id === activeClip);
+          const maxPx = clipData?.max_duration_px ?? Infinity;
+          newWidth = Math.min(newWidth, maxPx);
           onResizeVideoClip(activeClip, newWidth);
         }
       }
@@ -167,31 +184,40 @@ export default function Timeline({
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [activeClip, isDragging, isResizing, dragStartX, startWidth, resizeHandle]);
+  }, [activeClip, isDragging, isResizing, dragStartX, startWidth, resizeHandle, clips, onResizeVideoClip]);
 
-  const timeMarkers = Array.from({ length: 15 }, (_, i) => {
-    const minutes = Math.floor(i * 30 / 60);
-    const seconds = (i * 30) % 60;
+  // 타임라인 눈금: 1칸 = 1초, 30초까지 표시
+  const timeMarkers = Array.from({ length: 31 }, (_, i) => {
+    const minutes = Math.floor(i / 60);
+    const seconds = i % 60;
     return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   });
 
   return (
-    <div className="bg-gray-800 border-t border-gray-700">
+    <div className="bg-gray-800 border-t border-gray-700 flex-shrink-0">
       <div className="relative">
         <div className="flex border-b border-gray-700">
           <div className="w-48 flex-shrink-0 p-2 border-r border-gray-700 flex items-center justify-center">
             <span className="text-xs text-gray-400 font-medium">Add a clip</span>
           </div>
           <div className="flex-1 overflow-x-auto bg-black">
-            <div className="flex items-center h-8">
-              <div className="flex">
-                {timeMarkers.map((time, index) => (
-                  <span key={index} className="w-24 text-xs text-gray-400 pl-2">
-                    {time}
-                  </span>
-                ))}
+              <div className="flex items-center h-8">
+                <div className="flex">
+                  {timeMarkers.map((time, index) => (
+                    <span
+                      key={index}
+                      className="text-xs text-gray-400 inline-block"
+                      style={{ 
+                        width: `${pixelsPerSecond}px`,
+                        paddingLeft: '2px',
+                        textAlign: 'left'
+                      }}
+                    >
+                      {time}
+                    </span>
+                  ))}
+                </div>
               </div>
-            </div>
           </div>
         </div>
         {/* Video Track */}
@@ -224,27 +250,15 @@ export default function Timeline({
                   onDragEnd={handleDragEnd}
                 >
                   <div 
-                    className="w-full h-16 bg-black rounded cursor-pointer hover:bg-gray-900 transition-colors relative overflow-hidden"
+                    className="w-full h-8 bg-gradient-to-r from-gray-900 to-gray-800 rounded cursor-pointer hover:from-gray-800 hover:to-gray-700 transition-colors relative overflow-hidden border border-gray-700"
                     onMouseDown={(e) => handleMouseDown(e, clip.id)}
                   >
-                    {/* 실제 썸네일 이미지 표시 (없는 경우 기본 배경 유지) */}
-                    {clip.thumbnail && (
-                      <div
-                        className="absolute inset-0 bg-cover bg-center opacity-90"
-                        style={{ backgroundImage: `url('${clip.thumbnail}')` }}
-                      />
-                    )}
-                    {/* 삭제 버튼 */}
-                    <button
-                      className="absolute top-1 right-1 w-6 h-6 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDeleteVideoClip?.(clip.id);
-                      }}
-                      aria-label="Delete clip"
-                    >
-                      <i className="ri-delete-bin-line text-xs text-white"></i>
-                    </button>
+                    {/* 제목만 표시하는 막대 형태 */}
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="px-3 py-1 text-xs font-medium text-white/90 truncate">
+                        {clip.title || 'Video Clip'}
+                      </div>
+                    </div>
                     <div 
                       className="absolute inset-y-0 left-0 w-1 bg-[#38f47cf9] rounded-l cursor-ew-resize resize-handle"
                       onMouseDown={(e) => handleResizeStart(e, clip.id, 'left')}
