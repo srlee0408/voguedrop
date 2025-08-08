@@ -93,8 +93,8 @@ export default function VideoEditorPage() {
   };
 
   const handleAddToTimeline = async (video: LibraryVideo) => {
-    // 기본 duration을 5초로 설정 (5초 * 40px/초 = 200px)
-    const default_px = 200;
+    // 기본 duration을 6초로 설정 (6초 * 40px/초 = 240px)
+    const default_px = 240;
     // 고유한 ID 생성 (같은 비디오를 여러 번 추가할 수 있도록)
     const clipId = `clip-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     

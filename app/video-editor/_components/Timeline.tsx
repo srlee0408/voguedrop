@@ -206,11 +206,11 @@ export default function Timeline({
                   {timeMarkers.map((time, index) => (
                     <span
                       key={index}
-                      className="text-xs text-gray-400 inline-block"
+                      className="text-xs text-gray-400 inline-flex items-center"
                       style={{ 
                         width: `${pixelsPerSecond}px`,
-                        paddingLeft: '2px',
-                        textAlign: 'left'
+                        boxSizing: 'border-box',
+                        paddingLeft: index === 0 ? '2px' : '0'
                       }}
                     >
                       {time}
