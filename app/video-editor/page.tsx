@@ -7,17 +7,23 @@ import Timeline from './_components/Timeline';
 import ControlBar from './_components/ControlBar';
 import VideoLibraryModal from './_components/VideoLibraryModal';
 import SoundLibraryModal from './_components/SoundLibraryModal';
+import TextEditorModal from './_components/TextEditorModal';
+import { TextClip, SoundClip } from '@/types/video-editor';
 
 export default function VideoEditorPage() {
   const [showVideoLibrary, setShowVideoLibrary] = useState(false);
   const [showSoundLibrary, setShowSoundLibrary] = useState(false);
+  const [showTextEditor, setShowTextEditor] = useState(false);
   const [selectedSound, setSelectedSound] = useState('Epic Theme');
+  const [editingTextClip, setEditingTextClip] = useState<TextClip | undefined>(undefined);
   const [timelineClips, setTimelineClips] = useState([
     { id: '1', duration: 280, thumbnails: 3 },
     { id: '2', duration: 200, thumbnails: 2 },
     { id: '3', duration: 160, thumbnails: 1 },
     { id: '4', duration: 240, thumbnails: 2 },
   ]);
+  const [textClips, setTextClips] = useState<TextClip[]>([]);
+  const [soundClips, setSoundClips] = useState<SoundClip[]>([]);
 
   const handleAddClip = () => {
     setShowVideoLibrary(true);
@@ -25,6 +31,11 @@ export default function VideoEditorPage() {
 
   const handleAddSound = () => {
     setShowSoundLibrary(true);
+  };
+
+  const handleAddText = () => {
+    setEditingTextClip(undefined);
+    setShowTextEditor(true);
   };
 
   const handleAddToTimeline = () => {
@@ -35,6 +46,76 @@ export default function VideoEditorPage() {
     };
     setTimelineClips([...timelineClips, newClip]);
     setShowVideoLibrary(false);
+  };
+
+  const handleAddTextClip = (textData: Partial<TextClip>) => {
+    if (editingTextClip) {
+      setTextClips(textClips.map(clip => 
+        clip.id === editingTextClip.id 
+          ? { ...clip, ...textData } 
+          : clip
+      ));
+    } else {
+      const newTextClip: TextClip = {
+        id: `text-${Date.now()}`,
+        content: textData.content || '',
+        duration: textData.duration || 200,
+        position: textData.position || 0,
+        style: textData.style || {
+          fontSize: 24,
+          fontFamily: 'default',
+          color: '#FFFFFF',
+          alignment: 'center',
+        },
+        effect: textData.effect,
+      };
+      setTextClips([...textClips, newTextClip]);
+    }
+    setShowTextEditor(false);
+    setEditingTextClip(undefined);
+  };
+
+  const handleEditTextClip = (clip: TextClip) => {
+    setEditingTextClip(clip);
+    setShowTextEditor(true);
+  };
+
+  const handleDeleteTextClip = (id: string) => {
+    setTextClips(textClips.filter(clip => clip.id !== id));
+  };
+
+  const handleResizeTextClip = (id: string, newDuration: number) => {
+    setTextClips(textClips.map(clip => 
+      clip.id === id ? { ...clip, duration: newDuration } : clip
+    ));
+  };
+
+  const handleAddSoundClip = (soundData: Partial<SoundClip>) => {
+    const newSoundClip: SoundClip = {
+      id: `sound-${Date.now()}`,
+      name: soundData.name || 'New Sound',
+      duration: soundData.duration || 300,
+      position: soundData.position || 0,
+      volume: soundData.volume || 100,
+      url: soundData.url,
+    };
+    setSoundClips([...soundClips, newSoundClip]);
+    setShowSoundLibrary(false);
+  };
+
+  const handleEditSoundClip = (clip: SoundClip) => {
+    // TODO: Implement sound editing modal
+    console.log('Edit sound clip:', clip);
+  };
+
+  const handleDeleteSoundClip = (id: string) => {
+    setSoundClips(soundClips.filter(clip => clip.id !== id));
+  };
+
+  const handleResizeSoundClip = (id: string, newDuration: number) => {
+    setSoundClips(soundClips.map(clip => 
+      clip.id === id ? { ...clip, duration: newDuration } : clip
+    ));
   };
 
   return (
@@ -48,7 +129,17 @@ export default function VideoEditorPage() {
 
         <Timeline 
           clips={timelineClips}
+          textClips={textClips}
+          soundClips={soundClips}
           onAddClip={handleAddClip}
+          onAddText={handleAddText}
+          onAddSound={handleAddSound}
+          onEditTextClip={handleEditTextClip}
+          onEditSoundClip={handleEditSoundClip}
+          onDeleteTextClip={handleDeleteTextClip}
+          onDeleteSoundClip={handleDeleteSoundClip}
+          onResizeTextClip={handleResizeTextClip}
+          onResizeSoundClip={handleResizeSoundClip}
         />
 
         <ControlBar 
@@ -68,7 +159,22 @@ export default function VideoEditorPage() {
       {showSoundLibrary && (
         <SoundLibraryModal
           onClose={() => setShowSoundLibrary(false)}
-          onSelectSound={setSelectedSound}
+          onSelectSound={(sound) => {
+            setSelectedSound(sound);
+            handleAddSoundClip({ name: sound, duration: 300, volume: 100 });
+          }}
+        />
+      )}
+
+      {showTextEditor && (
+        <TextEditorModal
+          isOpen={showTextEditor}
+          onClose={() => {
+            setShowTextEditor(false);
+            setEditingTextClip(undefined);
+          }}
+          onAddText={handleAddTextClip}
+          editingClip={editingTextClip}
         />
       )}
     </div>

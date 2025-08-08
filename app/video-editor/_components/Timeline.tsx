@@ -1,13 +1,39 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { TextClip as TextClipType, SoundClip as SoundClipType } from '@/types/video-editor';
+import TextClip from './TextClip';
+import SoundClip from './SoundClip';
 
 interface TimelineProps {
   clips: Array<{ id: string; duration: number; thumbnails: number }>;
+  textClips?: TextClipType[];
+  soundClips?: SoundClipType[];
   onAddClip: () => void;
+  onAddText?: () => void;
+  onAddSound?: () => void;
+  onEditTextClip?: (clip: TextClipType) => void;
+  onEditSoundClip?: (clip: SoundClipType) => void;
+  onDeleteTextClip?: (id: string) => void;
+  onDeleteSoundClip?: (id: string) => void;
+  onResizeTextClip?: (id: string, newDuration: number) => void;
+  onResizeSoundClip?: (id: string, newDuration: number) => void;
 }
 
-export default function Timeline({ clips, onAddClip }: TimelineProps) {
+export default function Timeline({ 
+  clips, 
+  textClips = [],
+  soundClips = [],
+  onAddClip,
+  onAddText,
+  onAddSound,
+  onEditTextClip,
+  onEditSoundClip,
+  onDeleteTextClip,
+  onDeleteSoundClip,
+  onResizeTextClip,
+  onResizeSoundClip,
+}: TimelineProps) {
   const [activeClip, setActiveClip] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
@@ -91,8 +117,8 @@ export default function Timeline({ clips, onAddClip }: TimelineProps) {
     <div className="bg-gray-800 border-t border-gray-700">
       <div className="relative">
         <div className="flex border-b border-gray-700">
-          <div className="w-16 flex-shrink-0 p-2 border-r border-gray-700">
-            <span className="text-xs text-gray-400">Time</span>
+          <div className="w-48 flex-shrink-0 p-2 border-r border-gray-700 flex items-center justify-center">
+            <span className="text-xs text-gray-400 font-medium">Add a clip</span>
           </div>
           <div className="flex-1 overflow-x-auto bg-black">
             <div className="flex items-center h-8">
@@ -106,18 +132,21 @@ export default function Timeline({ clips, onAddClip }: TimelineProps) {
             </div>
           </div>
         </div>
-        <div className="flex">
-          <div className="w-16 flex-shrink-0 p-2 border-r border-gray-700">
-            <span className="text-xs font-medium text-gray-300">Clip 1</span>
+        {/* Video Track */}
+        <div className="flex border-b border-gray-700">
+          <div className="w-48 flex-shrink-0 p-2 border-r border-gray-700">
+            <div className="flex flex-col gap-2">
+              <button 
+                onClick={onAddClip}
+                className="w-full h-8 bg-black rounded flex items-center justify-start gap-2 px-3 hover:bg-gray-900 transition-colors group"
+              >
+                <i className="ri-add-line text-sm text-[#38f47cf9] group-hover:text-white"></i>
+                <span className="text-sm text-[#38f47cf9] group-hover:text-white">Add Clip</span>
+              </button>
+            </div>
           </div>
           <div className="flex-1 p-2 overflow-x-auto">
             <div className="flex gap-2 items-center">
-              <button 
-                onClick={onAddClip}
-                className="w-16 h-16 bg-black rounded flex items-center justify-center hover:bg-gray-900 transition-colors group"
-              >
-                <i className="ri-add-line text-2xl text-[#38f47cf9] group-hover:text-white"></i>
-              </button>
               {clips.map((clip) => (
                 <div 
                   key={clip.id}
@@ -150,6 +179,64 @@ export default function Timeline({ clips, onAddClip }: TimelineProps) {
                     />
                   </div>
                 </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Text Track */}
+        <div className="flex border-b border-gray-700">
+          <div className="w-48 flex-shrink-0 p-2 border-r border-gray-700">
+            <div className="flex flex-col gap-2">
+              <button 
+                onClick={onAddText}
+                className="w-full h-8 bg-black rounded flex items-center justify-start gap-2 px-3 hover:bg-gray-900 transition-colors group"
+              >
+                <i className="ri-text text-sm text-[#38f47cf9] group-hover:text-white"></i>
+                <span className="text-sm text-[#38f47cf9] group-hover:text-white">Add Text</span>
+              </button>
+            </div>
+          </div>
+          <div className="flex-1 p-2 overflow-x-auto">
+            <div className="flex gap-2 items-center min-h-[40px]">
+              {textClips.map((clip) => (
+                <TextClip
+                  key={clip.id}
+                  clip={clip}
+                  onEdit={onEditTextClip}
+                  onDelete={onDeleteTextClip}
+                  onResize={onResizeTextClip}
+                  isActive={activeClip === clip.id}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Sound Track */}
+        <div className="flex">
+          <div className="w-48 flex-shrink-0 p-2 border-r border-gray-700">
+            <div className="flex flex-col gap-2">
+              <button 
+                onClick={onAddSound}
+                className="w-full h-8 bg-black rounded flex items-center justify-start gap-2 px-3 hover:bg-gray-900 transition-colors group"
+              >
+                <i className="ri-music-line text-sm text-[#38f47cf9] group-hover:text-white"></i>
+                <span className="text-sm text-[#38f47cf9] group-hover:text-white">Add Sound</span>
+              </button>
+            </div>
+          </div>
+          <div className="flex-1 p-2 overflow-x-auto">
+            <div className="flex gap-2 items-center min-h-[40px]">
+              {soundClips.map((clip) => (
+                <SoundClip
+                  key={clip.id}
+                  clip={clip}
+                  onEdit={onEditSoundClip}
+                  onDelete={onDeleteSoundClip}
+                  onResize={onResizeSoundClip}
+                  isActive={activeClip === clip.id}
+                />
               ))}
             </div>
           </div>
