@@ -6,7 +6,7 @@ import TextClip from './TextClip';
 import SoundClip from './SoundClip';
 
 interface TimelineProps {
-  clips: Array<{ id: string; duration: number; thumbnails: number }>;
+  clips: Array<{ id: string; duration: number; thumbnails: number; thumbnail?: string; url?: string }>;
   textClips?: TextClipType[];
   soundClips?: SoundClipType[];
   onAddClip: () => void;
@@ -21,6 +21,8 @@ interface TimelineProps {
   onReorderVideoClips?: (clips: Array<{ id: string; duration: number; thumbnails: number }>) => void;
   onReorderTextClips?: (clips: TextClipType[]) => void;
   onReorderSoundClips?: (clips: SoundClipType[]) => void;
+  onDeleteVideoClip?: (id: string) => void;
+  onResizeVideoClip?: (id: string, newDuration: number) => void;
 }
 
 export default function Timeline({ 
@@ -39,6 +41,8 @@ export default function Timeline({
   onReorderVideoClips,
   onReorderTextClips,
   onReorderSoundClips,
+  onDeleteVideoClip,
+  onResizeVideoClip,
 }: TimelineProps) {
   const [activeClip, setActiveClip] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -144,6 +148,11 @@ export default function Timeline({
         if (clipElement && isDragging) {
           clipElement.style.transform = '';
         }
+        // 리사이징 종료 시, 실제 duration을 업데이트
+        if (clipElement && isResizing && onResizeVideoClip) {
+          const newWidth = clipElement.offsetWidth;
+          onResizeVideoClip(activeClip, newWidth);
+        }
       }
       setActiveClip(null);
       setIsDragging(false);
@@ -215,20 +224,27 @@ export default function Timeline({
                   onDragEnd={handleDragEnd}
                 >
                   <div 
-                    className="w-full h-16 bg-black rounded cursor-pointer hover:bg-gray-900 transition-colors"
+                    className="w-full h-16 bg-black rounded cursor-pointer hover:bg-gray-900 transition-colors relative overflow-hidden"
                     onMouseDown={(e) => handleMouseDown(e, clip.id)}
                   >
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="flex gap-1">
-                        {Array.from({ length: clip.thumbnails }).map((_, i) => (
-                          <div 
-                            key={i}
-                            className="w-8 h-12 bg-cover bg-center rounded" 
-                            style={{ backgroundImage: `url('https://readdy.ai/api/search-image?query=luxury%20black%20sports%20car%20in%20modern%20minimalist%20showroom%20with%20large%20windows%2C%20dramatic%20lighting%2C%20reflective%20floor%20surface%2C%20futuristic%20architecture%2C%20premium%20automotive%20photography%2C%20high%20contrast%20lighting%2C%20sleek%20design&width=32&height=48&seq=thumb${i}&orientation=squarish')` }}
-                          />
-                        ))}
-                      </div>
-                    </div>
+                    {/* 실제 썸네일 이미지 표시 (없는 경우 기본 배경 유지) */}
+                    {clip.thumbnail && (
+                      <div
+                        className="absolute inset-0 bg-cover bg-center opacity-90"
+                        style={{ backgroundImage: `url('${clip.thumbnail}')` }}
+                      />
+                    )}
+                    {/* 삭제 버튼 */}
+                    <button
+                      className="absolute top-1 right-1 w-6 h-6 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteVideoClip?.(clip.id);
+                      }}
+                      aria-label="Delete clip"
+                    >
+                      <i className="ri-delete-bin-line text-xs text-white"></i>
+                    </button>
                     <div 
                       className="absolute inset-y-0 left-0 w-1 bg-[#38f47cf9] rounded-l cursor-ew-resize resize-handle"
                       onMouseDown={(e) => handleResizeStart(e, clip.id, 'left')}

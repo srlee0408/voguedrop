@@ -22,6 +22,7 @@ export default function VideoEditorPage() {
     { id: '3', duration: 160, thumbnails: 1 },
     { id: '4', duration: 240, thumbnails: 2 },
   ]);
+  const [hasClearedMockClips, setHasClearedMockClips] = useState(false);
   const [textClips, setTextClips] = useState<TextClip[]>([]);
   const [soundClips, setSoundClips] = useState<SoundClip[]>([]);
 
@@ -39,6 +40,7 @@ export default function VideoEditorPage() {
   };
 
   const handleAddToTimeline = (video: LibraryVideo) => {
+    // 선택한 라이브러리 영상을 타임라인 클립으로 변환
     const newClip = {
       id: video.id || `clip-${Date.now()}`,
       duration: 160,
@@ -46,7 +48,16 @@ export default function VideoEditorPage() {
       url: video.output_video_url,
       thumbnail: video.input_image_url,
     };
-    setTimelineClips([...timelineClips, newClip]);
+
+    // 최초 추가 시, 기존 목업 클립들을 모두 제거하고 대체
+    if (!hasClearedMockClips) {
+      setTimelineClips([newClip]);
+      setHasClearedMockClips(true);
+    } else {
+      // 이후에는 기존 타임라인 뒤에 추가
+      setTimelineClips([...timelineClips, newClip]);
+    }
+
     setShowVideoLibrary(false);
   };
 
@@ -124,6 +135,14 @@ export default function VideoEditorPage() {
     setTimelineClips(newClips);
   };
 
+  const handleDeleteVideoClip = (id: string) => {
+    setTimelineClips(prev => prev.filter(c => c.id !== id));
+  };
+
+  const handleResizeVideoClip = (id: string, newDuration: number) => {
+    setTimelineClips(prev => prev.map(c => c.id === id ? { ...c, duration: newDuration } : c));
+  };
+
   const handleReorderTextClips = (newClips: TextClip[]) => {
     setTextClips(newClips);
   };
@@ -138,7 +157,10 @@ export default function VideoEditorPage() {
         <Header />
         
         <div className="flex-1 flex">
-          <VideoPreview />
+          <VideoPreview 
+            clips={timelineClips as any}
+            onRemoveClip={handleDeleteVideoClip}
+          />
         </div>
 
         <Timeline 
@@ -157,6 +179,8 @@ export default function VideoEditorPage() {
           onReorderVideoClips={handleReorderVideoClips}
           onReorderTextClips={handleReorderTextClips}
           onReorderSoundClips={handleReorderSoundClips}
+          onDeleteVideoClip={handleDeleteVideoClip}
+          onResizeVideoClip={handleResizeVideoClip}
         />
 
         <ControlBar 
