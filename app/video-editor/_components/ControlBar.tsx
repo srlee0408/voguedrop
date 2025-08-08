@@ -26,9 +26,9 @@ export default function ControlBar({ selectedSound, onSelectSound, onAddSound }:
   ];
 
   return (
-    <div className="bg-gray-900 border-t border-gray-700 p-4">
+    <div className="bg-gray-900 border-t border-gray-700 p-2 flex-shrink-0">
       <div className="max-w-[1920px] mx-auto bg-black rounded-lg">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 p-3">
           <div className="flex items-center justify-start lg:justify-start gap-4 flex-wrap">
             <div className="flex flex-col items-center gap-1 min-w-[80px]">
               <button className="w-12 h-12 flex items-center justify-center bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors">

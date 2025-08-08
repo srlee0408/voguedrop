@@ -71,7 +71,10 @@
     },
     "timeline": {
       "time": "Time",
-      "clip": "Clip"
+      "clip": "Clip",
+      "addClip": "Add Clip",
+      "addText": "Add Text",
+      "addSound": "Add Sound"
     },
     "controls": {
       "finalVideo": "Final Video",
@@ -107,6 +110,34 @@
           "upbeat": "Upbeat",
           "ambient": "Ambient",
           "soundEffects": "Sound Effects"
+        }
+      },
+      "textEditor": {
+        "title": "Text Editor",
+        "textContent": "Text Content",
+        "placeholder": "Enter your text...",
+        "fontStyle": "Font Style",
+        "fontSize": "Font Size",
+        "textColor": "Text Color",
+        "textEffects": "Text Effects",
+        "textAlignment": "Text Alignment",
+        "preview": "Preview",
+        "previewPlaceholder": "Your text will appear here",
+        "addToTimeline": "Add to Timeline",
+        "cancel": "Cancel",
+        "effects": {
+          "none": "None",
+          "pulse": "Pulse",
+          "bounce": "Bounce",
+          "gradient": "Gradient",
+          "spin": "Spin",
+          "shake": "Shake",
+          "slide": "Slide",
+          "fade": "Fade",
+          "typing": "Typing",
+          "glow": "Glow",
+          "wave": "Wave",
+          "zoom": "Zoom"
         }
       }
     }
