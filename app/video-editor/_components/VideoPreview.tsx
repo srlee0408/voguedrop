@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { Player } from '@remotion/player';
 import { CompositePreview } from '../_remotion/CompositePreview';
 import { TextClip as TextClipType, SoundClip as SoundClipType } from '@/types/video-editor';
@@ -27,8 +27,11 @@ export default function VideoPreview({ clips, textClips = [], soundClips = [], o
   const [selected_preview_clip_id, setSelectedPreviewClipId] = useState<string | null>(null);
   // 캐러셀 현재 인덱스
   const [currentIndex, setCurrentIndex] = useState(0);
-  // 한 번에 표시할 클립 수
-  const CLIPS_PER_VIEW = 3;
+  
+  const containerRef = useRef<HTMLDivElement>(null);
+  const ITEM_WIDTH = 350; // 컨테이너 고정 너비
+  const ITEM_HEIGHT = 400; // 컨테이너 고정 높이 (16:9 비율 기준)
+  const ITEM_GAP = 20; // 아이템 간격
 
   useEffect(() => {
     setIsMounted(true);
@@ -38,24 +41,61 @@ export default function VideoPreview({ clips, textClips = [], soundClips = [], o
   useEffect(() => {
     if (clips.length === 0) {
       setSelectedPreviewClipId(null);
+      setCurrentIndex(0);
     } else if (!selected_preview_clip_id || !clips.some(c => c.id === selected_preview_clip_id)) {
       setSelectedPreviewClipId(clips[0].id);
+      setCurrentIndex(0);
     }
   }, [clips, selected_preview_clip_id]);
+  
+  // 선택된 클립이 변경되면 해당 인덱스로 이동
+  useEffect(() => {
+    if (selected_preview_clip_id) {
+      const index = clips.findIndex(c => c.id === selected_preview_clip_id);
+      if (index !== -1 && index !== currentIndex) {
+        setCurrentIndex(index);
+      }
+    }
+  }, [selected_preview_clip_id, clips]); // currentIndex 제거하여 무한 루프 방지
 
   // 캐러셀 네비게이션
   const handlePrevious = () => {
-    setCurrentIndex(prev => Math.max(0, prev - CLIPS_PER_VIEW));
+    const newIndex = Math.max(0, currentIndex - 1);
+    setCurrentIndex(newIndex);
+    if (clips[newIndex]) {
+      setSelectedPreviewClipId(clips[newIndex].id);
+    }
   };
 
   const handleNext = () => {
-    setCurrentIndex(prev => Math.min(clips.length - CLIPS_PER_VIEW, prev + CLIPS_PER_VIEW));
+    const newIndex = Math.min(clips.length - 1, currentIndex + 1);
+    setCurrentIndex(newIndex);
+    if (clips[newIndex]) {
+      setSelectedPreviewClipId(clips[newIndex].id);
+    }
+  };
+  
+  // 특정 인덱스로 이동
+  const goToIndex = (index: number) => {
+    setCurrentIndex(Math.max(0, Math.min(clips.length - 1, index)));
+    if (clips[index]) {
+      setSelectedPreviewClipId(clips[index].id);
+    }
   };
 
-  // 현재 보이는 클립들
-  const visibleClips = clips.slice(currentIndex, currentIndex + CLIPS_PER_VIEW);
+  // 네비게이션 가능 여부
   const canGoPrevious = currentIndex > 0;
-  const canGoNext = currentIndex + CLIPS_PER_VIEW < clips.length;
+  const canGoNext = currentIndex < clips.length - 1;
+  
+  // 슬라이드 위치 계산
+  const calculateTransform = () => {
+    const containerWidth = containerRef.current?.offsetWidth || 0;
+    const itemTotalWidth = ITEM_WIDTH + ITEM_GAP;
+    // 현재 인덱스의 아이템을 컨테이너 중앙에 배치
+    const centerOffset = (containerWidth - ITEM_WIDTH) / 2;
+    const slideOffset = -(currentIndex * itemTotalWidth);
+    return slideOffset + centerOffset;
+  };
   
   // 총 프레임 계산 (픽셀 기반 - 40px = 1초 = 30프레임)
   const calculateTotalFrames = useMemo(() => {
@@ -86,10 +126,12 @@ export default function VideoPreview({ clips, textClips = [], soundClips = [], o
   if (!is_mounted) return null;
 
   return (
-    <div className="flex-1 px-4 bg-black flex items-center">
-      <div className="flex gap-4 w-full h-full py-4">
+    <div className="flex-1 bg-black flex items-center">
+      <div className="flex gap-4 w-full h-full">
         {/* 좌측 50%: 캐러셀 형태의 클립 슬롯 */}
-        <div className="w-1/2 flex items-center gap-2">
+        <div className="w-1/2 flex flex-col items-center justify-center relative">
+          {/* 캐러셀 컨테이너 */}
+          <div className="flex items-center gap-2 w-full h-full relative">
           {/* 이전 버튼 */}
           <button
             onClick={handlePrevious}
@@ -105,73 +147,154 @@ export default function VideoPreview({ clips, textClips = [], soundClips = [], o
           </button>
 
           {/* 클립 슬롯들 */}
-          <div className="flex-1 grid grid-cols-3 gap-3">
-            {visibleClips.map((clip) => (
-              <div key={clip.id} className="bg-gray-800 rounded-lg overflow-hidden aspect-[9/16]">
-                <div
-                  role="button"
-                  tabIndex={0}
-                  className="relative w-full h-full text-left cursor-pointer"
-                  onClick={() => setSelectedPreviewClipId(clip.id)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      setSelectedPreviewClipId(clip.id);
-                    }
-                  }}
-                >
-                  <div
-                    className="absolute inset-0 bg-cover bg-center"
-                    style={{ backgroundImage: clip.thumbnail ? `url('${clip.thumbnail}')` : undefined }}
-                  />
-                  {/* 선택 표시 */}
-                  <div className={`absolute inset-0 ring-2 ${selected_preview_clip_id === clip.id ? 'ring-[#38f47cf9]' : 'ring-transparent'}`} />
-                  {/* 삭제 버튼 */}
-                  {onRemoveClip && (
-                    <div className="absolute bottom-2 right-2">
+          <div 
+            ref={containerRef}
+            className="flex-1 overflow-hidden relative h-full"
+          >
+            <div 
+              className="flex items-center h-full"
+              style={{
+                transform: `translateX(${calculateTransform()}px)`,
+                transition: 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
+              }}
+            >
+              {clips.map((clip, index) => {
+                const distance = Math.abs(index - currentIndex);
+                const isCenter = index === currentIndex;
+                const isAdjacent = distance === 1;
+                const scale = isCenter ? 1.1 : isAdjacent ? 0.9 : 0.75;
+                const opacity = isCenter ? 1 : isAdjacent ? 0.8 : 0.5;
+                
+                return (
+                  <div 
+                    key={clip.id} 
+                    className={`flex-shrink-0 transition-all duration-300 flex items-center group ${
+                      !isCenter ? 'hover:opacity-100' : ''
+                    }`}
+                    style={{
+                      width: `${ITEM_WIDTH}px`,
+                      height: `${ITEM_HEIGHT}px`,
+                      marginRight: `${ITEM_GAP}px`,
+                      transform: `scale(${scale})`,
+                      opacity: opacity,
+                    }}
+                  >
+                    <div className="bg-gray-900 rounded-lg overflow-hidden w-full h-full relative transition-all duration-200 hover:shadow-xl hover:shadow-black/50">
                       <div
                         role="button"
                         tabIndex={0}
-                        className="w-7 h-7 flex items-center justify-center bg-black/40 hover:bg-black/60 rounded"
-                        onClick={(e) => { e.stopPropagation(); onRemoveClip(clip.id); }}
+                        className="relative w-full h-full cursor-pointer transition-all duration-200 hover:scale-105"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          goToIndex(index);
+                        }}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' || e.key === ' ') {
                             e.preventDefault();
-                            e.stopPropagation();
-                            onRemoveClip(clip.id);
+                            goToIndex(index);
                           }
                         }}
-                        aria-label="Remove clip"
                       >
-                        <i className="ri-delete-bin-line text-white text-xs"></i>
+                        {/* 썸네일 이미지 - object-contain으로 비율 유지 */}
+                        {clip.thumbnail ? (
+                          <div
+                            className="absolute inset-0 bg-center bg-no-repeat transition-all duration-200 hover:brightness-110"
+                            style={{ 
+                              backgroundImage: `url('${clip.thumbnail}')`,
+                              backgroundSize: 'contain'
+                            }}
+                          />
+                        ) : (
+                          <div className="absolute inset-0 flex items-center justify-center text-gray-600">
+                            <i className="ri-video-line text-4xl"></i>
+                          </div>
+                        )}
+                        
+                        {/* 중앙 클립 강조 효과 */}
+                        {isCenter && (
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
+                        )}
+                        
+                        {/* 삭제 버튼 - 중앙 클립에만 표시 */}
+                        {onRemoveClip && isCenter && (
+                          <div className="absolute bottom-2 right-2">
+                            <div
+                              role="button"
+                              tabIndex={0}
+                              className="w-7 h-7 flex items-center justify-center bg-black/40 hover:bg-black/60 rounded transition-opacity"
+                              onClick={(e) => { 
+                                e.stopPropagation(); 
+                                onRemoveClip(clip.id);
+                                // 삭제 후 인덱스 조정
+                                if (index === clips.length - 1 && index > 0) {
+                                  setCurrentIndex(index - 1);
+                                }
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  onRemoveClip(clip.id);
+                                }
+                              }}
+                              aria-label="Remove clip"
+                            >
+                              <i className="ri-delete-bin-line text-white text-xs"></i>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
-                  )}
+                  </div>
+                );
+              })}
+              
+              {/* 빈 상태 표시 */}
+              {clips.length === 0 && (
+                <div className="w-full h-full flex items-center justify-center">
+                  <div className="text-gray-500 text-sm">
+                    No clips added yet
+                  </div>
                 </div>
-              </div>
-            ))}
-
-            {/* 빈 슬롯 표시 (3개 미만일 때) */}
-            {visibleClips.length < CLIPS_PER_VIEW && Array.from({ length: CLIPS_PER_VIEW - visibleClips.length }).map((_, idx) => (
-              <div key={`empty-${idx}`} className="bg-gray-800/40 rounded-lg aspect-[9/16] border-2 border-dashed border-gray-700 flex items-center justify-center text-gray-500 text-sm">
-                Empty
-              </div>
-            ))}
+              )}
+            </div>
           </div>
 
-          {/* 다음 버튼 */}
-          <button
-            onClick={handleNext}
-            disabled={!canGoNext}
-            className={`flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full transition-all ${
-              canGoNext 
-                ? 'bg-white/10 hover:bg-white/20 text-white cursor-pointer' 
-                : 'bg-white/5 text-gray-600 cursor-not-allowed'
-            }`}
-            aria-label="Next clips"
-          >
-            <i className="ri-arrow-right-s-line text-xl"></i>
-          </button>
+            {/* 다음 버튼 */}
+            <button
+              onClick={handleNext}
+              disabled={!canGoNext}
+              className={`flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full transition-all ${
+                canGoNext 
+                  ? 'bg-white/10 hover:bg-white/20 text-white cursor-pointer' 
+                  : 'bg-white/5 text-gray-600 cursor-not-allowed'
+              }`}
+              aria-label="Next clips"
+            >
+              <i className="ri-arrow-right-s-line text-xl"></i>
+            </button>
+          </div>
+          
+          {/* 페이지 인디케이터 - 하단에 위치 */}
+          {clips.length > 1 && (
+            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-1.5 bg-black/50 px-3 py-2 rounded-full">
+              {clips.map((_, index) => {
+                const isActive = index === currentIndex;
+                return (
+                  <button
+                    key={index}
+                    onClick={() => goToIndex(index)}
+                    className={`rounded-full transition-all duration-300 ${
+                      isActive 
+                        ? 'bg-[#38f47cf9] w-6 h-1.5' 
+                        : 'bg-gray-600 w-1.5 h-1.5 hover:bg-gray-500'
+                    }`}
+                    aria-label={`Go to clip ${index + 1}`}
+                  />
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* 우측 50%: 미리보기 플레이어 - 모든 트랙 합성 */}
