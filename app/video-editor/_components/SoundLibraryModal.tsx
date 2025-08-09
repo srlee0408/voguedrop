@@ -1,48 +1,209 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 
 interface SoundLibraryModalProps {
   onClose: () => void;
-  onSelectSound: (sound: string) => void;
+  onSelectSounds: (sounds: Array<{ name: string; url: string; duration: number }>) => void;
 }
 
-const soundCategories = ['Cinematic', 'Upbeat', 'Ambient', 'Sound Effects'];
+interface UploadedAudio {
+  id: string;
+  name: string;
+  url: string;
+  duration: number;
+  size: number;
+}
 
-const sounds = {
-  Cinematic: [
-    { id: '1', name: 'Epic Orchestra', duration: '3:24' },
-    { id: '2', name: 'Dramatic Tension', duration: '2:45' },
-    { id: '3', name: 'Heroic Theme', duration: '4:10' },
-  ],
-  Upbeat: [
-    { id: '4', name: 'Happy Energy', duration: '2:30' },
-    { id: '5', name: 'Dance Party', duration: '3:15' },
-  ],
-  Ambient: [
-    { id: '6', name: 'Peaceful Waves', duration: '5:00' },
-    { id: '7', name: 'Forest Sounds', duration: '4:30' },
-  ],
-  'Sound Effects': [
-    { id: '8', name: 'Whoosh', duration: '0:03' },
-    { id: '9', name: 'Impact', duration: '0:02' },
-  ],
-};
+export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibraryModalProps) {
+  const [uploadedAudios, setUploadedAudios] = useState<UploadedAudio[]>([]);
+  const [selectedAudioIds, setSelectedAudioIds] = useState<Set<string>>(new Set());
+  const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-export default function SoundLibraryModal({ onClose, onSelectSound }: SoundLibraryModalProps) {
-  const [activeCategory, setActiveCategory] = useState('Cinematic');
-  const [playingSound, setPlayingSound] = useState<string | null>(null);
-
-  const handlePlayPause = (soundId: string) => {
-    setPlayingSound(playingSound === soundId ? null : soundId);
+  const getAudioDuration = (file: File): Promise<number> => {
+    return new Promise((resolve, reject) => {
+      const audio = new Audio();
+      const url = URL.createObjectURL(file);
+      
+      audio.addEventListener('loadedmetadata', () => {
+        URL.revokeObjectURL(url);
+        resolve(audio.duration);
+      });
+      
+      audio.addEventListener('error', () => {
+        URL.revokeObjectURL(url);
+        reject(new Error('Failed to load audio file'));
+      });
+      
+      audio.src = url;
+    });
   };
 
-  const handleAddToTimeline = (soundName: string) => {
-    onSelectSound(soundName);
-    onClose();
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsUploading(true);
+    const newAudioIds: string[] = [];
+    
+    try {
+      for (const file of Array.from(files)) {
+        if (!file.type.startsWith('audio/')) {
+          alert(`${file.name} is not an audio file.`);
+          continue;
+        }
+
+        const duration = await getAudioDuration(file);
+        const url = URL.createObjectURL(file);
+        
+        const newAudio: UploadedAudio = {
+          id: `audio-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          name: file.name,
+          url: url,
+          duration: duration,
+          size: file.size,
+        };
+        
+        setUploadedAudios(prev => [...prev, newAudio]);
+        newAudioIds.push(newAudio.id);
+      }
+      
+      // 새로 업로드된 파일들을 자동으로 선택
+      setSelectedAudioIds(prev => {
+        const newSet = new Set(prev);
+        newAudioIds.forEach(id => newSet.add(id));
+        return newSet;
+      });
+    } catch (error) {
+      console.error('Error uploading audio:', error);
+      alert('Error uploading audio file.');
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
   };
 
-  const currentSounds = sounds[activeCategory as keyof typeof sounds] || [];
+  const handleDrop = async (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    const files = event.dataTransfer.files;
+    if (!files || files.length === 0) return;
+    
+    const input = fileInputRef.current;
+    if (input) {
+      const dataTransfer = new DataTransfer();
+      for (const file of Array.from(files)) {
+        dataTransfer.items.add(file);
+      }
+      input.files = dataTransfer.files;
+      
+      const changeEvent = new Event('change', { bubbles: true });
+      input.dispatchEvent(changeEvent);
+    }
+  };
+
+  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+  };
+
+  const handlePlayPause = (audio: UploadedAudio) => {
+    if (playingAudioId === audio.id) {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+      setPlayingAudioId(null);
+    } else {
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+      
+      const newAudio = new Audio(audio.url);
+      newAudio.play();
+      audioRef.current = newAudio;
+      setPlayingAudioId(audio.id);
+      
+      newAudio.addEventListener('ended', () => {
+        setPlayingAudioId(null);
+        audioRef.current = null;
+      });
+    }
+  };
+
+  const handleToggleSelect = (audioId: string) => {
+    setSelectedAudioIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(audioId)) {
+        newSet.delete(audioId);
+      } else {
+        newSet.add(audioId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (selectedAudioIds.size === uploadedAudios.length) {
+      setSelectedAudioIds(new Set());
+    } else {
+      setSelectedAudioIds(new Set(uploadedAudios.map(a => a.id)));
+    }
+  };
+
+  const handleAddSelectedToTimeline = () => {
+    const selectedAudios = uploadedAudios
+      .filter(audio => selectedAudioIds.has(audio.id))
+      .map(audio => ({
+        name: audio.name,
+        url: audio.url,
+        duration: audio.duration,
+      }));
+    
+    if (selectedAudios.length > 0) {
+      onSelectSounds(selectedAudios);
+      onClose();
+    }
+  };
+
+  const handleRemoveAudio = (audioId: string) => {
+    const audio = uploadedAudios.find(a => a.id === audioId);
+    if (audio) {
+      URL.revokeObjectURL(audio.url);
+      setUploadedAudios(prev => prev.filter(a => a.id !== audioId));
+      setSelectedAudioIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(audioId);
+        return newSet;
+      });
+      
+      if (playingAudioId === audioId && audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+        setPlayingAudioId(null);
+      }
+    }
+  };
+
+  const formatDuration = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return bytes + ' B';
+    const kb = bytes / 1024;
+    if (kb < 1024) return kb.toFixed(1) + ' KB';
+    const mb = kb / 1024;
+    return mb.toFixed(1) + ' MB';
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -56,91 +217,121 @@ export default function SoundLibraryModal({ onClose, onSelectSound }: SoundLibra
             <i className="ri-close-line"></i>
           </button>
         </div>
+        
         <div className="flex-1 overflow-auto p-6">
-          <div className="grid grid-cols-3 gap-6">
-            <div className="col-span-2">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-medium">Categories</h3>
-                <div className="flex gap-2">
-                  {soundCategories.map((category) => (
-                    <button 
-                      key={category}
-                      onClick={() => setActiveCategory(category)}
-                      className={`px-3 py-1.5 rounded text-sm transition-colors ${
-                        activeCategory === category 
-                          ? 'bg-primary text-black' 
-                          : 'bg-gray-700 hover:bg-gray-600'
-                      }`}
-                    >
-                      {category}
-                    </button>
-                  ))}
-                </div>
+          <div className="mb-6">
+            <h3 className="font-medium mb-4">Upload Audio</h3>
+            <div 
+              className="border-2 border-dashed border-gray-700 rounded-lg p-8 text-center hover:border-primary/50 transition-colors"
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+            >
+              <i className="ri-upload-cloud-line text-4xl text-gray-400 mb-3"></i>
+              <div className="text-gray-400 mb-2">
+                Drag and drop audio files or click to upload
               </div>
+              <div className="text-sm text-gray-500 mb-4">
+                Supported formats: MP3, WAV, M4A, OGG, AAC
+              </div>
+              <input 
+                ref={fileInputRef}
+                type="file" 
+                accept="audio/*" 
+                multiple
+                className="hidden" 
+                id="audio-upload"
+                onChange={handleFileUpload}
+                disabled={isUploading}
+              />
+              <button 
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+                className="px-6 py-2 bg-primary rounded-button text-black hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isUploading ? 'Uploading...' : 'Browse Files'}
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-medium">Uploaded Audio ({uploadedAudios.length})</h3>
+              {uploadedAudios.length > 0 && (
+                <button 
+                  onClick={handleSelectAll}
+                  className="text-sm text-primary hover:text-primary/80"
+                >
+                  {selectedAudioIds.size === uploadedAudios.length ? 'Deselect All' : 'Select All'}
+                </button>
+              )}
+            </div>
+            {uploadedAudios.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                No audio files uploaded. Please upload audio files.
+              </div>
+            ) : (
               <div className="space-y-2">
-                {currentSounds.map((sound) => (
+                {uploadedAudios.map((audio) => (
                   <div 
-                    key={sound.id}
-                    className="flex items-center gap-4 p-3 hover:bg-gray-700 rounded cursor-pointer group"
+                    key={audio.id}
+                    className="flex items-center gap-3 p-3 bg-gray-700/50 hover:bg-gray-700 rounded-lg group"
                   >
+                    <input 
+                      type="checkbox"
+                      checked={selectedAudioIds.has(audio.id)}
+                      onChange={() => handleToggleSelect(audio.id)}
+                      className="w-4 h-4 text-primary bg-gray-700 border-gray-600 rounded focus:ring-primary"
+                    />
+                    
                     <button 
-                      onClick={() => handlePlayPause(sound.id)}
-                      className="w-8 h-8 flex items-center justify-center bg-gray-900 rounded-full hover:bg-gray-800"
+                      onClick={() => handlePlayPause(audio)}
+                      className="w-10 h-10 flex items-center justify-center bg-gray-900 rounded-full hover:bg-gray-800 transition-colors"
                     >
-                      <i className={playingSound === sound.id ? 'ri-pause-fill' : 'ri-play-fill'}></i>
+                      <i className={playingAudioId === audio.id ? 'ri-pause-fill' : 'ri-play-fill'}></i>
                     </button>
+                    
                     <div className="flex-1">
-                      <div className="font-medium">{sound.name}</div>
-                      <div className="text-sm text-gray-400">{activeCategory} • {sound.duration}</div>
+                      <div className="font-medium text-sm">{audio.name}</div>
+                      <div className="text-xs text-gray-400 mt-1">
+                        {formatDuration(audio.duration)} • {formatFileSize(audio.size)}
+                      </div>
                     </div>
+                    
                     <button 
-                      onClick={() => handleAddToTimeline(sound.name)}
-                      className="opacity-0 group-hover:opacity-100 px-3 py-1.5 bg-primary rounded-button text-sm hover:bg-primary/80 text-black"
+                      onClick={() => handleRemoveAudio(audio.id)}
+                      className="w-8 h-8 flex items-center justify-center hover:bg-gray-600 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
                     >
-                      Add to Timeline
+                      <i className="ri-delete-bin-line text-red-400"></i>
                     </button>
                   </div>
                 ))}
               </div>
-            </div>
-            <div className="col-span-1">
-              <div className="mb-4">
-                <h3 className="font-medium mb-2">Upload Audio</h3>
-                <div className="border-2 border-dashed border-gray-700 rounded-lg p-6 text-center">
-                  <i className="ri-upload-cloud-line text-3xl text-gray-400 mb-2"></i>
-                  <div className="text-sm text-gray-400">Drag and drop or click to upload</div>
-                  <input type="file" accept="audio/*" className="hidden" id="audio-upload" />
-                  <button 
-                    onClick={() => document.getElementById('audio-upload')?.click()}
-                    className="mt-4 px-4 py-2 bg-gray-700 rounded-button text-sm hover:bg-gray-600"
-                  >
-                    Browse Files
-                  </button>
-                </div>
-              </div>
-              <div>
-                <h3 className="font-medium mb-2">Recently Uploaded</h3>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 p-2 hover:bg-gray-700 rounded">
-                    <i className="ri-music-2-line"></i>
-                    <div className="text-sm">custom_music.mp3</div>
-                  </div>
-                </div>
-              </div>
-            </div>
+            )}
           </div>
         </div>
+        
         <div className="p-6 border-t border-gray-700">
-          <div className="flex justify-end gap-3">
-            <button 
-              onClick={onClose}
-              className="px-4 py-2 bg-gray-700 rounded-button hover:bg-gray-600"
-            >
-              Cancel
-            </button>
-            <button className="px-4 py-2 bg-primary rounded-button hover:bg-primary/90 text-black">
-              Done
-            </button>
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-gray-400">
+              {selectedAudioIds.size > 0 && (
+                <span>{selectedAudioIds.size} selected</span>
+              )}
+            </div>
+            <div className="flex gap-3">
+              <button 
+                onClick={onClose}
+                className="px-6 py-2 bg-gray-700 rounded-button hover:bg-gray-600"
+              >
+                Close
+              </button>
+              <button 
+                onClick={handleAddSelectedToTimeline}
+                disabled={selectedAudioIds.size === 0}
+                className="px-6 py-2 bg-primary rounded-button hover:bg-primary/90 text-black disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Add Selected to Timeline ({selectedAudioIds.size})
+              </button>
+            </div>
           </div>
         </div>
       </div>

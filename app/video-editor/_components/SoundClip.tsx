@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useRef } from 'react';
 import { SoundClip as SoundClipType } from '@/types/video-editor';
 
 interface SoundClipProps {
@@ -8,56 +8,20 @@ interface SoundClipProps {
   onEdit?: (clip: SoundClipType) => void;
   onDelete?: (id: string) => void;
   onResize?: (id: string, newDuration: number) => void;
+  onResizeStart?: (e: React.MouseEvent, handle: 'left' | 'right') => void;
   isActive?: boolean;
+  pixelsPerSecond?: number;
 }
 
 export default function SoundClip({
   clip,
   onEdit,
   onDelete,
-  onResize,
+  onResizeStart,
   isActive = false,
+  pixelsPerSecond = 40,
 }: SoundClipProps) {
-  const [, setIsResizing] = useState(false);
-  const [startX, setStartX] = useState(0);
-  const [startWidth, setStartWidth] = useState(clip.duration);
   const clipRef = useRef<HTMLDivElement>(null);
-
-  const handleResizeStart = (e: React.MouseEvent, side: 'left' | 'right') => {
-    e.stopPropagation();
-    setIsResizing(true);
-    setStartX(e.clientX);
-    setStartWidth(clip.duration);
-    
-    const handleMouseMove = (e: MouseEvent) => {
-      const delta = e.clientX - startX;
-      const newWidth = side === 'right' 
-        ? Math.max(80, startWidth + delta)
-        : Math.max(80, startWidth - delta);
-      
-      if (clipRef.current) {
-        clipRef.current.style.width = `${newWidth}px`;
-      }
-    };
-
-    const handleMouseUp = (e: MouseEvent) => {
-      const delta = e.clientX - startX;
-      const newWidth = side === 'right'
-        ? Math.max(80, startWidth + delta)
-        : Math.max(80, startWidth - delta);
-      
-      if (onResize) {
-        onResize(clip.id, newWidth);
-      }
-      
-      setIsResizing(false);
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-  };
 
   const handleDoubleClick = () => {
     if (onEdit) {
@@ -66,9 +30,10 @@ export default function SoundClip({
   };
 
   const formatDuration = (duration: number) => {
-    const seconds = Math.floor(duration / 10);
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
+    // Convert pixels to seconds using pixelsPerSecond
+    const totalSeconds = Math.floor(duration / pixelsPerSecond);
+    const minutes = Math.floor(totalSeconds / 60);
+    const remainingSeconds = totalSeconds % 60;
     return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
@@ -104,12 +69,12 @@ export default function SoundClip({
         
         {/* Resize handles */}
         <div
-          className="absolute inset-y-0 left-0 w-1 bg-green-500 rounded-l cursor-ew-resize opacity-0 group-hover:opacity-100 transition-opacity"
-          onMouseDown={(e) => handleResizeStart(e, 'left')}
+          className="absolute inset-y-0 left-0 w-1 bg-green-500 rounded-l cursor-ew-resize opacity-0 group-hover:opacity-100 transition-opacity resize-handle"
+          onMouseDown={(e) => onResizeStart?.(e, 'left')}
         />
         <div
-          className="absolute inset-y-0 right-0 w-1 bg-green-500 rounded-r cursor-ew-resize opacity-0 group-hover:opacity-100 transition-opacity"
-          onMouseDown={(e) => handleResizeStart(e, 'right')}
+          className="absolute inset-y-0 right-0 w-1 bg-green-500 rounded-r cursor-ew-resize opacity-0 group-hover:opacity-100 transition-opacity resize-handle"
+          onMouseDown={(e) => onResizeStart?.(e, 'right')}
         />
         
         {/* Delete button */}

@@ -260,16 +260,21 @@ export default function VideoEditorPage() {
   };
 
   const handleAddSoundClip = (soundData: Partial<SoundClip>) => {
+    // Calculate position for new sound clip (add after existing clips)
+    const lastPosition = soundClips.length > 0 
+      ? Math.max(...soundClips.map(clip => clip.position + clip.duration))
+      : 0;
+    
     const newSoundClip: SoundClip = {
-      id: `sound-${Date.now()}`,
+      id: `sound-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       name: soundData.name || 'New Sound',
       duration: soundData.duration || 300,
-      position: soundData.position || 0,
+      position: soundData.position !== undefined ? soundData.position : lastPosition,
       volume: soundData.volume || 100,
       url: soundData.url,
     };
     setSoundClips([...soundClips, newSoundClip]);
-    setShowSoundLibrary(false);
+    saveToHistory(); // Save to history after adding
   };
 
   const handleEditSoundClip = (clip: SoundClip) => {
@@ -411,9 +416,24 @@ export default function VideoEditorPage() {
       {showSoundLibrary && (
         <SoundLibraryModal
           onClose={() => setShowSoundLibrary(false)}
-          onSelectSound={(sound) => {
-            setSelectedSound(sound);
-            handleAddSoundClip({ name: sound, duration: 300, volume: 100 });
+          onSelectSounds={(sounds) => {
+            // Add multiple sounds sequentially
+            let currentPosition = soundClips.length > 0 
+              ? Math.max(...soundClips.map(clip => clip.position + clip.duration))
+              : 0;
+            
+            sounds.forEach(sound => {
+              const durationInPixels = Math.round(sound.duration * PIXELS_PER_SECOND);
+              handleAddSoundClip({ 
+                name: sound.name, 
+                url: sound.url,
+                duration: durationInPixels,
+                position: currentPosition,
+                volume: 100 
+              });
+              currentPosition += durationInPixels; // Move position for next clip
+            });
+            setShowSoundLibrary(false);
           }}
         />
       )}

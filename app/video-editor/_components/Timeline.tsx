@@ -74,6 +74,7 @@ export default function Timeline({
   canRedo = false,
 }: TimelineProps) {
   const [activeClip, setActiveClip] = useState<string | null>(null);
+  const [activeClipType, setActiveClipType] = useState<'video' | 'text' | 'sound' | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [dragStartX, setDragStartX] = useState(0);
@@ -138,14 +139,25 @@ export default function Timeline({
     handleDragEnd();
   };
 
-  const handleResizeStart = (e: React.MouseEvent, clipId: string, handle: 'left' | 'right') => {
+  const handleResizeStart = (e: React.MouseEvent, clipId: string, handle: 'left' | 'right', clipType: 'video' | 'text' | 'sound' = 'video') => {
     e.stopPropagation();
     setIsResizing(true);
     setResizeHandle(handle);
     setActiveClip(clipId);
+    setActiveClipType(clipType);
     setDragStartX(e.clientX);
-    const clipElement = e.currentTarget.closest('.timeline-clip') as HTMLElement;
-    setStartWidth(clipElement.offsetWidth);
+    
+    // 클립 요소를 정확히 찾기
+    const clipElement = document.querySelector(`[data-clip-id="${clipId}"]`) as HTMLElement;
+    if (clipElement) {
+      // 텍스트/사운드 클립의 경우 내부 div의 width를 가져옴
+      if (clipType === 'text' || clipType === 'sound') {
+        const innerClip = clipElement.querySelector('.group') as HTMLElement;
+        setStartWidth(innerClip ? innerClip.offsetWidth : clipElement.offsetWidth);
+      } else {
+        setStartWidth(clipElement.offsetWidth);
+      }
+    }
   };
 
   useEffect(() => {
@@ -156,17 +168,33 @@ export default function Timeline({
         const delta = e.clientX - dragStartX;
         const clipElement = document.querySelector(`[data-clip-id="${activeClip}"]`) as HTMLElement;
         if (clipElement) {
-          const clipData = clips.find(c => c.id === activeClip);
-          const maxPx = clipData?.max_duration_px ?? Infinity;
           let newWidth;
-          if (resizeHandle === 'left') {
-            newWidth = Math.max(80, startWidth - delta);
+          
+          if (activeClipType === 'video') {
+            const clipData = clips.find(c => c.id === activeClip);
+            const maxPx = clipData?.max_duration_px ?? Infinity;
+            
+            if (resizeHandle === 'left') {
+              newWidth = Math.max(80, startWidth - delta);
+            } else {
+              newWidth = Math.max(80, startWidth + delta);
+            }
+            // 실제 영상 길이 초과 불가
+            newWidth = Math.min(newWidth, maxPx);
+            clipElement.style.width = `${newWidth}px`;
           } else {
-            newWidth = Math.max(80, startWidth + delta);
+            // 텍스트와 사운드 클립은 최대 제한 없음
+            if (resizeHandle === 'left') {
+              newWidth = Math.max(80, startWidth - delta);
+            } else {
+              newWidth = Math.max(80, startWidth + delta);
+            }
+            // 텍스트/사운드 클립의 경우 내부 div의 width를 변경
+            const innerClip = clipElement.querySelector('.group') as HTMLElement;
+            if (innerClip) {
+              innerClip.style.width = `${newWidth}px`;
+            }
           }
-          // 실제 영상 길이 초과 불가
-          newWidth = Math.min(newWidth, maxPx);
-          clipElement.style.width = `${newWidth}px`;
         }
       } else if (isDragging) {
         const delta = e.clientX - dragStartX;
@@ -184,15 +212,28 @@ export default function Timeline({
           clipElement.style.transform = '';
         }
         // 리사이징 종료 시, 실제 duration을 업데이트
-        if (clipElement && isResizing && onResizeVideoClip) {
-          let newWidth = clipElement.offsetWidth;
-          const clipData = clips.find(c => c.id === activeClip);
-          const maxPx = clipData?.max_duration_px ?? Infinity;
-          newWidth = Math.min(newWidth, maxPx);
-          onResizeVideoClip(activeClip, newWidth);
+        if (clipElement && isResizing) {
+          let newWidth;
+          
+          if (activeClipType === 'video' && onResizeVideoClip) {
+            newWidth = clipElement.offsetWidth;
+            const clipData = clips.find(c => c.id === activeClip);
+            const maxPx = clipData?.max_duration_px ?? Infinity;
+            newWidth = Math.min(newWidth, maxPx);
+            onResizeVideoClip(activeClip, newWidth);
+          } else if (activeClipType === 'text' && onResizeTextClip) {
+            const innerClip = clipElement.querySelector('.group') as HTMLElement;
+            newWidth = innerClip ? innerClip.offsetWidth : clipElement.offsetWidth;
+            onResizeTextClip(activeClip, newWidth);
+          } else if (activeClipType === 'sound' && onResizeSoundClip) {
+            const innerClip = clipElement.querySelector('.group') as HTMLElement;
+            newWidth = innerClip ? innerClip.offsetWidth : clipElement.offsetWidth;
+            onResizeSoundClip(activeClip, newWidth);
+          }
         }
       }
       setActiveClip(null);
+      setActiveClipType(null);
       setIsDragging(false);
       setIsResizing(false);
       setResizeHandle(null);
@@ -205,7 +246,7 @@ export default function Timeline({
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [activeClip, isDragging, isResizing, dragStartX, startWidth, resizeHandle, clips, onResizeVideoClip]);
+  }, [activeClip, activeClipType, isDragging, isResizing, dragStartX, startWidth, resizeHandle, clips, onResizeVideoClip, onResizeTextClip, onResizeSoundClip]);
 
   // 타임라인 눈금: 1칸 = 1초, 30초까지 표시
   const timeMarkers = Array.from({ length: 31 }, (_, i) => {
@@ -402,7 +443,8 @@ export default function Timeline({
               {textClips.map((clip, index) => (
                 <div
                   key={clip.id}
-                  className={`${
+                  data-clip-id={clip.id}
+                  className={`timeline-clip ${
                     dragOverType === 'text' && dragOverIndex === index ? 'opacity-50' : ''
                   }`}
                   draggable
@@ -416,6 +458,7 @@ export default function Timeline({
                     onEdit={onEditTextClip}
                     onDelete={onDeleteTextClip}
                     onResize={onResizeTextClip}
+                    onResizeStart={(e, handle) => handleResizeStart(e, clip.id, handle, 'text')}
                     isActive={activeClip === clip.id}
                   />
                 </div>
@@ -442,7 +485,8 @@ export default function Timeline({
               {soundClips.map((clip, index) => (
                 <div
                   key={clip.id}
-                  className={`${
+                  data-clip-id={clip.id}
+                  className={`timeline-clip ${
                     dragOverType === 'sound' && dragOverIndex === index ? 'opacity-50' : ''
                   }`}
                   draggable
@@ -456,7 +500,9 @@ export default function Timeline({
                     onEdit={onEditSoundClip}
                     onDelete={onDeleteSoundClip}
                     onResize={onResizeSoundClip}
+                    onResizeStart={(e, handle) => handleResizeStart(e, clip.id, handle, 'sound')}
                     isActive={activeClip === clip.id}
+                    pixelsPerSecond={pixelsPerSecond}
                   />
                 </div>
               ))}
