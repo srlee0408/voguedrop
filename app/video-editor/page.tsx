@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { PlayerRef } from '@remotion/player';
 import { useSearchParams } from 'next/navigation';
 import { Header } from '@/components/layout/Header';
 import VideoPreview from './_components/VideoPreview';
@@ -14,6 +15,11 @@ import { TextClip, SoundClip, LibraryVideo } from '@/types/video-editor';
 export default function VideoEditorPage() {
   const searchParams = useSearchParams();
   const [projectTitle, setProjectTitle] = useState('Untitled Project');
+  
+  // 재생 상태 관리
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const playerRef = useRef<PlayerRef | null>(null);
   
   // URL 파라미터에서 프로젝트 제목 읽기
   useEffect(() => {
@@ -234,6 +240,42 @@ export default function VideoEditorPage() {
     setSoundClips(newClips);
   };
 
+  // 재생 제어 함수들
+  const handlePlayPause = () => {
+    if (playerRef.current) {
+      if (isPlaying) {
+        playerRef.current.pause();
+      } else {
+        playerRef.current.play();
+      }
+    }
+    setIsPlaying(!isPlaying);
+  };
+
+  const handleSeek = (time: number) => {
+    setCurrentTime(time);
+    if (playerRef.current) {
+      const frame = Math.round(time * 30); // 30fps 기준
+      playerRef.current.seekTo(frame);
+    }
+  };
+
+  // Player 상태 폴링으로 시간 업데이트
+  useEffect(() => {
+    if (!isPlaying || !playerRef.current) return;
+    
+    const interval = setInterval(() => {
+      if (playerRef.current) {
+        const frame = playerRef.current.getCurrentFrame();
+        const time = frame / 30; // 30fps 기준
+        setCurrentTime(time);
+      }
+    }, 100); // 100ms마다 업데이트
+    
+    return () => clearInterval(interval);
+  }, [isPlaying]);
+
+
   return (
     <div className="bg-background text-foreground h-screen overflow-hidden flex flex-col">
       <Header 
@@ -248,6 +290,10 @@ export default function VideoEditorPage() {
           textClips={textClips}
           soundClips={soundClips}
           onRemoveClip={handleDeleteVideoClip}
+          playerRef={playerRef}
+          currentTime={currentTime}
+          isPlaying={isPlaying}
+          onPlayStateChange={setIsPlaying}
         />
       </div>
 
@@ -269,6 +315,11 @@ export default function VideoEditorPage() {
           onReorderTextClips={handleReorderTextClips}
           onReorderSoundClips={handleReorderSoundClips}
           onResizeVideoClip={handleResizeVideoClip}
+          pixelsPerSecond={PIXELS_PER_SECOND}
+          currentTime={currentTime}
+          isPlaying={isPlaying}
+          onSeek={handleSeek}
+          onPlayPause={handlePlayPause}
         />
 
       <ControlBar 

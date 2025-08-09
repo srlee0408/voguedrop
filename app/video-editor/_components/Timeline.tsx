@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { TextClip as TextClipType, SoundClip as SoundClipType } from '@/types/video-editor';
 import TextClip from './TextClip';
 import SoundClip from './SoundClip';
+import TimelineControls from './TimelineControls';
 
 type VideoTimelineClip = {
   id: string;
@@ -34,6 +35,10 @@ interface TimelineProps {
   onReorderSoundClips?: (clips: SoundClipType[]) => void;
   onResizeVideoClip?: (id: string, newDuration: number) => void;
   pixelsPerSecond?: number;
+  currentTime?: number; // in seconds
+  isPlaying?: boolean;
+  onSeek?: (time: number) => void;
+  onPlayPause?: () => void;
 }
 
 export default function Timeline({ 
@@ -55,6 +60,10 @@ export default function Timeline({
   onReorderSoundClips,
   onResizeVideoClip,
   pixelsPerSecond = 40,
+  currentTime = 0,
+  isPlaying = false,
+  onSeek,
+  onPlayPause,
 }: TimelineProps) {
   const [activeClip, setActiveClip] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -65,6 +74,8 @@ export default function Timeline({
   const [draggedClip, setDraggedClip] = useState<{ id: string; type: 'video' | 'text' | 'sound'; index: number } | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [dragOverType, setDragOverType] = useState<'video' | 'text' | 'sound' | null>(null);
+  const playheadRef = useRef<HTMLDivElement>(null);
+  const [isDraggingPlayhead, setIsDraggingPlayhead] = useState(false);
 
   const handleMouseDown = (e: React.MouseEvent, clipId: string) => {
     if ((e.target as HTMLElement).classList.contains('resize-handle')) {
@@ -195,15 +206,104 @@ export default function Timeline({
     return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   });
 
+  // 전체 길이 계산 (초 단위)
+  const totalDuration = clips.reduce((sum, clip) => sum + (clip.duration / pixelsPerSecond), 0);
+
+  // 플레이헤드 위치 계산 (픽셀)
+  const playheadPosition = currentTime * pixelsPerSecond;
+
+  // 타임라인 클릭으로 seek
+  const handleTimelineClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!onSeek || isResizing || isDragging) return;
+    
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const time = Math.max(0, Math.min(x / pixelsPerSecond, totalDuration));
+    onSeek(time);
+  };
+  
+  // 트랙 영역 클릭으로 seek (padding 고려)
+  const handleTrackClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!onSeek || isResizing || isDragging) return;
+    
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left - 8; // padding 8px 보정
+    const time = Math.max(0, Math.min(x / pixelsPerSecond, totalDuration));
+    onSeek(time);
+  };
+
+  // 프레임 단위 이동
+  const handlePreviousFrame = () => {
+    if (onSeek) {
+      const frameTime = 1 / 30; // 30fps 기준
+      onSeek(Math.max(0, currentTime - frameTime));
+    }
+  };
+
+  const handleNextFrame = () => {
+    if (onSeek) {
+      const frameTime = 1 / 30; // 30fps 기준
+      onSeek(Math.min(totalDuration, currentTime + frameTime));
+    }
+  };
+
+  // 플레이헤드 드래그 핸들러
+  const handlePlayheadMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsDraggingPlayhead(true);
+  };
+
+  useEffect(() => {
+    const handlePlayheadMouseMove = (e: MouseEvent) => {
+      if (!isDraggingPlayhead || !onSeek) return;
+      
+      // 타임라인 영역의 위치 계산
+      const timelineElement = document.querySelector('.timeline-content');
+      if (!timelineElement) return;
+      
+      const rect = timelineElement.getBoundingClientRect();
+      const x = e.clientX - rect.left - 192 - 8; // 192px = 12rem (왼쪽 패널), 8px = padding
+      const time = Math.max(0, Math.min(x / pixelsPerSecond, totalDuration));
+      onSeek(time);
+    };
+
+    const handlePlayheadMouseUp = () => {
+      setIsDraggingPlayhead(false);
+    };
+
+    if (isDraggingPlayhead) {
+      document.addEventListener('mousemove', handlePlayheadMouseMove);
+      document.addEventListener('mouseup', handlePlayheadMouseUp);
+      return () => {
+        document.removeEventListener('mousemove', handlePlayheadMouseMove);
+        document.removeEventListener('mouseup', handlePlayheadMouseUp);
+      };
+    }
+  }, [isDraggingPlayhead, onSeek, pixelsPerSecond, totalDuration]);
+
   return (
     <div className="bg-gray-800 border-t border-gray-700 flex-shrink-0">
-      <div className="relative">
+      {/* 재생 컨트롤 */}
+      <TimelineControls
+        isPlaying={isPlaying}
+        currentTime={currentTime}
+        totalDuration={totalDuration}
+        onPlayPause={onPlayPause || (() => {})}
+        onSeek={onSeek || (() => {})}
+        onPreviousFrame={handlePreviousFrame}
+        onNextFrame={handleNextFrame}
+      />
+      <div className="relative overflow-hidden timeline-content">
         <div className="flex border-b border-gray-700">
           <div className="w-48 flex-shrink-0 p-2 border-r border-gray-700 flex items-center justify-center">
             <span className="text-xs text-gray-400 font-medium">Add a clip</span>
           </div>
-          <div className="flex-1 overflow-x-auto bg-black">
-              <div className="flex items-center h-8">
+          <div className="flex-1 overflow-x-auto bg-black relative">
+              <div 
+                className="flex items-center h-8 relative"
+                onClick={handleTimelineClick}
+                style={{ cursor: 'pointer' }}
+              >
                 <div className="flex">
                   {timeMarkers.map((time, index) => (
                     <span
@@ -235,7 +335,7 @@ export default function Timeline({
               </button>
             </div>
           </div>
-          <div className="flex-1 p-2 overflow-x-auto">
+          <div className="flex-1 p-2 overflow-x-auto" onClick={handleTrackClick}>
             <div className="flex gap-2 items-center overflow-visible">
               {clips.map((clip, index) => (
                 <div 
@@ -301,7 +401,7 @@ export default function Timeline({
               </button>
             </div>
           </div>
-          <div className="flex-1 p-2 overflow-x-auto">
+          <div className="flex-1 p-2 overflow-x-auto" onClick={handleTrackClick}>
             <div className="flex gap-2 items-center min-h-[40px]">
               {textClips.map((clip, index) => (
                 <div
@@ -341,7 +441,7 @@ export default function Timeline({
               </button>
             </div>
           </div>
-          <div className="flex-1 p-2 overflow-x-auto">
+          <div className="flex-1 p-2 overflow-x-auto" onClick={handleTrackClick}>
             <div className="flex gap-2 items-center min-h-[40px]">
               {soundClips.map((clip, index) => (
                 <div
@@ -365,6 +465,34 @@ export default function Timeline({
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+        {/* 통합 플레이헤드 - 모든 트랙을 관통 */}
+        <div
+          ref={playheadRef}
+          className="absolute top-0 bottom-0"
+          style={{
+            left: `calc(12rem + ${playheadPosition}px + 8px - 6px)`, // 12rem = w-48, 8px = padding, -6px = 드래그 영역 중앙
+            zIndex: 50,
+            width: '13px', // 드래그 가능한 영역 너비
+            height: '100%',
+            cursor: 'ew-resize'
+          }}
+          onMouseDown={handlePlayheadMouseDown}
+        >
+          {/* 실제 빨간 선 */}
+          <div 
+            className="absolute top-0 bottom-0 w-0.5 bg-red-500"
+            style={{
+              left: '50%',
+              transform: 'translateX(-50%)',
+              boxShadow: '0 0 6px rgba(239, 68, 68, 0.8)',
+              pointerEvents: 'none'
+            }}
+          />
+          {/* 플레이헤드 상단 삼각형 마커 */}
+          <div className="absolute -top-2 left-1/2 transform -translate-x-1/2">
+            <div className="w-0 h-0 border-l-[7px] border-l-transparent border-r-[7px] border-r-transparent border-t-[10px] border-t-red-500"></div>
           </div>
         </div>
       </div>

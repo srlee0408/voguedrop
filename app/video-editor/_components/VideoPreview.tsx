@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, useRef } from 'react';
-import { Player } from '@remotion/player';
+import { Player, PlayerRef } from '@remotion/player';
 import { CompositePreview } from '../_remotion/CompositePreview';
 import { TextClip as TextClipType, SoundClip as SoundClipType } from '@/types/video-editor';
 
@@ -18,9 +18,19 @@ interface VideoPreviewProps {
   textClips?: TextClipType[];
   soundClips?: SoundClipType[];
   onRemoveClip?: (id: string) => void;
+  playerRef?: React.MutableRefObject<PlayerRef | null>;
+  currentTime?: number;
+  isPlaying?: boolean;
+  onPlayStateChange?: (playing: boolean) => void;
 }
 
-export default function VideoPreview({ clips, textClips = [], soundClips = [], onRemoveClip }: VideoPreviewProps) {
+export default function VideoPreview({ 
+  clips, 
+  textClips = [], 
+  soundClips = [], 
+  onRemoveClip,
+  playerRef
+}: VideoPreviewProps) {
   // SSR-CSR hydration 안정화를 위한 마운트 플래그
   const [is_mounted, setIsMounted] = useState(false);
   // 선택된 프리뷰 대상 클립 ID 관리
@@ -306,6 +316,7 @@ export default function VideoPreview({ clips, textClips = [], soundClips = [], o
           <div className="w-full h-full bg-black">
             {clips.length > 0 || textClips.length > 0 || soundClips.length > 0 ? (
               <Player
+                ref={playerRef}
                 component={CompositePreview}
                 inputProps={{
                   videoClips: clips,
@@ -321,11 +332,11 @@ export default function VideoPreview({ clips, textClips = [], soundClips = [], o
                   width: '100%', 
                   height: '100%'
                 }}
-                controls
+                controls={false}
                 loop
-                showVolumeControls
-                clickToPlay
-                doubleClickToFullscreen
+                showVolumeControls={false}
+                clickToPlay={false}
+                doubleClickToFullscreen={false}
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
