@@ -104,39 +104,44 @@ export default function VideoEditorPage() {
     }
   };
 
-  const handleAddToTimeline = async (video: LibraryVideo) => {
+  const handleAddToTimeline = async (videos: LibraryVideo[]) => {
     // 기본 duration을 6초로 설정 (6초 * 40px/초 = 240px)
     const default_px = 240;
-    // 고유한 ID 생성 (같은 비디오를 여러 번 추가할 수 있도록)
-    const clipId = `clip-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     
-    // 선택한 라이브러리 영상을 타임라인 클립으로 변환
-    const newClip = {
-      id: clipId,
-      duration: default_px,
-      thumbnails: 1,
-      url: video.output_video_url,
-      thumbnail: video.input_image_url,
-      title: video.selected_effects?.[0]?.name || extractTitleFromUrl(video.output_video_url) || 'Video Clip',
-      max_duration_px: default_px,
-    };
+    // 여러 비디오를 한 번에 처리
+    const newClips = videos.map((video, index) => {
+      // 각 비디오마다 고유한 ID 생성
+      const clipId = `clip-${Date.now()}-${index}-${Math.random().toString(36).substr(2, 9)}`;
+      
+      const newClip = {
+        id: clipId,
+        duration: default_px,
+        thumbnails: 1,
+        url: video.output_video_url,
+        thumbnail: video.input_image_url,
+        title: video.selected_effects?.[0]?.name || extractTitleFromUrl(video.output_video_url) || 'Video Clip',
+        max_duration_px: default_px,
+      };
 
-    // 타임라인에 클립 추가
-    setTimelineClips([...timelineClips, newClip]);
+      // 백그라운드에서 실제 duration 계산 후 업데이트
+      getVideoDurationSeconds(video.output_video_url).then((duration_seconds) => {
+        const min_px = 80;
+        const computed_px = Math.max(min_px, Math.round((duration_seconds || 0) * PIXELS_PER_SECOND));
+        
+        setTimelineClips(prev => prev.map(clip => 
+          clip.id === clipId 
+            ? { ...clip, duration: computed_px, max_duration_px: computed_px }
+            : clip
+        ));
+      });
+
+      return newClip;
+    });
+
+    // 타임라인에 모든 클립 추가
+    setTimelineClips([...timelineClips, ...newClips]);
 
     setShowVideoLibrary(false);
-
-    // 백그라운드에서 실제 duration 계산 후 업데이트
-    getVideoDurationSeconds(video.output_video_url).then((duration_seconds) => {
-      const min_px = 80;
-      const computed_px = Math.max(min_px, Math.round((duration_seconds || 0) * PIXELS_PER_SECOND));
-      
-      setTimelineClips(prev => prev.map(clip => 
-        clip.id === clipId 
-          ? { ...clip, duration: computed_px, max_duration_px: computed_px }
-          : clip
-      ));
-    });
   };
 
   const handleAddTextClip = (textData: Partial<TextClip>) => {

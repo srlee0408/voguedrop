@@ -6,6 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 VogueDrop은 AI 기반 패션 콘텐츠 생성 플랫폼입니다. 패션 크리에이터들이 정적 이미지를 AI 영상으로 변환하고 편집할 수 있습니다.
 
+## Note
+- Always answer in Korean.
+
 ## 핵심 문서 참조
 개발 시 다음 문서를 반드시 참고하세요:
 - `docs/prd.md` - 제품 요구사항과 Epic/Story 정의  
