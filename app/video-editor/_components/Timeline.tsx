@@ -26,6 +26,7 @@ interface TimelineProps {
   onEditSoundClip?: (clip: SoundClipType) => void;
   onDeleteTextClip?: (id: string) => void;
   onDeleteSoundClip?: (id: string) => void;
+  onDeleteVideoClip?: (id: string) => void;
   onResizeTextClip?: (id: string, newDuration: number) => void;
   onResizeSoundClip?: (id: string, newDuration: number) => void;
   onReorderVideoClips?: (clips: Array<VideoTimelineClip>) => void;
@@ -46,6 +47,7 @@ export default function Timeline({
   onEditSoundClip,
   onDeleteTextClip,
   onDeleteSoundClip,
+  onDeleteVideoClip,
   onResizeTextClip,
   onResizeSoundClip,
   onReorderVideoClips,
@@ -234,7 +236,7 @@ export default function Timeline({
             </div>
           </div>
           <div className="flex-1 p-2 overflow-x-auto">
-            <div className="flex gap-2 items-center">
+            <div className="flex gap-2 items-center overflow-visible">
               {clips.map((clip, index) => (
                 <div 
                   key={clip.id}
@@ -242,7 +244,7 @@ export default function Timeline({
                   className={`group relative timeline-clip ${
                     dragOverType === 'video' && dragOverIndex === index ? 'opacity-50' : ''
                   }`}
-                  style={{ width: `${clip.duration}px` }}
+                  style={{ width: `${clip.duration}px`, position: 'relative' }}
                   draggable
                   onDragStart={(e) => handleDragStart(e, clip.id, 'video', index)}
                   onDragOver={(e) => handleDragOver(e, 'video', index)}
@@ -268,6 +270,18 @@ export default function Timeline({
                       onMouseDown={(e) => handleResizeStart(e, clip.id, 'right')}
                     />
                   </div>
+                  {/* Delete button - 막대 div 밖으로 이동 */}
+                  {onDeleteVideoClip && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteVideoClip(clip.id);
+                      }}
+                      className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 z-50"
+                    >
+                      <i className="ri-close-line text-xs text-white"></i>
+                    </button>
+                  )}
                 </div>
               ))}
             </div>

@@ -262,6 +262,7 @@ export default function VideoEditorPage() {
           onEditSoundClip={handleEditSoundClip}
           onDeleteTextClip={handleDeleteTextClip}
           onDeleteSoundClip={handleDeleteSoundClip}
+          onDeleteVideoClip={handleDeleteVideoClip}
           onResizeTextClip={handleResizeTextClip}
           onResizeSoundClip={handleResizeSoundClip}
           onReorderVideoClips={handleReorderVideoClips}
