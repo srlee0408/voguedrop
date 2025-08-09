@@ -56,7 +56,8 @@ export default function VideoPreview({ clips, textClips = [], soundClips = [], o
         setCurrentIndex(index);
       }
     }
-  }, [selected_preview_clip_id, clips]); // currentIndex 제거하여 무한 루프 방지
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected_preview_clip_id, clips]); // currentIndex는 의도적으로 제외 (무한 루프 방지)
 
   // 캐러셀 네비게이션
   const handlePrevious = () => {
