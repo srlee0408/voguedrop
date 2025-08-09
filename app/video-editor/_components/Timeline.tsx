@@ -39,6 +39,10 @@ interface TimelineProps {
   isPlaying?: boolean;
   onSeek?: (time: number) => void;
   onPlayPause?: () => void;
+  onUndo?: () => void;
+  onRedo?: () => void;
+  canUndo?: boolean;
+  canRedo?: boolean;
 }
 
 export default function Timeline({ 
@@ -64,6 +68,10 @@ export default function Timeline({
   isPlaying = false,
   onSeek,
   onPlayPause,
+  onUndo,
+  onRedo,
+  canUndo = false,
+  canRedo = false,
 }: TimelineProps) {
   const [activeClip, setActiveClip] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -232,20 +240,6 @@ export default function Timeline({
     onSeek(time);
   };
 
-  // 프레임 단위 이동
-  const handlePreviousFrame = () => {
-    if (onSeek) {
-      const frameTime = 1 / 30; // 30fps 기준
-      onSeek(Math.max(0, currentTime - frameTime));
-    }
-  };
-
-  const handleNextFrame = () => {
-    if (onSeek) {
-      const frameTime = 1 / 30; // 30fps 기준
-      onSeek(Math.min(totalDuration, currentTime + frameTime));
-    }
-  };
 
   // 플레이헤드 드래그 핸들러
   const handlePlayheadMouseDown = (e: React.MouseEvent) => {
@@ -290,8 +284,10 @@ export default function Timeline({
         totalDuration={totalDuration}
         onPlayPause={onPlayPause || (() => {})}
         onSeek={onSeek || (() => {})}
-        onPreviousFrame={handlePreviousFrame}
-        onNextFrame={handleNextFrame}
+        onUndo={onUndo}
+        onRedo={onRedo}
+        canUndo={canUndo}
+        canRedo={canRedo}
       />
       <div className="relative overflow-hidden timeline-content">
         <div className="flex border-b border-gray-700">

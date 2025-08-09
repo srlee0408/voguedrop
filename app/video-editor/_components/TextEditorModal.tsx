@@ -232,8 +232,7 @@ export default function TextEditorModal({
                     selectedEffect === effect.value
                       ? 'ring-2 ring-[#38f47cf9]'
                       : ''
-                  } ${effect.className || ''}`}
-                  style={effect.value === 'gradient' ? getEffectStyle('gradient') : {}}
+                  }`}
                 >
                   {effect.label}
                 </button>

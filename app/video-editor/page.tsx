@@ -12,6 +12,21 @@ import SoundLibraryModal from './_components/SoundLibraryModal';
 import TextEditorModal from './_components/TextEditorModal';
 import { TextClip, SoundClip, LibraryVideo } from '@/types/video-editor';
 
+// 히스토리 상태 타입
+interface HistoryState {
+  timelineClips: Array<{
+    id: string;
+    duration: number;
+    thumbnails: number;
+    url?: string;
+    thumbnail?: string;
+    title?: string;
+    max_duration_px?: number;
+  }>;
+  textClips: TextClip[];
+  soundClips: SoundClip[];
+}
+
 export default function VideoEditorPage() {
   const searchParams = useSearchParams();
   const [projectTitle, setProjectTitle] = useState('Untitled Project');
@@ -20,6 +35,10 @@ export default function VideoEditorPage() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const playerRef = useRef<PlayerRef | null>(null);
+  
+  // 히스토리 관리
+  const [history, setHistory] = useState<HistoryState[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
   
   // URL 파라미터에서 프로젝트 제목 읽기
   useEffect(() => {
@@ -47,6 +66,50 @@ export default function VideoEditorPage() {
   }>>([]);
   const [textClips, setTextClips] = useState<TextClip[]>([]);
   const [soundClips, setSoundClips] = useState<SoundClip[]>([]);
+  
+  // 히스토리에 현재 상태 저장
+  const saveToHistory = () => {
+    const newState: HistoryState = {
+      timelineClips: [...timelineClips],
+      textClips: [...textClips],
+      soundClips: [...soundClips]
+    };
+    
+    // 현재 인덱스 이후의 히스토리 제거 (새로운 분기 생성)
+    const newHistory = history.slice(0, historyIndex + 1);
+    newHistory.push(newState);
+    
+    // 최대 50개 히스토리 유지
+    if (newHistory.length > 50) {
+      newHistory.shift();
+    } else {
+      setHistoryIndex(historyIndex + 1);
+    }
+    
+    setHistory(newHistory);
+  };
+  
+  // Undo 기능
+  const handleUndo = () => {
+    if (historyIndex > 0) {
+      const previousState = history[historyIndex - 1];
+      setTimelineClips(previousState.timelineClips);
+      setTextClips(previousState.textClips);
+      setSoundClips(previousState.soundClips);
+      setHistoryIndex(historyIndex - 1);
+    }
+  };
+  
+  // Redo 기능
+  const handleRedo = () => {
+    if (historyIndex < history.length - 1) {
+      const nextState = history[historyIndex + 1];
+      setTimelineClips(nextState.timelineClips);
+      setTextClips(nextState.textClips);
+      setSoundClips(nextState.soundClips);
+      setHistoryIndex(historyIndex + 1);
+    }
+  };
 
   const handleAddClip = () => {
     setShowVideoLibrary(true);
@@ -146,6 +209,7 @@ export default function VideoEditorPage() {
 
     // 타임라인에 모든 클립 추가
     setTimelineClips([...timelineClips, ...newClips]);
+    saveToHistory(); // 히스토리 저장
 
     setShowVideoLibrary(false);
   };
@@ -157,6 +221,7 @@ export default function VideoEditorPage() {
           ? { ...clip, ...textData } 
           : clip
       ));
+      saveToHistory(); // 편집도 히스토리 저장
     } else {
       const newTextClip: TextClip = {
         id: `text-${Date.now()}`,
@@ -172,6 +237,7 @@ export default function VideoEditorPage() {
         effect: textData.effect,
       };
       setTextClips([...textClips, newTextClip]);
+      saveToHistory(); // 히스토리 저장
     }
     setShowTextEditor(false);
     setEditingTextClip(undefined);
@@ -184,6 +250,7 @@ export default function VideoEditorPage() {
 
   const handleDeleteTextClip = (id: string) => {
     setTextClips(textClips.filter(clip => clip.id !== id));
+    saveToHistory(); // 히스토리 저장
   };
 
   const handleResizeTextClip = (id: string, newDuration: number) => {
@@ -212,6 +279,7 @@ export default function VideoEditorPage() {
 
   const handleDeleteSoundClip = (id: string) => {
     setSoundClips(soundClips.filter(clip => clip.id !== id));
+    saveToHistory(); // 히스토리 저장
   };
 
   const handleResizeSoundClip = (id: string, newDuration: number) => {
@@ -226,6 +294,7 @@ export default function VideoEditorPage() {
 
   const handleDeleteVideoClip = (id: string) => {
     setTimelineClips(prev => prev.filter(c => c.id !== id));
+    saveToHistory(); // 히스토리 저장
   };
 
   const handleResizeVideoClip = (id: string, newDuration: number) => {
@@ -320,6 +389,10 @@ export default function VideoEditorPage() {
           isPlaying={isPlaying}
           onSeek={handleSeek}
           onPlayPause={handlePlayPause}
+          onUndo={handleUndo}
+          onRedo={handleRedo}
+          canUndo={historyIndex > 0}
+          canRedo={historyIndex < history.length - 1}
         />
 
       <ControlBar 

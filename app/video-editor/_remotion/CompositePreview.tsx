@@ -122,28 +122,65 @@ export const CompositePreview: React.FC<CompositePreviewProps> = ({
               >
                 <h1 style={{
                   fontSize: text.style?.fontSize || 72, // 기본 크기 증가
-                  color: text.style?.color || 'white',
+                  color: text.effect === 'gradient' ? 'transparent' : (text.style?.color || 'white'),
                   fontFamily: text.style?.fontFamily || 'sans-serif',
                   fontWeight: text.style?.fontWeight || 'bold',
-                  textShadow: `
+                  textShadow: text.effect === 'gradient' || text.effect === 'glow' ? 'none' : `
                     3px 3px 6px rgba(0,0,0,0.9),
                     -1px -1px 2px rgba(0,0,0,0.5),
                     1px -1px 2px rgba(0,0,0,0.5),
                     -1px 1px 2px rgba(0,0,0,0.5),
                     1px 1px 2px rgba(0,0,0,0.5)
-                  `, // 더 강한 그림자
+                  `, // 더 강한 그림자 (gradient와 glow 제외)
                   textAlign,
                   margin: 0,
                   lineHeight: 1.2,
+                  display: ['spin', 'pulse', 'bounce', 'zoom', 'wave', 'typing'].includes(text.effect || '') ? 'inline-block' : 'block',
+                  transformOrigin: 'center',
                   // 텍스트 효과 추가
+                  ...(text.effect === 'none' && {}),
                   ...(text.effect === 'fade' && {
-                    animation: 'fadeIn 0.5s ease-in'
+                    animation: 'fadeInOut 2s ease-in-out infinite'
                   }),
                   ...(text.effect === 'slide' && {
-                    animation: 'slideIn 0.5s ease-out'
+                    animation: 'slideIn 1s ease-out'
                   }),
                   ...(text.effect === 'glow' && {
-                    filter: 'drop-shadow(0 0 20px rgba(255,255,255,0.7))'
+                    textShadow: '0 0 20px rgba(255,255,255,0.9), 0 0 40px rgba(56,244,124,0.7)',
+                    animation: 'glow 2s ease-in-out infinite'
+                  }),
+                  ...(text.effect === 'pulse' && {
+                    animation: 'pulse 1.5s ease-in-out infinite'
+                  }),
+                  ...(text.effect === 'bounce' && {
+                    animation: 'bounce 1.5s ease-in-out infinite'
+                  }),
+                  ...(text.effect === 'gradient' && {
+                    background: 'linear-gradient(90deg, #38f47c, #3b82f6, #a855f7, #ec4899, #38f47c)',
+                    backgroundSize: '200% auto',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text',
+                    animation: 'gradientMove 3s linear infinite'
+                  }),
+                  ...(text.effect === 'spin' && {
+                    animation: 'spin 3s linear infinite'
+                  }),
+                  ...(text.effect === 'shake' && {
+                    animation: 'shake 0.3s ease-in-out infinite'
+                  }),
+                  ...(text.effect === 'typing' && {
+                    overflow: 'hidden',
+                    whiteSpace: 'nowrap',
+                    width: '100%',
+                    animation: 'typing 4s steps(40, end) infinite',
+                    borderRight: '3px solid rgba(255,255,255,0.7)'
+                  }),
+                  ...(text.effect === 'wave' && {
+                    animation: 'wave 2s ease-in-out infinite'
+                  }),
+                  ...(text.effect === 'zoom' && {
+                    animation: 'zoom 2s ease-in-out infinite'
                   })
                 }}>
                   {text.content}
@@ -177,14 +214,116 @@ export const CompositePreview: React.FC<CompositePreviewProps> = ({
       
       {/* CSS 애니메이션 정의 */}
       <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
+        @keyframes fadeInOut {
+          0%, 100% { opacity: 0.3; }
+          50% { opacity: 1; }
         }
         
         @keyframes slideIn {
-          from { transform: translateY(50px); opacity: 0; }
-          to { transform: translateY(0); opacity: 1; }
+          0% { 
+            transform: translateX(-100%); 
+            opacity: 0; 
+          }
+          60% { 
+            transform: translateX(10px); 
+            opacity: 1; 
+          }
+          100% { 
+            transform: translateX(0); 
+            opacity: 1; 
+          }
+        }
+        
+        @keyframes glow {
+          0%, 100% { 
+            text-shadow: 0 0 20px rgba(255,255,255,0.7), 0 0 40px rgba(56,244,124,0.5);
+          }
+          50% { 
+            text-shadow: 0 0 30px rgba(255,255,255,0.9), 0 0 60px rgba(56,244,124,0.8);
+          }
+        }
+        
+        @keyframes pulse {
+          0%, 100% { 
+            transform: scale(1); 
+            opacity: 1; 
+          }
+          50% { 
+            transform: scale(1.08); 
+            opacity: 0.9; 
+          }
+        }
+        
+        @keyframes bounce {
+          0%, 20%, 50%, 80%, 100% { 
+            transform: translateY(0); 
+          }
+          40% { 
+            transform: translateY(-30px); 
+          }
+          60% { 
+            transform: translateY(-15px); 
+          }
+        }
+        
+        @keyframes gradientMove {
+          0% { background-position: 0% center; }
+          100% { background-position: 200% center; }
+        }
+        
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          10%, 30%, 50%, 70%, 90% { transform: translateX(-3px); }
+          20%, 40%, 60%, 80% { transform: translateX(3px); }
+        }
+        
+        @keyframes typing {
+          0%, 10% { 
+            width: 0;
+            border-right-color: transparent;
+          }
+          10.1%, 90% { 
+            border-right-color: rgba(255,255,255,0.7);
+          }
+          90%, 100% { 
+            width: 100%;
+            border-right-color: transparent;
+          }
+        }
+        
+        @keyframes wave {
+          0%, 100% { 
+            transform: translateY(0) rotate(0deg); 
+          }
+          25% { 
+            transform: translateY(-5px) rotate(-2deg); 
+          }
+          50% { 
+            transform: translateY(0) rotate(0deg); 
+          }
+          75% { 
+            transform: translateY(-5px) rotate(2deg); 
+          }
+        }
+        
+        @keyframes zoom {
+          0%, 100% { 
+            transform: scale(1); 
+          }
+          25% { 
+            transform: scale(1.1); 
+          }
+          50% { 
+            transform: scale(1.3); 
+          }
+          75% { 
+            transform: scale(1.1); 
+          }
         }
       `}</style>
     </AbsoluteFill>
