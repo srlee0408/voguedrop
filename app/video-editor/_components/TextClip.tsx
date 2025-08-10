@@ -15,7 +15,6 @@ interface TextClipProps {
 export default function TextClip({
   clip,
   onEdit,
-  onDelete,
   onResizeStart,
   isActive = false,
 }: TextClipProps) {
@@ -74,17 +73,6 @@ export default function TextClip({
               {clip.content}
             </span>
           </div>
-          {onEdit && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit(clip);
-              }}
-              className="absolute right-1 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center text-gray-400 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"
-            >
-              <i className="ri-edit-line text-xs"></i>
-            </button>
-          )}
         </div>
         
         {/* Resize handles - 항상 보이도록 변경 */}
@@ -96,19 +84,6 @@ export default function TextClip({
           className="absolute inset-y-0 right-0 w-1 bg-purple-500 rounded-r cursor-ew-resize resize-handle"
           onMouseDown={(e) => onResizeStart?.(e, 'right')}
         />
-        
-        {/* Delete button */}
-        {onDelete && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete(clip.id);
-            }}
-            className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
-          >
-            <i className="ri-close-line text-xs text-white"></i>
-          </button>
-        )}
       </div>
     </div>
   );

@@ -5,8 +5,11 @@ import { TextClip as TextClipType, SoundClip as SoundClipType } from '@/types/vi
 interface VideoClip {
   id: string;
   duration: number;
+  position?: number;
   url?: string;
   title?: string;
+  startTime?: number;
+  endTime?: number;
 }
 
 interface CompositePreviewProps {
@@ -28,19 +31,23 @@ export const CompositePreview: React.FC<CompositePreviewProps> = ({
     return Math.round(seconds * 30); // 30fps
   };
   
-  // 비디오 클립들을 순차적으로 배치
-  let videoStartFrame = 0;
+  // 비디오 클립들을 position 기반으로 배치
   const videoSequences = videoClips
     .filter(clip => clip.url) // URL이 있는 클립만 처리
     .map(clip => {
+      // 시작/종료 시간을 프레임으로 변환
+      const startFrom = clip.startTime ? Math.round(clip.startTime * 30) : 0;
+      const endAt = clip.endTime ? Math.round(clip.endTime * 30) : undefined;
+      
       const seq = {
         id: clip.id,
         url: clip.url!,
         title: clip.title,
-        from: videoStartFrame,
-        durationInFrames: pxToFrames(clip.duration)
+        from: pxToFrames(clip.position || 0), // position 값을 사용하여 시작 위치 결정
+        durationInFrames: pxToFrames(clip.duration),
+        startFrom,
+        endAt
       };
-      videoStartFrame += seq.durationInFrames;
       return seq;
     });
   
@@ -55,6 +62,8 @@ export const CompositePreview: React.FC<CompositePreviewProps> = ({
         >
           <OffthreadVideo 
             src={video.url}
+            startFrom={video.startFrom}
+            endAt={video.endAt}
             style={{ 
               width: '100%', 
               height: '100%', 

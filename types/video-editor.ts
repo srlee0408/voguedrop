@@ -7,6 +7,8 @@ export interface VideoClip {
   thumbnail?: string;
   title?: string;
   maxDuration?: number; // Maximum duration in pixels (actual video length)
+  startTime?: number; // Start time in seconds within the original video
+  endTime?: number; // End time in seconds within the original video
 }
 
 export interface TextClip {

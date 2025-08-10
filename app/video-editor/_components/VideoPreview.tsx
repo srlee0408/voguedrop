@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useRef } from 'react';
 import { Player, PlayerRef } from '@remotion/player';
 import { CompositePreview } from '../_remotion/CompositePreview';
 import { TextClip as TextClipType, SoundClip as SoundClipType } from '@/types/video-editor';
+import TextOverlayEditor from './TextOverlayEditor';
 
 interface PreviewClip {
   id: string;
@@ -14,6 +15,8 @@ interface PreviewClip {
   position?: number;
   title?: string;
   maxDuration?: number;
+  startTime?: number;
+  endTime?: number;
 }
 
 interface VideoPreviewProps {
@@ -25,6 +28,10 @@ interface VideoPreviewProps {
   currentTime?: number;
   isPlaying?: boolean;
   onPlayStateChange?: (playing: boolean) => void;
+  onUpdateTextPosition?: (id: string, x: number, y: number) => void;
+  onUpdateTextSize?: (id: string, fontSize: number) => void;
+  selectedTextClip?: string | null;
+  onSelectTextClip?: (id: string | null) => void;
 }
 
 export default function VideoPreview({ 
@@ -32,7 +39,12 @@ export default function VideoPreview({
   textClips = [], 
   soundClips = [], 
   onRemoveClip,
-  playerRef
+  playerRef,
+  onUpdateTextPosition,
+  onUpdateTextSize,
+  selectedTextClip,
+  onSelectTextClip,
+  currentTime
 }: VideoPreviewProps) {
   // SSR-CSR hydration 안정화를 위한 마운트 플래그
   const [is_mounted, setIsMounted] = useState(false);
@@ -113,29 +125,46 @@ export default function VideoPreview({
   
   // 총 프레임 계산 (픽셀 기반 - 40px = 1초 = 30프레임)
   const calculateTotalFrames = useMemo(() => {
-    const totalPx = clips.reduce((sum, clip) => sum + clip.duration, 0);
+    // 각 트랙의 끝 위치 계산 (position + duration)
+    const videoEnd = clips.length > 0 
+      ? Math.max(...clips.map(c => (c.position || 0) + c.duration))
+      : 0;
+    const textEnd = textClips.length > 0
+      ? Math.max(...textClips.map(c => (c.position || 0) + c.duration))
+      : 0;
+    const soundEnd = soundClips.length > 0
+      ? Math.max(...soundClips.map(c => (c.position || 0) + c.duration))
+      : 0;
+    
+    // 모든 트랙 중 가장 끝 위치
+    const totalPx = Math.max(videoEnd, textEnd, soundEnd);
     const totalSeconds = totalPx / 40; // 40px = 1초
     return Math.max(30, Math.round(totalSeconds * 30)); // 최소 1초(30프레임) 보장
-  }, [clips]);
+  }, [clips, textClips, soundClips]);
   
-  // 비디오 비율 자동 감지 (첫 번째 클립 기준)
-  const [videoAspectRatio, setVideoAspectRatio] = useState<{ width: number; height: number }>({ 
-    width: 1080, 
-    height: 1920 
-  });
+  // 화면 비율 옵션
+  type AspectRatio = '9:16' | '1:1' | '16:9';
+  const [selectedAspectRatio, setSelectedAspectRatio] = useState<AspectRatio>('9:16');
   
-  useEffect(() => {
-    if (clips.length > 0 && clips[0].url) {
-      const video = document.createElement('video');
-      video.src = clips[0].url;
-      video.onloadedmetadata = () => {
-        setVideoAspectRatio({
-          width: video.videoWidth || 1080,
-          height: video.videoHeight || 1920
-        });
-      };
+  // 선택된 비율에 따른 실제 크기 계산
+  const getAspectRatioDimensions = (ratio: AspectRatio) => {
+    switch (ratio) {
+      case '9:16':
+        return { width: 360, height: 640, displayRatio: '9 / 16' }; // 모바일 세로 (Instagram Stories, TikTok)
+      case '1:1':
+        return { width: 640, height: 640, displayRatio: '1 / 1' }; // 정사각형 (Instagram Post)
+      case '16:9':
+        return { width: 640, height: 360, displayRatio: '16 / 9' }; // 와이드 (YouTube)
+      default:
+        return { width: 360, height: 640, displayRatio: '9 / 16' };
     }
-  }, [clips]);
+  };
+  
+  const aspectRatioDimensions = getAspectRatioDimensions(selectedAspectRatio);
+  const videoAspectRatio = {
+    width: aspectRatioDimensions.width,
+    height: aspectRatioDimensions.height
+  };
 
   if (!is_mounted) return null;
 
@@ -311,40 +340,136 @@ export default function VideoPreview({
           )}
         </div>
 
-        {/* 우측 50%: 미리보기 플레이어 - 모든 트랙 합성 */}
-        <div className="w-1/2 bg-gray-900 rounded-lg overflow-hidden relative">
-          <div className="absolute top-2 left-2 z-10 bg-black/50 px-2 py-1 rounded text-xs font-medium">
-            Preview (All Tracks)
+        {/* 우측 50%: 편집 화면 - 모든 트랙 합성 */}
+        <div className="w-1/2 bg-gray-900 rounded-lg overflow-hidden relative flex flex-col">
+          <div className="absolute top-2 left-2 right-2 z-20 flex justify-between items-center">
+            <div className="bg-black/50 px-2 py-1 rounded text-xs font-medium">
+              Editor
+            </div>
+            {/* 화면 비율 선택 버튼 */}
+            <div className="flex gap-1 bg-black/50 rounded p-1">
+              <button
+                onClick={() => setSelectedAspectRatio('9:16')}
+                className={`px-2 py-1 rounded text-xs transition-colors ${
+                  selectedAspectRatio === '9:16' 
+                    ? 'bg-[#38f47cf9] text-black font-medium' 
+                    : 'hover:bg-white/10 text-gray-400'
+                }`}
+                title="Mobile (9:16)"
+              >
+                9:16
+              </button>
+              <button
+                onClick={() => setSelectedAspectRatio('1:1')}
+                className={`px-2 py-1 rounded text-xs transition-colors ${
+                  selectedAspectRatio === '1:1' 
+                    ? 'bg-[#38f47cf9] text-black font-medium' 
+                    : 'hover:bg-white/10 text-gray-400'
+                }`}
+                title="Square (1:1)"
+              >
+                1:1
+              </button>
+              <button
+                onClick={() => setSelectedAspectRatio('16:9')}
+                className={`px-2 py-1 rounded text-xs transition-colors ${
+                  selectedAspectRatio === '16:9' 
+                    ? 'bg-[#38f47cf9] text-black font-medium' 
+                    : 'hover:bg-white/10 text-gray-400'
+                }`}
+                title="Wide (16:9)"
+              >
+                16:9
+              </button>
+            </div>
           </div>
-          <div className="w-full h-full bg-black">
+          <div className="w-full h-full bg-black relative flex items-center justify-center p-8">
             {clips.length > 0 || textClips.length > 0 || soundClips.length > 0 ? (
-              <Player
-                ref={playerRef}
-                component={CompositePreview}
-                inputProps={{
-                  videoClips: clips,
-                  textClips: textClips,
-                  soundClips: soundClips,
-                  pixelsPerSecond: 40
+              <div 
+                className="relative shadow-2xl"
+                style={{
+                  width: selectedAspectRatio === '16:9' ? '90%' : 
+                         selectedAspectRatio === '1:1' ? 'auto' : 'auto',
+                  height: selectedAspectRatio === '16:9' ? 'auto' : 
+                          selectedAspectRatio === '1:1' ? '90%' : '90%',
+                  maxWidth: '90%',
+                  maxHeight: '90%',
+                  aspectRatio: aspectRatioDimensions.displayRatio,
+                  backgroundColor: '#111'
                 }}
-                durationInFrames={calculateTotalFrames}
-                compositionWidth={videoAspectRatio.width}
-                compositionHeight={videoAspectRatio.height}
-                fps={30}
-                style={{ 
-                  width: '100%', 
-                  height: '100%'
-                }}
-                controls={false}
-                loop
-                showVolumeControls={false}
-                clickToPlay={false}
-                doubleClickToFullscreen={false}
-              />
+              >
+                <Player
+                  ref={playerRef}
+                  component={CompositePreview}
+                  inputProps={{
+                    videoClips: clips,
+                    textClips: [], // 편집 모드에서는 텍스트를 Player에서 렌더링하지 않음
+                    soundClips: soundClips,
+                    pixelsPerSecond: 40
+                  }}
+                  durationInFrames={calculateTotalFrames}
+                  compositionWidth={videoAspectRatio.width}
+                  compositionHeight={videoAspectRatio.height}
+                  fps={30}
+                  style={{ 
+                    width: '100%', 
+                    height: '100%',
+                    display: 'block'
+                  }}
+                  controls={false}
+                  showVolumeControls={false}
+                  clickToPlay={false}
+                  doubleClickToFullscreen={false}
+                />
+                
+                {/* 텍스트 편집 오버레이 - Player 위에 정확히 오버레이 */}
+                <TextOverlayEditor
+                  textClips={textClips}
+                  containerWidth={videoAspectRatio.width}
+                  containerHeight={videoAspectRatio.height}
+                  currentTime={currentTime || 0}
+                  pixelsPerSecond={40}
+                  onUpdatePosition={(id, x, y) => {
+                    if (onUpdateTextPosition) {
+                      onUpdateTextPosition(id, x, y);
+                    }
+                  }}
+                  onUpdateSize={(id, fontSize) => {
+                    if (onUpdateTextSize) {
+                      onUpdateTextSize(id, fontSize);
+                    }
+                  }}
+                  selectedClip={selectedTextClip || null}
+                  onSelectClip={(id) => {
+                    if (onSelectTextClip) {
+                      onSelectTextClip(id);
+                    }
+                  }}
+                />
+              </div>
             ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <div className="text-gray-500 text-sm">
-                  Add clips to see preview
+              <div className="w-full h-full flex items-center justify-center p-8">
+                <div 
+                  className="shadow-2xl flex items-center justify-center border-2 border-dashed border-gray-700"
+                  style={{
+                    width: selectedAspectRatio === '16:9' ? '90%' : 
+                           selectedAspectRatio === '1:1' ? 'auto' : 'auto',
+                    height: selectedAspectRatio === '16:9' ? 'auto' : 
+                            selectedAspectRatio === '1:1' ? '90%' : '90%',
+                    maxWidth: '90%',
+                    maxHeight: '90%',
+                    aspectRatio: aspectRatioDimensions.displayRatio,
+                    backgroundColor: '#111'
+                  }}
+                >
+                  <div className="text-gray-500 text-sm text-center">
+                    <div className="mb-2">Add clips to see preview</div>
+                    <div className="text-xs text-gray-600">
+                      {selectedAspectRatio === '9:16' && 'Mobile Portrait (Instagram Stories, TikTok)'}
+                      {selectedAspectRatio === '1:1' && 'Square (Instagram Post)'}
+                      {selectedAspectRatio === '16:9' && 'Landscape (YouTube, Web)'}
+                    </div>
+                  </div>
                 </div>
               </div>
             )}

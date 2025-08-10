@@ -11,6 +11,14 @@ import VideoLibraryModal from './_components/VideoLibraryModal';
 import SoundLibraryModal from './_components/SoundLibraryModal';
 import TextEditorModal from './_components/TextEditorModal';
 import { VideoClip, TextClip, SoundClip, LibraryVideo } from '@/types/video-editor';
+import { 
+  duplicateVideoClip, 
+  duplicateTextClip, 
+  duplicateSoundClip,
+  splitVideoClip,
+  splitTextClip,
+  splitSoundClip
+} from './_utils/clip-operations';
 
 // 히스토리 상태 타입
 interface HistoryState {
@@ -23,10 +31,19 @@ export default function VideoEditorPage() {
   const searchParams = useSearchParams();
   const [projectTitle, setProjectTitle] = useState('Untitled Project');
   
+  // 타임라인 높이 관리 (픽셀 단위)
+  const [timelineHeight, setTimelineHeight] = useState(300); // 기본 300px
+  const [isResizing, setIsResizing] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  
   // 재생 상태 관리
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const playerRef = useRef<PlayerRef | null>(null);
+  const prevFrameRef = useRef<number>(0); // 이전 프레임 추적용
+  
+  // 선택된 텍스트 클립
+  const [selectedTextClip, setSelectedTextClip] = useState<string | null>(null);
   
   // 히스토리 관리
   const [history, setHistory] = useState<HistoryState[]>([]);
@@ -182,6 +199,8 @@ export default function VideoEditorPage() {
         thumbnail: video.input_image_url,
         title: video.selected_effects?.[0]?.name || extractTitleFromUrl(video.output_video_url) || 'Video Clip',
         maxDuration: default_px,
+        startTime: 0, // 원본 영상의 시작
+        endTime: undefined, // 자동으로 영상 끝까지
       };
 
       // Update position for next clip
@@ -207,6 +226,26 @@ export default function VideoEditorPage() {
     saveToHistory(); // 히스토리 저장
 
     setShowVideoLibrary(false);
+  };
+
+  // 텍스트 위치 업데이트 (화면에서 드래그)
+  const handleUpdateTextPosition = (id: string, x: number, y: number) => {
+    setTextClips(prev => prev.map(clip => 
+      clip.id === id 
+        ? { ...clip, style: { ...clip.style, positionX: x, positionY: y } }
+        : clip
+    ));
+    saveToHistory();
+  };
+
+  // 텍스트 크기 업데이트 (화면에서 리사이즈)
+  const handleUpdateTextSize = (id: string, fontSize: number) => {
+    setTextClips(prev => prev.map(clip => 
+      clip.id === id 
+        ? { ...clip, style: { ...clip.style, fontSize } }
+        : clip
+    ));
+    saveToHistory();
   };
 
   const handleAddTextClip = (textData: Partial<TextClip>) => {
@@ -306,6 +345,81 @@ export default function VideoEditorPage() {
     saveToHistory(); // 히스토리 저장
   };
 
+  const handleDuplicateVideoClip = (id: string) => {
+    const clip = timelineClips.find(c => c.id === id);
+    if (!clip) return;
+    
+    const duplicatedClip = duplicateVideoClip(clip, timelineClips);
+    setTimelineClips([...timelineClips, duplicatedClip]);
+    saveToHistory();
+  };
+
+  const handleDuplicateTextClip = (id: string) => {
+    const clip = textClips.find(c => c.id === id);
+    if (!clip) return;
+    
+    const duplicatedClip = duplicateTextClip(clip, textClips);
+    setTextClips([...textClips, duplicatedClip]);
+    saveToHistory();
+  };
+
+  const handleDuplicateSoundClip = (id: string) => {
+    const clip = soundClips.find(c => c.id === id);
+    if (!clip) return;
+    
+    const duplicatedClip = duplicateSoundClip(clip, soundClips);
+    setSoundClips([...soundClips, duplicatedClip]);
+    saveToHistory();
+  };
+
+  const handleSplitVideoClip = (id: string) => {
+    const clip = timelineClips.find(c => c.id === id);
+    if (!clip) return;
+    
+    const playheadPosition = currentTime * PIXELS_PER_SECOND;
+    const result = splitVideoClip(clip, playheadPosition, PIXELS_PER_SECOND);
+    
+    if (result) {
+      const { firstClip, secondClip } = result;
+      setTimelineClips(timelineClips.map(c => 
+        c.id === id ? firstClip : c
+      ).concat(secondClip));
+      saveToHistory();
+    }
+  };
+
+  const handleSplitTextClip = (id: string) => {
+    const clip = textClips.find(c => c.id === id);
+    if (!clip) return;
+    
+    const playheadPosition = currentTime * PIXELS_PER_SECOND;
+    const result = splitTextClip(clip, playheadPosition);
+    
+    if (result) {
+      const { firstClip, secondClip } = result;
+      setTextClips(textClips.map(c => 
+        c.id === id ? firstClip : c
+      ).concat(secondClip));
+      saveToHistory();
+    }
+  };
+
+  const handleSplitSoundClip = (id: string) => {
+    const clip = soundClips.find(c => c.id === id);
+    if (!clip) return;
+    
+    const playheadPosition = currentTime * PIXELS_PER_SECOND;
+    const result = splitSoundClip(clip, playheadPosition);
+    
+    if (result) {
+      const { firstClip, secondClip } = result;
+      setSoundClips(soundClips.map(c => 
+        c.id === id ? firstClip : c
+      ).concat(secondClip));
+      saveToHistory();
+    }
+  };
+
   const handleResizeVideoClip = (id: string, newDuration: number) => {
     setTimelineClips(prev => prev.map(c => c.id === id ? { ...c, duration: newDuration } : c));
   };
@@ -359,44 +473,168 @@ export default function VideoEditorPage() {
     }
   };
 
-  // Player 상태 폴링으로 시간 업데이트
+  // Player 상태 폴링으로 시간 업데이트 및 재생 완료 감지
   useEffect(() => {
-    if (!isPlaying || !playerRef.current) return;
+    if (!isPlaying || !playerRef.current) {
+      // 재생이 멈췄을 때 이전 프레임 리셋
+      prevFrameRef.current = 0;
+      return;
+    }
+    
+    // 총 프레임 계산 (VideoPreview와 동일한 로직)
+    const videoEnd = timelineClips.length > 0 
+      ? Math.max(...timelineClips.map(c => (c.position || 0) + c.duration))
+      : 0;
+    const textEnd = textClips.length > 0
+      ? Math.max(...textClips.map(c => (c.position || 0) + c.duration))
+      : 0;
+    const soundEnd = soundClips.length > 0
+      ? Math.max(...soundClips.map(c => (c.position || 0) + c.duration))
+      : 0;
+    
+    const totalPx = Math.max(videoEnd, textEnd, soundEnd);
+    const totalSeconds = totalPx / 40; // 40px = 1초
+    const totalFrames = Math.max(30, Math.round(totalSeconds * 30)); // 30fps
     
     const interval = setInterval(() => {
       if (playerRef.current) {
         const frame = playerRef.current.getCurrentFrame();
         const time = frame / 30; // 30fps 기준
+        
+        // Player가 끝에서 자동으로 0으로 리셋된 경우 감지
+        if (prevFrameRef.current > totalFrames * 0.9 && frame < 10) {
+          console.log('재생 완료! (자동 리셋 감지)');
+          setIsPlaying(false);
+          setCurrentTime(0);
+          if (playerRef.current) {
+            playerRef.current.pause();
+          }
+          prevFrameRef.current = 0;
+          return;
+        }
+        
+        // 재생이 거의 끝에 도달한 경우 (95% 이상)
+        if (frame >= totalFrames * 0.95) {
+          console.log('재생 완료! 정지하고 처음으로 돌아갑니다.');
+          setIsPlaying(false);
+          setCurrentTime(0);
+          if (playerRef.current) {
+            playerRef.current.pause();
+            playerRef.current.seekTo(0);
+          }
+          prevFrameRef.current = 0;
+          return;
+        }
+        
+        // 정상 재생 중
+        prevFrameRef.current = frame;
         setCurrentTime(time);
+        
+        console.log('재생 상태:', {
+          현재프레임: frame,
+          총프레임: totalFrames,
+          현재시간: time,
+          총시간: totalSeconds,
+          재생완료여부: frame >= totalFrames * 0.95
+        });
       }
     }, 100); // 100ms마다 업데이트
     
     return () => clearInterval(interval);
-  }, [isPlaying]);
+  }, [isPlaying, timelineClips, textClips, soundClips]);
 
+  // 리사이저 드래그 핸들러
+  const handleResizerMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing || !containerRef.current) return;
+      
+      const containerRect = containerRef.current.getBoundingClientRect();
+      const newHeight = containerRect.bottom - e.clientY;
+      
+      // 최소 200px, 최대 컨테이너 높이의 70%
+      const minHeight = 200;
+      const maxHeight = containerRect.height * 0.7;
+      
+      setTimelineHeight(Math.min(maxHeight, Math.max(minHeight, newHeight)));
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'ns-resize';
+      
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+        document.body.style.cursor = '';
+      };
+    }
+  }, [isResizing]);
 
   return (
-    <div className="bg-background text-foreground h-screen overflow-hidden flex flex-col">
+    <div ref={containerRef} className="bg-background text-foreground h-screen overflow-hidden flex flex-col">
       <Header 
         activePage="edit"
         projectTitle={projectTitle}
         onProjectTitleChange={setProjectTitle}
       />
       
-      <div className="flex-1 flex overflow-hidden">
-        <VideoPreview 
-          clips={timelineClips}
-          textClips={textClips}
-          soundClips={soundClips}
-          onRemoveClip={handleDeleteVideoClip}
-          playerRef={playerRef}
-          currentTime={currentTime}
-          isPlaying={isPlaying}
-          onPlayStateChange={setIsPlaying}
-        />
-      </div>
+      <div 
+        className="flex-1 flex flex-col overflow-hidden"
+        style={{ height: `calc(100vh - 64px)` }} // Header 높이 제외
+      >
+        {/* 비디오 프리뷰 영역 - 타임라인 높이에 따라 유동적 */}
+        <div 
+          className="flex-1 overflow-hidden"
+          style={{ height: `calc(100% - ${timelineHeight}px)` }}
+        >
+          <VideoPreview 
+            clips={timelineClips}
+            textClips={textClips}
+            soundClips={soundClips}
+            onRemoveClip={handleDeleteVideoClip}
+            playerRef={playerRef}
+            currentTime={currentTime}
+            isPlaying={isPlaying}
+            onPlayStateChange={setIsPlaying}
+            onUpdateTextPosition={handleUpdateTextPosition}
+            onUpdateTextSize={handleUpdateTextSize}
+            selectedTextClip={selectedTextClip}
+            onSelectTextClip={setSelectedTextClip}
+          />
+        </div>
 
-      <Timeline 
+        {/* 리사이저 바 */}
+        <div 
+          className={`h-1 bg-gray-700 cursor-ns-resize hover:bg-[#38f47cf9] transition-colors relative ${
+            isResizing ? 'bg-[#38f47cf9]' : ''
+          }`}
+          onMouseDown={handleResizerMouseDown}
+        >
+          {/* 리사이저 핸들 아이콘 */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="flex flex-col gap-0.5">
+              <div className="w-8 h-0.5 bg-gray-500 rounded-full" />
+              <div className="w-8 h-0.5 bg-gray-500 rounded-full" />
+            </div>
+          </div>
+        </div>
+
+        {/* 타임라인 영역 - 고정 높이 */}
+        <div 
+          className="flex-shrink-0 overflow-hidden"
+          style={{ height: `${timelineHeight}px` }}
+        >
+          <Timeline 
           clips={timelineClips}
           textClips={textClips}
           soundClips={soundClips}
@@ -408,6 +646,12 @@ export default function VideoEditorPage() {
           onDeleteTextClip={handleDeleteTextClip}
           onDeleteSoundClip={handleDeleteSoundClip}
           onDeleteVideoClip={handleDeleteVideoClip}
+          onDuplicateVideoClip={handleDuplicateVideoClip}
+          onDuplicateTextClip={handleDuplicateTextClip}
+          onDuplicateSoundClip={handleDuplicateSoundClip}
+          onSplitVideoClip={handleSplitVideoClip}
+          onSplitTextClip={handleSplitTextClip}
+          onSplitSoundClip={handleSplitSoundClip}
           onResizeTextClip={handleResizeTextClip}
           onResizeSoundClip={handleResizeSoundClip}
           onReorderVideoClips={handleReorderVideoClips}
@@ -426,7 +670,9 @@ export default function VideoEditorPage() {
           onRedo={handleRedo}
           canUndo={historyIndex > 0}
           canRedo={historyIndex < history.length - 1}
-        />
+          />
+        </div>
+      </div>
 
       <ControlBar 
         selectedSound={selectedSound}

@@ -105,15 +105,8 @@ export default function TimelineControls({
         </div>
       </div>
 
-      {/* 우측: 설정 버튼 */}
-      <div>
-        <button
-          className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-800 transition-colors text-gray-400 hover:text-white"
-          title="설정"
-        >
-          <i className="ri-settings-3-line text-lg"></i>
-        </button>
-      </div>
+      {/* 우측: 빈 공간 */}
+      <div className="w-8" />
     </div>
   );
 }
