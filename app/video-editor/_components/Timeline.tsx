@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { VideoClip as VideoClipType, TextClip as TextClipType, SoundClip as SoundClipType } from '@/types/video-editor';
-import { validateClipDuration } from '../_utils/timeline-utils';
+import { validateClipDuration, getTimelineEnd } from '../_utils/timeline-utils';
 import TextClip from './TextClip';
 import SoundClip from './SoundClip';
 import TimelineControls from './TimelineControls';
+import ContextMenu from './ContextMenu';
 
 
 interface TimelineProps {
@@ -20,6 +21,12 @@ interface TimelineProps {
   onDeleteTextClip?: (id: string) => void;
   onDeleteSoundClip?: (id: string) => void;
   onDeleteVideoClip?: (id: string) => void;
+  onDuplicateVideoClip?: (id: string) => void;
+  onDuplicateTextClip?: (id: string) => void;
+  onDuplicateSoundClip?: (id: string) => void;
+  onSplitVideoClip?: (id: string) => void;
+  onSplitTextClip?: (id: string) => void;
+  onSplitSoundClip?: (id: string) => void;
   onResizeTextClip?: (id: string, newDuration: number) => void;
   onResizeSoundClip?: (id: string, newDuration: number) => void;
   onReorderVideoClips?: (clips: VideoClipType[]) => void;
@@ -52,6 +59,12 @@ export default function Timeline({
   onDeleteTextClip,
   onDeleteSoundClip,
   onDeleteVideoClip,
+  onDuplicateVideoClip,
+  onDuplicateTextClip,
+  onDuplicateSoundClip,
+  onSplitVideoClip,
+  onSplitTextClip,
+  onSplitSoundClip,
   onResizeTextClip,
   onResizeSoundClip,
   // onReorderVideoClips, // Commented out - not currently used
@@ -85,6 +98,7 @@ export default function Timeline({
   const [isDraggingPlayhead, setIsDraggingPlayhead] = useState(false);
   const [dragDirection, setDragDirection] = useState<'left' | 'right'>('right');
   const [initialDragX, setInitialDragX] = useState(0);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; clipId: string; clipType: 'video' | 'text' | 'sound' } | null>(null);
 
   const handleMouseDown = (e: React.MouseEvent, clipId: string) => {
     if ((e.target as HTMLElement).classList.contains('resize-handle')) {
@@ -94,6 +108,127 @@ export default function Timeline({
     setActiveClip(clipId);
     setInitialDragX(e.clientX);
     setDragStartX(e.clientX);
+  };
+
+  const handleContextMenu = (e: React.MouseEvent, clipId: string, clipType: 'video' | 'text' | 'sound') => {
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY, clipId, clipType });
+  };
+
+  const getContextMenuItems = () => {
+    if (!contextMenu) return [];
+
+    const { clipId, clipType } = contextMenu;
+    const playheadPosition = currentTime * pixelsPerSecond;
+    
+    let canSplit = false;
+    if (clipType === 'video') {
+      const clip = clips.find(c => c.id === clipId);
+      if (clip) {
+        canSplit = playheadPosition > clip.position && playheadPosition < clip.position + clip.duration;
+      }
+    } else if (clipType === 'text') {
+      const clip = textClips.find(c => c.id === clipId);
+      if (clip) {
+        canSplit = playheadPosition > clip.position && playheadPosition < clip.position + clip.duration;
+      }
+    } else if (clipType === 'sound') {
+      const clip = soundClips.find(c => c.id === clipId);
+      if (clip) {
+        canSplit = playheadPosition > clip.position && playheadPosition < clip.position + clip.duration;
+      }
+    }
+
+    const items = [];
+
+    // 수정 메뉴 (텍스트와 사운드 클립에만)
+    if (clipType === 'text' && onEditTextClip) {
+      const clip = textClips.find(c => c.id === clipId);
+      if (clip) {
+        items.push({
+          label: '수정',
+          icon: 'ri-edit-line',
+          action: () => onEditTextClip(clip),
+        });
+      }
+    } else if (clipType === 'sound' && onEditSoundClip) {
+      const clip = soundClips.find(c => c.id === clipId);
+      if (clip) {
+        items.push({
+          label: '수정',
+          icon: 'ri-edit-line',
+          action: () => onEditSoundClip(clip),
+        });
+      }
+    }
+
+    // 복제 메뉴
+    if (clipType === 'video' && onDuplicateVideoClip) {
+      items.push({
+        label: '복제',
+        icon: 'ri-file-copy-line',
+        action: () => onDuplicateVideoClip(clipId),
+      });
+    } else if (clipType === 'text' && onDuplicateTextClip) {
+      items.push({
+        label: '복제',
+        icon: 'ri-file-copy-line',
+        action: () => onDuplicateTextClip(clipId),
+      });
+    } else if (clipType === 'sound' && onDuplicateSoundClip) {
+      items.push({
+        label: '복제',
+        icon: 'ri-file-copy-line',
+        action: () => onDuplicateSoundClip(clipId),
+      });
+    }
+
+    // 분할 메뉴
+    if (clipType === 'video' && onSplitVideoClip) {
+      items.push({
+        label: '분할',
+        icon: 'ri-scissors-line',
+        action: () => onSplitVideoClip(clipId),
+        disabled: !canSplit,
+      });
+    } else if (clipType === 'text' && onSplitTextClip) {
+      items.push({
+        label: '분할',
+        icon: 'ri-scissors-line',
+        action: () => onSplitTextClip(clipId),
+        disabled: !canSplit,
+      });
+    } else if (clipType === 'sound' && onSplitSoundClip) {
+      items.push({
+        label: '분할',
+        icon: 'ri-scissors-line',
+        action: () => onSplitSoundClip(clipId),
+        disabled: !canSplit,
+      });
+    }
+
+    // 삭제 메뉴
+    if (clipType === 'video' && onDeleteVideoClip) {
+      items.push({
+        label: '삭제',
+        icon: 'ri-delete-bin-line',
+        action: () => onDeleteVideoClip(clipId),
+      });
+    } else if (clipType === 'text' && onDeleteTextClip) {
+      items.push({
+        label: '삭제',
+        icon: 'ri-delete-bin-line',
+        action: () => onDeleteTextClip(clipId),
+      });
+    } else if (clipType === 'sound' && onDeleteSoundClip) {
+      items.push({
+        label: '삭제',
+        icon: 'ri-delete-bin-line',
+        action: () => onDeleteSoundClip(clipId),
+      });
+    }
+
+    return items;
   };
 
   // Drag and drop handlers - currently unused but preserved for future implementation
@@ -321,8 +456,11 @@ export default function Timeline({
     return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   });
 
-  // 전체 길이 계산 (초 단위)
-  const totalDuration = clips.reduce((sum, clip) => sum + (clip.duration / pixelsPerSecond), 0);
+  // 전체 길이 계산 (초 단위) - 모든 트랙의 최대 끝 지점 계산
+  const videoEnd = getTimelineEnd(clips) / pixelsPerSecond;
+  const textEnd = getTimelineEnd(textClips) / pixelsPerSecond;
+  const soundEnd = getTimelineEnd(soundClips) / pixelsPerSecond;
+  const totalDuration = Math.max(videoEnd, textEnd, soundEnd, 0);
 
   // 플레이헤드 위치 계산 (픽셀)
   const playheadPosition = currentTime * pixelsPerSecond;
@@ -450,6 +588,7 @@ export default function Timeline({
                       setDragStartX(e.clientX);
                     }
                   }}
+                  onContextMenu={(e) => handleContextMenu(e, clip.id, 'video')}
                 >
                   <div 
                     className="w-full h-8 bg-gradient-to-r from-gray-900 to-gray-800 rounded cursor-pointer hover:from-gray-800 hover:to-gray-700 transition-colors relative overflow-hidden border border-gray-700"
@@ -470,18 +609,6 @@ export default function Timeline({
                       onMouseDown={(e) => handleResizeStart(e, clip.id, 'right')}
                     />
                   </div>
-                  {/* Delete button - 막대 div 밖으로 이동 */}
-                  {onDeleteVideoClip && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDeleteVideoClip(clip.id);
-                      }}
-                      className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 z-50"
-                    >
-                      <i className="ri-close-line text-xs text-white"></i>
-                    </button>
-                  )}
                 </div>
               ))}
             </div>
@@ -523,6 +650,7 @@ export default function Timeline({
                       setDragStartX(e.clientX);
                     }
                   }}
+                  onContextMenu={(e) => handleContextMenu(e, clip.id, 'text')}
                 >
                   <TextClip
                     clip={clip}
@@ -573,6 +701,7 @@ export default function Timeline({
                       setDragStartX(e.clientX);
                     }
                   }}
+                  onContextMenu={(e) => handleContextMenu(e, clip.id, 'sound')}
                 >
                   <SoundClip
                     clip={clip}
@@ -617,6 +746,16 @@ export default function Timeline({
           </div>
         </div>
       </div>
+
+      {/* Context Menu */}
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          items={getContextMenuItems()}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
     </div>
   );
 }
