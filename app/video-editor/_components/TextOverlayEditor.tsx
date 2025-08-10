@@ -307,7 +307,7 @@ export default function TextOverlayEditor({
 
                 {/* 위치 정보 표시 */}
                 <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-black/80 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
-                  X: {Math.round(clip.style?.positionX || 50)}% | Y: {Math.round(clip.style?.positionY || 50)}% | Size: {clip.style?.fontSize || 24}px
+                  Size: {clip.style?.fontSize || 24}px
                 </div>
               </>
             )}
