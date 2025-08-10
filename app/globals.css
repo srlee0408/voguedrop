@@ -288,3 +288,21 @@
     @apply border-primary focus:ring-primary;
   }
 }
+
+/* Timeline scrollbar styling */
+.timeline-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.timeline-content::-webkit-scrollbar-track {
+  background: rgba(31, 41, 55, 0.5); /* gray-800 계열 */
+}
+
+.timeline-content::-webkit-scrollbar-thumb {
+  background: rgba(107, 114, 128, 0.8); /* gray-500 계열 */
+  border-radius: 4px;
+}
+
+.timeline-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.9); /* gray-400 계열 */
+}

@@ -5,6 +5,7 @@ import { Player, PlayerRef } from '@remotion/player';
 import { CompositePreview } from '../_remotion/CompositePreview';
 import { TextClip as TextClipType, SoundClip as SoundClipType } from '@/types/video-editor';
 import TextOverlayEditor from './TextOverlayEditor';
+import { ASPECT_RATIOS, CAROUSEL_CONFIG, STYLES, AspectRatioValue } from '../_constants';
 
 interface PreviewClip {
   id: string;
@@ -54,9 +55,7 @@ export default function VideoPreview({
   const [currentIndex, setCurrentIndex] = useState(0);
   
   const containerRef = useRef<HTMLDivElement>(null);
-  const ITEM_WIDTH = 350; // 컨테이너 고정 너비
-  const ITEM_HEIGHT = 400; // 컨테이너 고정 높이 (16:9 비율 기준)
-  const ITEM_GAP = 20; // 아이템 간격
+  const { ITEM_WIDTH, ITEM_HEIGHT, ITEM_GAP } = CAROUSEL_CONFIG;
 
   useEffect(() => {
     setIsMounted(true);
@@ -143,21 +142,12 @@ export default function VideoPreview({
   }, [clips, textClips, soundClips]);
   
   // 화면 비율 옵션
-  type AspectRatio = '9:16' | '1:1' | '16:9';
-  const [selectedAspectRatio, setSelectedAspectRatio] = useState<AspectRatio>('9:16');
+  const [selectedAspectRatio, setSelectedAspectRatio] = useState<AspectRatioValue>('9:16');
   
   // 선택된 비율에 따른 실제 크기 계산
-  const getAspectRatioDimensions = (ratio: AspectRatio) => {
-    switch (ratio) {
-      case '9:16':
-        return { width: 360, height: 640, displayRatio: '9 / 16' }; // 모바일 세로 (Instagram Stories, TikTok)
-      case '1:1':
-        return { width: 640, height: 640, displayRatio: '1 / 1' }; // 정사각형 (Instagram Post)
-      case '16:9':
-        return { width: 640, height: 360, displayRatio: '16 / 9' }; // 와이드 (YouTube)
-      default:
-        return { width: 360, height: 640, displayRatio: '9 / 16' };
-    }
+  const getAspectRatioDimensions = (ratio: AspectRatioValue) => {
+    const ratioConfig = Object.values(ASPECT_RATIOS).find(r => r.value === ratio);
+    return ratioConfig || ASPECT_RATIOS.MOBILE;
   };
   
   const aspectRatioDimensions = getAspectRatioDimensions(selectedAspectRatio);
@@ -169,7 +159,7 @@ export default function VideoPreview({
   if (!is_mounted) return null;
 
   return (
-    <div className="flex-1 bg-black flex items-center">
+    <div className="w-full h-full bg-black flex items-center">
       <div className="flex gap-4 w-full h-full">
         {/* 좌측 50%: 캐러셀 형태의 클립 슬롯 */}
         <div className="w-1/2 flex flex-col items-center justify-center relative">
@@ -341,13 +331,54 @@ export default function VideoPreview({
         </div>
 
         {/* 우측 50%: 편집 화면 - 모든 트랙 합성 */}
-        <div className="w-1/2 bg-gray-900 rounded-lg overflow-hidden relative flex flex-col">
+        <div className="w-1/2 bg-gray-900 rounded-lg overflow-visible relative flex flex-col">
           <div className="absolute top-2 left-2 right-2 z-20 flex justify-between items-center">
             <div className="bg-black/50 px-2 py-1 rounded text-xs font-medium">
               Editor
             </div>
-            {/* 화면 비율 선택 버튼 */}
-            <div className="flex gap-1 bg-black/50 rounded p-1">
+            {/* 비디오 컨트롤 버튼들 */}
+            <div className="flex gap-2">
+              {/* Final Video 버튼 */}
+              <div className="relative group">
+                <button 
+                  className="p-2 bg-black/50 rounded hover:bg-black/70 transition-colors"
+                >
+                  <i className="ri-movie-line text-primary"></i>
+                </button>
+                <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                  Export Final Video
+                </div>
+              </div>
+              
+              {/* Preview 버튼 */}
+              <div className="relative group">
+                <button 
+                  className="p-2 bg-black/50 rounded hover:bg-black/70 transition-colors"
+                >
+                  <i className="ri-play-circle-line text-primary"></i>
+                </button>
+                <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                  Preview Full Screen
+                </div>
+              </div>
+              
+              {/* Save 버튼 */}
+              <div className="relative group">
+                <button 
+                  className="p-2 bg-black/50 rounded hover:bg-black/70 transition-colors"
+                >
+                  <i className="ri-save-line text-primary"></i>
+                </button>
+                <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                  Save Project
+                </div>
+              </div>
+              
+              {/* 구분선 */}
+              <div className="w-px bg-gray-600 mx-1" />
+              
+              {/* 화면 비율 선택 버튼 */}
+              <div className="flex gap-1 bg-black/50 rounded p-1">
               <button
                 onClick={() => setSelectedAspectRatio('9:16')}
                 className={`px-2 py-1 rounded text-xs transition-colors ${
@@ -381,6 +412,7 @@ export default function VideoPreview({
               >
                 16:9
               </button>
+              </div>
             </div>
           </div>
           <div className="w-full h-full bg-black relative flex items-center justify-center p-8">
@@ -395,10 +427,23 @@ export default function VideoPreview({
                   maxWidth: '90%',
                   maxHeight: '90%',
                   aspectRatio: aspectRatioDimensions.displayRatio,
-                  backgroundColor: '#111'
                 }}
               >
-                <Player
+                {/* 빨간 테두리 - 시각적 가이드 */}
+                <div 
+                  className="absolute inset-0 pointer-events-none z-30"
+                  style={{
+                    border: `2px solid ${STYLES.BORDER_COLOR}`,
+                    borderRadius: '0.5rem'
+                  }}
+                />
+                
+                {/* 콘텐츠 컨테이너 */}
+                <div 
+                  className="relative w-full h-full rounded-lg overflow-hidden"
+                  style={{ backgroundColor: STYLES.BACKGROUND_COLOR }}
+                >
+                  <Player
                   ref={playerRef}
                   component={CompositePreview}
                   inputProps={{
@@ -417,13 +462,13 @@ export default function VideoPreview({
                     display: 'block'
                   }}
                   controls={false}
-                  showVolumeControls={false}
-                  clickToPlay={false}
-                  doubleClickToFullscreen={false}
-                />
-                
-                {/* 텍스트 편집 오버레이 - Player 위에 정확히 오버레이 */}
-                <TextOverlayEditor
+                    showVolumeControls={false}
+                    clickToPlay={false}
+                    doubleClickToFullscreen={false}
+                  />
+                  
+                  {/* 텍스트 편집 오버레이 - Player와 같은 컨테이너 내에 위치 */}
+                  <TextOverlayEditor
                   textClips={textClips}
                   containerWidth={videoAspectRatio.width}
                   containerHeight={videoAspectRatio.height}
@@ -444,13 +489,14 @@ export default function VideoPreview({
                     if (onSelectTextClip) {
                       onSelectTextClip(id);
                     }
-                  }}
-                />
+                    }}
+                  />
+                </div>
               </div>
             ) : (
               <div className="w-full h-full flex items-center justify-center p-8">
                 <div 
-                  className="shadow-2xl flex items-center justify-center border-2 border-dashed border-gray-700"
+                  className="relative shadow-2xl"
                   style={{
                     width: selectedAspectRatio === '16:9' ? '90%' : 
                            selectedAspectRatio === '1:1' ? 'auto' : 'auto',
@@ -459,15 +505,27 @@ export default function VideoPreview({
                     maxWidth: '90%',
                     maxHeight: '90%',
                     aspectRatio: aspectRatioDimensions.displayRatio,
-                    backgroundColor: '#111'
                   }}
                 >
-                  <div className="text-gray-500 text-sm text-center">
-                    <div className="mb-2">Add clips to see preview</div>
-                    <div className="text-xs text-gray-600">
-                      {selectedAspectRatio === '9:16' && 'Mobile Portrait (Instagram Stories, TikTok)'}
-                      {selectedAspectRatio === '1:1' && 'Square (Instagram Post)'}
-                      {selectedAspectRatio === '16:9' && 'Landscape (YouTube, Web)'}
+                  {/* 빨간 테두리 - 시각적 가이드 */}
+                  <div 
+                    className="absolute inset-0 pointer-events-none z-30"
+                    style={{
+                      border: `2px solid ${STYLES.BORDER_COLOR}`,
+                      borderRadius: '0.5rem'
+                    }}
+                  />
+                  
+                  {/* 콘텐츠 */}
+                  <div 
+                    className="relative w-full h-full rounded-lg flex items-center justify-center"
+                    style={{ backgroundColor: STYLES.BACKGROUND_COLOR }}
+                  >
+                    <div className="text-gray-500 text-sm text-center">
+                      <div className="mb-2">Add clips to see preview</div>
+                      <div className="text-xs text-gray-600">
+                        {aspectRatioDimensions.description}
+                      </div>
                     </div>
                   </div>
                 </div>

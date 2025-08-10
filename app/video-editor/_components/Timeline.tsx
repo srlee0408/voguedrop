@@ -511,7 +511,7 @@ export default function Timeline({
   }, [isDraggingPlayhead, onSeek, pixelsPerSecond, totalDuration]);
 
   return (
-    <div className="bg-gray-800 border-t border-gray-700 flex-shrink-0">
+    <div className="bg-gray-800 border-t border-gray-700 flex flex-col h-full">
       {/* 재생 컨트롤 */}
       <TimelineControls
         isPlaying={isPlaying}
@@ -524,7 +524,7 @@ export default function Timeline({
         canUndo={canUndo}
         canRedo={canRedo}
       />
-      <div className="relative overflow-hidden timeline-content">
+      <div className="relative flex-1 overflow-y-auto overflow-x-hidden min-h-0 timeline-content">
         <div className="flex border-b border-gray-700">
           <div className="w-48 flex-shrink-0 p-2 border-r border-gray-700 flex items-center justify-center">
             <span className="text-xs text-gray-400 font-medium">Add a clip</span>

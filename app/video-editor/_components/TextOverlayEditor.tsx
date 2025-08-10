@@ -15,6 +15,23 @@ interface TextOverlayEditorProps {
   onSelectClip: (id: string | null) => void;
 }
 
+// Canvas를 사용한 정확한 텍스트 크기 측정
+const measureTextSize = (text: string, fontSize: number, fontFamily: string = 'sans-serif', fontWeight: string = 'bold') => {
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return { width: fontSize * text.length * 0.6, height: fontSize * 1.2 };
+  
+  ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
+  const metrics = ctx.measureText(text);
+  
+  // 실제 텍스트 너비 + 패딩 고려
+  const padding = 24; // 좌우 패딩 12px씩
+  return {
+    width: metrics.width + padding,
+    height: fontSize * 1.5 + 16 // 상하 패딩 8px씩
+  };
+};
+
 export default function TextOverlayEditor({
   textClips,
   containerWidth,
@@ -141,13 +158,37 @@ export default function TextOverlayEditor({
         const rect = containerRef.current?.getBoundingClientRect();
         if (!rect) return;
 
+        const clip = textClips.find(c => c.id === draggedClip);
+        if (!clip) return;
+
         const size = getContainerSize();
-        const x = Math.max(0, Math.min(size.width, e.clientX - rect.left - dragOffset.x));
-        const y = Math.max(0, Math.min(size.height, e.clientY - rect.top - dragOffset.y));
         
-        const xPercent = pixelToPercent(x, size.width);
-        const yPercent = pixelToPercent(y, size.height);
+        // 실제 텍스트 크기 측정
+        const fontSize = clip.style?.fontSize || 24;
+        const fontFamily = clip.style?.fontFamily || 'sans-serif';
+        const fontWeight = clip.style?.fontWeight || 'bold';
+        const textSize = measureTextSize(clip.content, fontSize, fontFamily, fontWeight);
         
+        // 마우스 위치에서 드래그 오프셋을 뺀 중심점 계산
+        const centerX = e.clientX - rect.left - dragOffset.x;
+        const centerY = e.clientY - rect.top - dragOffset.y;
+        
+        // transform: translate(-50%, -50%)를 고려한 경계 계산
+        // 텍스트의 중심이 이동하므로, 텍스트의 절반 크기만큼 여백 필요
+        const halfWidth = textSize.width / 2;
+        const halfHeight = textSize.height / 2;
+        
+        // 텍스트가 정확히 경계에 닿도록 제한
+        const minX = halfWidth;
+        const maxX = size.width - halfWidth;
+        const minY = halfHeight;
+        const maxY = size.height - halfHeight;
+        
+        const clampedX = Math.max(minX, Math.min(maxX, centerX));
+        const clampedY = Math.max(minY, Math.min(maxY, centerY));
+        
+        const xPercent = pixelToPercent(clampedX, size.width);
+        const yPercent = pixelToPercent(clampedY, size.height);
         
         onUpdatePosition(draggedClip, xPercent, yPercent);
       } else if (resizingClip) {
@@ -172,7 +213,7 @@ export default function TextOverlayEditor({
         document.removeEventListener('mouseup', handleMouseUp);
       };
     }
-  }, [draggedClip, resizingClip, dragOffset, resizeStart, actualContainerSize, containerWidth, containerHeight, onUpdatePosition, onUpdateSize]);
+  }, [draggedClip, resizingClip, dragOffset, resizeStart, actualContainerSize, containerWidth, containerHeight, onUpdatePosition, onUpdateSize, textClips, getContainerSize]);
 
   // 클릭 외부 감지
   useEffect(() => {

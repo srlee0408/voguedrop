@@ -6,7 +6,6 @@ import { useSearchParams } from 'next/navigation';
 import { Header } from '@/components/layout/Header';
 import VideoPreview from './_components/VideoPreview';
 import Timeline from './_components/Timeline';
-import ControlBar from './_components/ControlBar';
 import VideoLibraryModal from './_components/VideoLibraryModal';
 import SoundLibraryModal from './_components/SoundLibraryModal';
 import TextEditorModal from './_components/TextEditorModal';
@@ -34,6 +33,8 @@ export default function VideoEditorPage() {
   // 타임라인 높이 관리 (픽셀 단위)
   const [timelineHeight, setTimelineHeight] = useState(300); // 기본 300px
   const [isResizing, setIsResizing] = useState(false);
+  const [dragStartY, setDragStartY] = useState(0);
+  const [initialHeight, setInitialHeight] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   
   // 재생 상태 관리
@@ -62,7 +63,6 @@ export default function VideoEditorPage() {
   const [showVideoLibrary, setShowVideoLibrary] = useState(false);
   const [showSoundLibrary, setShowSoundLibrary] = useState(false);
   const [showTextEditor, setShowTextEditor] = useState(false);
-  const [selectedSound, setSelectedSound] = useState('Epic Theme');
   const [editingTextClip, setEditingTextClip] = useState<TextClip | undefined>(undefined);
   const [timelineClips, setTimelineClips] = useState<VideoClip[]>([]);
   const [textClips, setTextClips] = useState<TextClip[]>([]);
@@ -547,18 +547,21 @@ export default function VideoEditorPage() {
   const handleResizerMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
     setIsResizing(true);
+    setDragStartY(e.clientY);
+    setInitialHeight(timelineHeight);
   };
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      if (!isResizing || !containerRef.current) return;
+      if (!isResizing) return;
       
-      const containerRect = containerRef.current.getBoundingClientRect();
-      const newHeight = containerRect.bottom - e.clientY;
+      // 드래그 시작점 대비 상대적 변화량 계산 (위로 드래그하면 음수)
+      const deltaY = dragStartY - e.clientY;
+      const newHeight = initialHeight + deltaY;
       
-      // 최소 200px, 최대 컨테이너 높이의 70%
-      const minHeight = 200;
-      const maxHeight = containerRect.height * 0.7;
+      // 최소 150px (가장 아래), 최대 300px (가장 위 - 기본값)
+      const minHeight = 150;
+      const maxHeight = 300;
       
       setTimelineHeight(Math.min(maxHeight, Math.max(minHeight, newHeight)));
     };
@@ -578,7 +581,7 @@ export default function VideoEditorPage() {
         document.body.style.cursor = '';
       };
     }
-  }, [isResizing]);
+  }, [isResizing, dragStartY, initialHeight]);
 
   return (
     <div ref={containerRef} className="bg-background text-foreground h-screen overflow-hidden flex flex-col">
@@ -588,15 +591,9 @@ export default function VideoEditorPage() {
         onProjectTitleChange={setProjectTitle}
       />
       
-      <div 
-        className="flex-1 flex flex-col overflow-hidden"
-        style={{ height: `calc(100vh - 64px)` }} // Header 높이 제외
-      >
+      <div className="flex-1 flex flex-col overflow-hidden">
         {/* 비디오 프리뷰 영역 - 타임라인 높이에 따라 유동적 */}
-        <div 
-          className="flex-1 overflow-hidden"
-          style={{ height: `calc(100% - ${timelineHeight}px)` }}
-        >
+        <div className="flex-1 min-h-0 overflow-hidden relative">
           <VideoPreview 
             clips={timelineClips}
             textClips={textClips}
@@ -613,12 +610,13 @@ export default function VideoEditorPage() {
           />
         </div>
 
-        {/* 리사이저 바 */}
+        {/* 리사이저 바 - 아래로만 드래그 가능 */}
         <div 
-          className={`h-1 bg-gray-700 cursor-ns-resize hover:bg-[#38f47cf9] transition-colors relative ${
+          className={`h-1 bg-gray-700 hover:bg-[#38f47cf9] transition-colors relative ${
             isResizing ? 'bg-[#38f47cf9]' : ''
-          }`}
+          } ${timelineHeight >= 300 ? 'cursor-s-resize' : 'cursor-ns-resize'}`}
           onMouseDown={handleResizerMouseDown}
+          title={timelineHeight >= 300 ? "드래그하여 타임라인 축소" : "드래그하여 타임라인 크기 조정"}
         >
           {/* 리사이저 핸들 아이콘 */}
           <div className="absolute inset-0 flex items-center justify-center">
@@ -631,7 +629,7 @@ export default function VideoEditorPage() {
 
         {/* 타임라인 영역 - 고정 높이 */}
         <div 
-          className="flex-shrink-0 overflow-hidden"
+          className="flex-shrink-0 relative"
           style={{ height: `${timelineHeight}px` }}
         >
           <Timeline 
@@ -674,12 +672,6 @@ export default function VideoEditorPage() {
         </div>
       </div>
 
-      <ControlBar 
-        selectedSound={selectedSound}
-        onSelectSound={setSelectedSound}
-        onAddSound={handleAddSound}
-      />
-
       {showVideoLibrary && (
         <VideoLibraryModal
           onClose={() => setShowVideoLibrary(false)}
@@ -690,6 +682,10 @@ export default function VideoEditorPage() {
       {showSoundLibrary && (
         <SoundLibraryModal
           onClose={() => setShowSoundLibrary(false)}
+          onCreateVideo={() => {
+            // TODO: Implement create video functionality
+            console.log('Create video');
+          }}
           onSelectSounds={async (sounds) => {
             // Import helper functions
             const { getTimelineEnd } = await import('./_utils/timeline-utils');

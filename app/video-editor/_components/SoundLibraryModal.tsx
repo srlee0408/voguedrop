@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface SoundLibraryModalProps {
   onClose: () => void;
   onSelectSounds: (sounds: Array<{ name: string; url: string; duration: number }>) => void;
+  onCreateVideo?: () => void;
 }
 
 interface UploadedAudio {
@@ -15,13 +17,24 @@ interface UploadedAudio {
   size: number;
 }
 
-export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibraryModalProps) {
+export default function SoundLibraryModal({ onClose, onSelectSounds, onCreateVideo }: SoundLibraryModalProps) {
+  const { t } = useTranslation();
+  const [activeTab, setActiveTab] = useState<'preset' | 'upload'>('preset');
+  const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
   const [uploadedAudios, setUploadedAudios] = useState<UploadedAudio[]>([]);
   const [selectedAudioIds, setSelectedAudioIds] = useState<Set<string>>(new Set());
   const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  
+  // 프리셋 음악 옵션들
+  const presetSounds = [
+    { key: 'epicTheme', label: t('videoEditor.controls.soundOptions.epicTheme'), duration: 180 },
+    { key: 'dramatic', label: t('videoEditor.controls.soundOptions.dramatic'), duration: 120 },
+    { key: 'ambient', label: t('videoEditor.controls.soundOptions.ambient'), duration: 240 },
+    { key: 'sfx', label: t('videoEditor.controls.soundOptions.sfx'), duration: 60 },
+  ];
 
   const getAudioDuration = (file: File): Promise<number> => {
     return new Promise((resolve, reject) => {
@@ -158,17 +171,29 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
   };
 
   const handleAddSelectedToTimeline = () => {
-    const selectedAudios = uploadedAudios
-      .filter(audio => selectedAudioIds.has(audio.id))
-      .map(audio => ({
-        name: audio.name,
-        url: audio.url,
-        duration: audio.duration,
-      }));
-    
-    if (selectedAudios.length > 0) {
-      onSelectSounds(selectedAudios);
-      onClose();
+    if (activeTab === 'preset' && selectedPreset) {
+      const preset = presetSounds.find(s => s.key === selectedPreset);
+      if (preset) {
+        onSelectSounds([{
+          name: preset.label,
+          url: '', // 프리셋 음악은 URL이 아닌 키로 처리
+          duration: preset.duration,
+        }]);
+        onClose();
+      }
+    } else if (activeTab === 'upload') {
+      const selectedAudios = uploadedAudios
+        .filter(audio => selectedAudioIds.has(audio.id))
+        .map(audio => ({
+          name: audio.name,
+          url: audio.url,
+          duration: audio.duration,
+        }));
+      
+      if (selectedAudios.length > 0) {
+        onSelectSounds(selectedAudios);
+        onClose();
+      }
     }
   };
 
@@ -219,7 +244,64 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
         </div>
         
         <div className="flex-1 overflow-auto p-6">
-          <div className="mb-6">
+          {/* 탭 선택 */}
+          <div className="flex gap-2 mb-6">
+            <button
+              onClick={() => setActiveTab('preset')}
+              className={`px-4 py-2 rounded-lg transition-colors ${
+                activeTab === 'preset' 
+                  ? 'bg-primary text-black' 
+                  : 'bg-gray-700 hover:bg-gray-600'
+              }`}
+            >
+              Preset Music
+            </button>
+            <button
+              onClick={() => setActiveTab('upload')}
+              className={`px-4 py-2 rounded-lg transition-colors ${
+                activeTab === 'upload' 
+                  ? 'bg-primary text-black' 
+                  : 'bg-gray-700 hover:bg-gray-600'
+              }`}
+            >
+              Upload Audio
+            </button>
+          </div>
+          
+          {activeTab === 'preset' ? (
+            /* 프리셋 음악 선택 */
+            <div>
+              <h3 className="font-medium mb-4">Select Preset Music</h3>
+              <div className="grid grid-cols-2 gap-3">
+                {presetSounds.map((sound) => (
+                  <div
+                    key={sound.key}
+                    onClick={() => setSelectedPreset(sound.key)}
+                    className={`p-4 rounded-lg cursor-pointer transition-all ${
+                      selectedPreset === sound.key
+                        ? 'bg-primary text-black'
+                        : 'bg-gray-700 hover:bg-gray-600'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <i className="ri-volume-up-line text-2xl"></i>
+                      <div>
+                        <div className="font-medium">{sound.label}</div>
+                        <div className={`text-sm ${
+                          selectedPreset === sound.key ? 'text-black/70' : 'text-gray-400'
+                        }`}>
+                          {formatDuration(sound.duration)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            /* 업로드 섹션 */
+            <>
+              <div className="mb-6">
             <h3 className="font-medium mb-4">Upload Audio</h3>
             <div 
               className="border-2 border-dashed border-gray-700 rounded-lg p-8 text-center hover:border-primary/50 transition-colors"
@@ -308,6 +390,8 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
               </div>
             )}
           </div>
+            </>
+          )}
         </div>
         
         <div className="p-6 border-t border-gray-700">
@@ -326,11 +410,27 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
               </button>
               <button 
                 onClick={handleAddSelectedToTimeline}
-                disabled={selectedAudioIds.size === 0}
+                disabled={
+                  activeTab === 'preset' 
+                    ? !selectedPreset 
+                    : selectedAudioIds.size === 0
+                }
                 className="px-6 py-2 bg-primary rounded-button hover:bg-primary/90 text-black disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Add Selected to Timeline ({selectedAudioIds.size})
+                {activeTab === 'preset' 
+                  ? `Add Preset Music` 
+                  : `Add Selected to Timeline (${selectedAudioIds.size})`
+                }
               </button>
+              {onCreateVideo && (
+                <button
+                  onClick={onCreateVideo}
+                  className="px-6 py-2 bg-primary rounded-button hover:bg-primary/90 text-black flex items-center gap-2"
+                >
+                  <i className="ri-arrow-up-line text-xl"></i>
+                  {t('videoEditor.controls.create')}
+                </button>
+              )}
             </div>
           </div>
         </div>
