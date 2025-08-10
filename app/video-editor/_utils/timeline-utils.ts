@@ -1,0 +1,367 @@
+/**
+ * Timeline utility functions for clip manipulation
+ */
+
+export interface BaseClip {
+  id: string;
+  duration: number;
+  position: number;
+  maxDuration?: number;
+}
+
+/**
+ * Snap position to grid (e.g., 1-second intervals)
+ * @param position Current position in pixels
+ * @param gridSize Grid size in pixels (e.g., 40px = 1 second)
+ * @returns Snapped position
+ */
+export const snapToGrid = (position: number, gridSize: number): number => {
+  return Math.round(position / gridSize) * gridSize;
+};
+
+/**
+ * Check if a clip would overlap with other clips
+ * @param clips Array of clips to check against
+ * @param clipId ID of the clip being moved
+ * @param newPosition New position for the clip
+ * @param duration Duration of the clip
+ * @returns true if there's an overlap
+ */
+export const checkClipOverlap = <T extends BaseClip>(
+  clips: T[],
+  clipId: string,
+  newPosition: number,
+  duration: number
+): boolean => {
+  return clips.some(clip => 
+    clip.id !== clipId &&
+    newPosition < clip.position + clip.duration &&
+    newPosition + duration > clip.position
+  );
+};
+
+/**
+ * Validate clip position and duration
+ * @param position Clip position
+ * @param duration Current duration
+ * @param maxDuration Maximum allowed duration
+ * @returns Valid duration
+ */
+export const validateClipDuration = (
+  duration: number,
+  maxDuration?: number
+): number => {
+  const minDuration = 80; // Minimum clip width in pixels
+  let validDuration = Math.max(minDuration, duration);
+  
+  if (maxDuration !== undefined && maxDuration > 0) {
+    validDuration = Math.min(validDuration, maxDuration);
+  }
+  
+  return validDuration;
+};
+
+/**
+ * Calculate valid position for a clip
+ * @param position Requested position
+ * @param duration Clip duration
+ * @param timelineWidth Total timeline width
+ * @returns Valid position
+ */
+export const validateClipPosition = (
+  position: number,
+  duration: number,
+  timelineWidth?: number
+): number => {
+  // Ensure position is not negative
+  let validPosition = Math.max(0, position);
+  
+  // If timeline width is provided, ensure clip doesn't go beyond timeline
+  if (timelineWidth !== undefined && timelineWidth > 0) {
+    const maxPosition = Math.max(0, timelineWidth - duration);
+    validPosition = Math.min(validPosition, maxPosition);
+  }
+  
+  return validPosition;
+};
+
+/**
+ * Get the next available position after existing clips
+ * @param clips Array of clips
+ * @returns Next available position
+ */
+export const getNextAvailablePosition = <T extends BaseClip>(
+  clips: T[]
+): number => {
+  if (clips.length === 0) return 0;
+  
+  const lastClipEnd = Math.max(
+    ...clips.map(clip => clip.position + clip.duration)
+  );
+  
+  return lastClipEnd + 20; // Add small gap
+};
+
+/**
+ * Find a gap where a clip can fit
+ * @param clips Array of clips sorted by position
+ * @param duration Duration of clip to place
+ * @param preferredPosition Preferred position (will find nearest valid position)
+ * @returns Valid position or null if no space
+ */
+export const findAvailablePosition = <T extends BaseClip>(
+  clips: T[],
+  duration: number,
+  preferredPosition: number = 0
+): number | null => {
+  // Sort clips by position
+  const sortedClips = [...clips].sort((a, b) => a.position - b.position);
+  
+  // Check if preferred position is available
+  const hasOverlap = checkClipOverlap(clips, '', preferredPosition, duration);
+  if (!hasOverlap) {
+    return Math.max(0, preferredPosition);
+  }
+  
+  // Find first available gap
+  let currentPosition = 0;
+  
+  for (const clip of sortedClips) {
+    if (currentPosition + duration <= clip.position) {
+      return currentPosition;
+    }
+    currentPosition = clip.position + clip.duration + 20; // Small gap
+  }
+  
+  return currentPosition;
+};
+
+/**
+ * Get clip at position (for click selection)
+ * @param clips Array of clips
+ * @param clickPosition Click position in pixels
+ * @returns Clip at position or null
+ */
+export const getClipAtPosition = <T extends BaseClip>(
+  clips: T[],
+  clickPosition: number
+): T | null => {
+  return clips.find(clip => 
+    clickPosition >= clip.position &&
+    clickPosition <= clip.position + clip.duration
+  ) || null;
+};
+
+/**
+ * Find available position for new clip without overlap
+ * @param clips Array of existing clips
+ * @param startPosition Starting position to search from
+ * @param duration Duration of the new clip
+ * @param gridSize Grid size for snapping (e.g., 40px = 1 second)
+ * @returns Available position without overlap
+ */
+export const findNonOverlappingPosition = <T extends BaseClip>(
+  clips: T[],
+  startPosition: number,
+  duration: number,
+  gridSize: number
+): number => {
+  let position = startPosition;
+  
+  // Keep moving right until we find a position without overlap
+  while (clips.some(clip =>
+    position < clip.position + clip.duration &&
+    position + duration > clip.position
+  )) {
+    position += gridSize; // Move by grid size (1 second)
+  }
+  
+  return position;
+};
+
+/**
+ * Get the next position for adding a new clip
+ * @param clips Array of existing clips
+ * @param currentTime Current playhead time in seconds
+ * @param pixelsPerSecond Pixels per second ratio
+ * @returns Next position for the new clip
+ */
+export const getNextPosition = <T extends BaseClip>(
+  clips: T[],
+  currentTime: number,
+  pixelsPerSecond: number
+): number => {
+  if (clips.length === 0) return 0;
+  
+  if (currentTime > 0) {
+    // Use playhead position when it's not at the start
+    return currentTime * pixelsPerSecond;
+  } else {
+    // Place after the last clip when playhead is at 0
+    return clips.reduce((max, clip) => {
+      const clipEnd = clip.position + clip.duration;
+      return Math.max(max, clipEnd);
+    }, 0);
+  }
+};
+
+/**
+ * Find non-overlapping position based on drag direction
+ * @param clips Array of existing clips (excluding the dragged clip)
+ * @param requestedPosition The position where user wants to place the clip
+ * @param duration Duration of the clip being placed
+ * @param dragDirection Direction of the drag ('left' or 'right')
+ * @param gridSize Grid size for snapping
+ * @returns Non-overlapping position based on drag direction
+ */
+export const findNonOverlappingPositionWithDirection = <T extends BaseClip>(
+  clips: T[],
+  requestedPosition: number,
+  duration: number,
+  dragDirection: 'left' | 'right',
+  gridSize: number
+): number => {
+  // Special handling for position 0
+  if (requestedPosition === 0) {
+    // Check if there's a clip at position 0
+    const clipAtZero = clips.find(clip => clip.position === 0);
+    if (clipAtZero) {
+      // If there's a clip at 0, place the new clip to the right of it
+      return snapToGrid(clipAtZero.duration, gridSize);
+    }
+    // No clip at 0, can place there
+    return 0;
+  }
+  
+  // Find overlapping clips
+  const overlappingClips = clips.filter(clip =>
+    requestedPosition < clip.position + clip.duration &&
+    requestedPosition + duration > clip.position
+  );
+  
+  if (overlappingClips.length === 0) {
+    // No overlap, place at requested position
+    return Math.max(0, requestedPosition);
+  }
+  
+  if (dragDirection === 'right') {
+    // Dragging right: place after the rightmost overlapping clip
+    const rightmostClip = overlappingClips.reduce((max, clip) => 
+      (clip.position + clip.duration > max.position + max.duration) ? clip : max
+    );
+    return snapToGrid(rightmostClip.position + rightmostClip.duration, gridSize);
+  } else {
+    // Dragging left: place before the leftmost overlapping clip
+    const leftmostClip = overlappingClips.reduce((min, clip) => 
+      clip.position < min.position ? clip : min
+    );
+    const leftPosition = leftmostClip.position - duration;
+    // If placing to the left would put it at negative position, place to the right instead
+    if (leftPosition < 0) {
+      // Find the rightmost position of overlapping clips and place after
+      const rightmostClip = overlappingClips.reduce((max, clip) => 
+        (clip.position + clip.duration > max.position + max.duration) ? clip : max
+      );
+      return snapToGrid(rightmostClip.position + rightmostClip.duration, gridSize);
+    }
+    return snapToGrid(leftPosition, gridSize);
+  }
+};
+
+/**
+ * Magnetic insert - pushes clips to the right when inserting
+ * @param clips Array of existing clips
+ * @param insertPosition Position where new clip will be inserted
+ * @param insertDuration Duration of the clip being inserted
+ * @returns Updated clips array with pushed positions
+ */
+export const magneticInsert = <T extends BaseClip>(
+  clips: T[],
+  insertPosition: number,
+  insertDuration: number
+): T[] => {
+  return clips.map(clip => {
+    // Push clips that are at or after the insert position
+    if (clip.position >= insertPosition) {
+      return {
+        ...clip,
+        position: clip.position + insertDuration
+      };
+    }
+    // Clips that overlap with insert position get pushed
+    if (clip.position < insertPosition && clip.position + clip.duration > insertPosition) {
+      return {
+        ...clip,
+        position: insertPosition + insertDuration
+      };
+    }
+    return clip;
+  });
+};
+
+/**
+ * Magnetic delete - pulls clips to the left when deleting (ripple delete)
+ * @param clips Array of clips
+ * @param deletedPosition Position of deleted clip
+ * @param deletedDuration Duration of deleted clip
+ * @returns Updated clips array with pulled positions
+ */
+export const magneticDelete = <T extends BaseClip>(
+  clips: T[],
+  deletedPosition: number,
+  deletedDuration: number
+): T[] => {
+  return clips.map(clip => {
+    // Pull clips that are after the deleted position
+    if (clip.position > deletedPosition) {
+      return {
+        ...clip,
+        position: Math.max(deletedPosition, clip.position - deletedDuration)
+      };
+    }
+    return clip;
+  });
+};
+
+/**
+ * Remove gaps between clips (compress timeline)
+ * @param clips Array of clips
+ * @returns Clips array with gaps removed
+ */
+export const removeGaps = <T extends BaseClip>(clips: T[]): T[] => {
+  if (clips.length === 0) return clips;
+  
+  // Sort clips by position
+  const sortedClips = [...clips].sort((a, b) => a.position - b.position);
+  
+  return sortedClips.map((clip, index) => {
+    if (index === 0) {
+      // First clip stays at position 0
+      return { ...clip, position: 0 };
+    }
+    
+    const previousClip = sortedClips[index - 1];
+    const expectedPosition = previousClip.position + previousClip.duration;
+    
+    // Remove gap if exists
+    if (clip.position > expectedPosition) {
+      return { ...clip, position: expectedPosition };
+    }
+    
+    return clip;
+  });
+};
+
+/**
+ * Get the end position of the last clip
+ * @param clips Array of clips
+ * @returns End position of the last clip
+ */
+export const getTimelineEnd = <T extends BaseClip>(clips: T[]): number => {
+  if (clips.length === 0) return 0;
+  
+  return clips.reduce((max, clip) => {
+    const clipEnd = clip.position + clip.duration;
+    return Math.max(max, clipEnd);
+  }, 0);
+};

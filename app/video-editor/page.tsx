@@ -10,19 +10,11 @@ import ControlBar from './_components/ControlBar';
 import VideoLibraryModal from './_components/VideoLibraryModal';
 import SoundLibraryModal from './_components/SoundLibraryModal';
 import TextEditorModal from './_components/TextEditorModal';
-import { TextClip, SoundClip, LibraryVideo } from '@/types/video-editor';
+import { VideoClip, TextClip, SoundClip, LibraryVideo } from '@/types/video-editor';
 
 // 히스토리 상태 타입
 interface HistoryState {
-  timelineClips: Array<{
-    id: string;
-    duration: number;
-    thumbnails: number;
-    url?: string;
-    thumbnail?: string;
-    title?: string;
-    max_duration_px?: number;
-  }>;
+  timelineClips: VideoClip[];
   textClips: TextClip[];
   soundClips: SoundClip[];
 }
@@ -55,15 +47,7 @@ export default function VideoEditorPage() {
   const [showTextEditor, setShowTextEditor] = useState(false);
   const [selectedSound, setSelectedSound] = useState('Epic Theme');
   const [editingTextClip, setEditingTextClip] = useState<TextClip | undefined>(undefined);
-  const [timelineClips, setTimelineClips] = useState<Array<{
-    id: string;
-    duration: number;
-    thumbnails: number;
-    url?: string;
-    thumbnail?: string;
-    title?: string;
-    max_duration_px?: number;
-  }>>([]);
+  const [timelineClips, setTimelineClips] = useState<VideoClip[]>([]);
   const [textClips, setTextClips] = useState<TextClip[]>([]);
   const [soundClips, setSoundClips] = useState<SoundClip[]>([]);
   
@@ -174,23 +158,34 @@ export default function VideoEditorPage() {
   };
 
   const handleAddToTimeline = async (videos: LibraryVideo[]) => {
+    // Import helper functions
+    const { getTimelineEnd } = await import('./_utils/timeline-utils');
+    
     // 기본 duration을 6초로 설정 (6초 * 40px/초 = 240px)
     const default_px = 240;
     
+    // Get the end position of existing clips
+    const startPosition = getTimelineEnd(timelineClips);
+    
     // 여러 비디오를 한 번에 처리
+    let currentPosition = startPosition;
     const newClips = videos.map((video, index) => {
       // 각 비디오마다 고유한 ID 생성
       const clipId = `clip-${Date.now()}-${index}-${Math.random().toString(36).substr(2, 9)}`;
       
-      const newClip = {
+      const newClip: VideoClip = {
         id: clipId,
         duration: default_px,
+        position: currentPosition, // Place sequentially
         thumbnails: 1,
         url: video.output_video_url,
         thumbnail: video.input_image_url,
         title: video.selected_effects?.[0]?.name || extractTitleFromUrl(video.output_video_url) || 'Video Clip',
-        max_duration_px: default_px,
+        maxDuration: default_px,
       };
+
+      // Update position for next clip
+      currentPosition += default_px;
 
       // 백그라운드에서 실제 duration 계산 후 업데이트
       getVideoDurationSeconds(video.output_video_url).then((duration_seconds) => {
@@ -199,7 +194,7 @@ export default function VideoEditorPage() {
         
         setTimelineClips(prev => prev.map(clip => 
           clip.id === clipId 
-            ? { ...clip, duration: computed_px, max_duration_px: computed_px }
+            ? { ...clip, duration: computed_px, maxDuration: computed_px }
             : clip
         ));
       });
@@ -207,7 +202,7 @@ export default function VideoEditorPage() {
       return newClip;
     });
 
-    // 타임라인에 모든 클립 추가
+    // Add all clips
     setTimelineClips([...timelineClips, ...newClips]);
     saveToHistory(); // 히스토리 저장
 
@@ -223,21 +218,31 @@ export default function VideoEditorPage() {
       ));
       saveToHistory(); // 편집도 히스토리 저장
     } else {
-      const newTextClip: TextClip = {
-        id: `text-${Date.now()}`,
-        content: textData.content || '',
-        duration: textData.duration || 200,
-        position: textData.position || 0,
-        style: textData.style || {
-          fontSize: 24,
-          fontFamily: 'default',
-          color: '#FFFFFF',
-          alignment: 'center',
-        },
-        effect: textData.effect,
-      };
-      setTextClips([...textClips, newTextClip]);
-      saveToHistory(); // 히스토리 저장
+      // Import helper functions
+      import('./_utils/timeline-utils').then(({ getTimelineEnd }) => {
+        const duration = textData.duration || 200;
+        
+        // Get the end position of existing clips
+        const position = getTimelineEnd(textClips);
+        
+        const newTextClip: TextClip = {
+          id: `text-${Date.now()}`,
+          content: textData.content || '',
+          duration: duration,
+          position: textData.position || position,
+          style: textData.style || {
+            fontSize: 24,
+            fontFamily: 'default',
+            color: '#FFFFFF',
+            alignment: 'center',
+          },
+          effect: textData.effect,
+        };
+        
+        // Add clip
+        setTextClips([...textClips, newTextClip]);
+        saveToHistory(); // 히스토리 저장
+      });
     }
     setShowTextEditor(false);
     setEditingTextClip(undefined);
@@ -249,7 +254,8 @@ export default function VideoEditorPage() {
   };
 
   const handleDeleteTextClip = (id: string) => {
-    setTextClips(textClips.filter(clip => clip.id !== id));
+    // Simple deletion without ripple effect
+    setTextClips(textClips.filter(c => c.id !== id));
     saveToHistory(); // 히스토리 저장
   };
 
@@ -260,18 +266,14 @@ export default function VideoEditorPage() {
   };
 
   const handleAddSoundClip = (soundData: Partial<SoundClip>) => {
-    // Calculate position for new sound clip (add after existing clips)
-    const lastPosition = soundClips.length > 0 
-      ? Math.max(...soundClips.map(clip => clip.position + clip.duration))
-      : 0;
-    
     const newSoundClip: SoundClip = {
       id: `sound-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       name: soundData.name || 'New Sound',
       duration: soundData.duration || 300,
-      position: soundData.position !== undefined ? soundData.position : lastPosition,
+      position: soundData.position ?? 0, // Default to start of timeline
       volume: soundData.volume || 100,
       url: soundData.url,
+      maxDuration: soundData.maxDuration, // Pass through max duration
     };
     setSoundClips([...soundClips, newSoundClip]);
     saveToHistory(); // Save to history after adding
@@ -283,7 +285,8 @@ export default function VideoEditorPage() {
   };
 
   const handleDeleteSoundClip = (id: string) => {
-    setSoundClips(soundClips.filter(clip => clip.id !== id));
+    // Simple deletion without ripple effect
+    setSoundClips(soundClips.filter(c => c.id !== id));
     saveToHistory(); // 히스토리 저장
   };
 
@@ -298,7 +301,8 @@ export default function VideoEditorPage() {
   };
 
   const handleDeleteVideoClip = (id: string) => {
-    setTimelineClips(prev => prev.filter(c => c.id !== id));
+    // Simple deletion without ripple effect
+    setTimelineClips(timelineClips.filter(c => c.id !== id));
     saveToHistory(); // 히스토리 저장
   };
 
@@ -312,6 +316,27 @@ export default function VideoEditorPage() {
 
   const handleReorderSoundClips = (newClips: SoundClip[]) => {
     setSoundClips(newClips);
+  };
+
+  const handleUpdateVideoClipPosition = (id: string, newPosition: number) => {
+    setTimelineClips(prev => prev.map(clip => 
+      clip.id === id ? { ...clip, position: newPosition } : clip
+    ));
+    saveToHistory();
+  };
+
+  const handleUpdateTextClipPosition = (id: string, newPosition: number) => {
+    setTextClips(prev => prev.map(clip => 
+      clip.id === id ? { ...clip, position: newPosition } : clip
+    ));
+    saveToHistory();
+  };
+
+  const handleUpdateSoundClipPosition = (id: string, newPosition: number) => {
+    setSoundClips(prev => prev.map(clip => 
+      clip.id === id ? { ...clip, position: newPosition } : clip
+    ));
+    saveToHistory();
   };
 
   // 재생 제어 함수들
@@ -389,6 +414,9 @@ export default function VideoEditorPage() {
           onReorderTextClips={handleReorderTextClips}
           onReorderSoundClips={handleReorderSoundClips}
           onResizeVideoClip={handleResizeVideoClip}
+          onUpdateVideoClipPosition={handleUpdateVideoClipPosition}
+          onUpdateTextClipPosition={handleUpdateTextClipPosition}
+          onUpdateSoundClipPosition={handleUpdateSoundClipPosition}
           pixelsPerSecond={PIXELS_PER_SECOND}
           currentTime={currentTime}
           isPlaying={isPlaying}
@@ -416,23 +444,30 @@ export default function VideoEditorPage() {
       {showSoundLibrary && (
         <SoundLibraryModal
           onClose={() => setShowSoundLibrary(false)}
-          onSelectSounds={(sounds) => {
-            // Add multiple sounds sequentially
-            let currentPosition = soundClips.length > 0 
-              ? Math.max(...soundClips.map(clip => clip.position + clip.duration))
-              : 0;
+          onSelectSounds={async (sounds) => {
+            // Import helper functions
+            const { getTimelineEnd } = await import('./_utils/timeline-utils');
             
-            sounds.forEach(sound => {
+            // Get the end position of existing clips
+            let currentPosition = getTimelineEnd(soundClips);
+            
+            // Add sounds sequentially
+            sounds.forEach((sound) => {
               const durationInPixels = Math.round(sound.duration * PIXELS_PER_SECOND);
+              
               handleAddSoundClip({ 
                 name: sound.name, 
                 url: sound.url,
                 duration: durationInPixels,
+                maxDuration: durationInPixels, // Set max duration to actual audio length
                 position: currentPosition,
                 volume: 100 
               });
-              currentPosition += durationInPixels; // Move position for next clip
+              
+              // Update position for next sound
+              currentPosition += durationInPixels;
             });
+            
             setShowSoundLibrary(false);
           }}
         />

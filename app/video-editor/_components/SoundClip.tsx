@@ -40,8 +40,7 @@ export default function SoundClip({
   return (
     <div
       ref={clipRef}
-      className={`group relative ${isActive ? 'z-10' : ''}`}
-      style={{ width: `${clip.duration}px` }}
+      className={`group relative w-full h-full ${isActive ? 'z-10' : ''}`}
       onDoubleClick={handleDoubleClick}
     >
       <div className={`w-full h-8 bg-green-900/50 backdrop-blur-sm rounded cursor-move hover:bg-green-900/60 transition-colors ${
@@ -67,13 +66,13 @@ export default function SoundClip({
           </div>
         </div>
         
-        {/* Resize handles */}
+        {/* Resize handles - 항상 보이도록 변경 */}
         <div
-          className="absolute inset-y-0 left-0 w-1 bg-green-500 rounded-l cursor-ew-resize opacity-0 group-hover:opacity-100 transition-opacity resize-handle"
+          className="absolute inset-y-0 left-0 w-1 bg-green-500 rounded-l cursor-ew-resize resize-handle"
           onMouseDown={(e) => onResizeStart?.(e, 'left')}
         />
         <div
-          className="absolute inset-y-0 right-0 w-1 bg-green-500 rounded-r cursor-ew-resize opacity-0 group-hover:opacity-100 transition-opacity resize-handle"
+          className="absolute inset-y-0 right-0 w-1 bg-green-500 rounded-r cursor-ew-resize resize-handle"
           onMouseDown={(e) => onResizeStart?.(e, 'right')}
         />
         

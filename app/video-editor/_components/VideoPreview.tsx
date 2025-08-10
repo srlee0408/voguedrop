@@ -10,7 +10,10 @@ interface PreviewClip {
   thumbnail?: string;
   url?: string;
   duration: number;
-  thumbnails: number;
+  thumbnails?: number;
+  position?: number;
+  title?: string;
+  maxDuration?: number;
 }
 
 interface VideoPreviewProps {

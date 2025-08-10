@@ -1,23 +1,15 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { TextClip as TextClipType, SoundClip as SoundClipType } from '@/types/video-editor';
+import { VideoClip as VideoClipType, TextClip as TextClipType, SoundClip as SoundClipType } from '@/types/video-editor';
+import { validateClipDuration } from '../_utils/timeline-utils';
 import TextClip from './TextClip';
 import SoundClip from './SoundClip';
 import TimelineControls from './TimelineControls';
 
-type VideoTimelineClip = {
-  id: string;
-  duration: number; // current width in px
-  thumbnails: number;
-  thumbnail?: string;
-  url?: string;
-  title?: string;
-  max_duration_px?: number; // maximum width in px, derived from real video length
-};
 
 interface TimelineProps {
-  clips: Array<VideoTimelineClip>;
+  clips: VideoClipType[];
   textClips?: TextClipType[];
   soundClips?: SoundClipType[];
   onAddClip: () => void;
@@ -30,10 +22,13 @@ interface TimelineProps {
   onDeleteVideoClip?: (id: string) => void;
   onResizeTextClip?: (id: string, newDuration: number) => void;
   onResizeSoundClip?: (id: string, newDuration: number) => void;
-  onReorderVideoClips?: (clips: Array<VideoTimelineClip>) => void;
+  onReorderVideoClips?: (clips: VideoClipType[]) => void;
+  onUpdateVideoClipPosition?: (id: string, newPosition: number) => void;
+  onUpdateTextClipPosition?: (id: string, newPosition: number) => void;
   onReorderTextClips?: (clips: TextClipType[]) => void;
   onReorderSoundClips?: (clips: SoundClipType[]) => void;
   onResizeVideoClip?: (id: string, newDuration: number) => void;
+  onUpdateSoundClipPosition?: (id: string, newPosition: number) => void;
   pixelsPerSecond?: number;
   currentTime?: number; // in seconds
   isPlaying?: boolean;
@@ -59,10 +54,13 @@ export default function Timeline({
   onDeleteVideoClip,
   onResizeTextClip,
   onResizeSoundClip,
-  onReorderVideoClips,
-  onReorderTextClips,
-  onReorderSoundClips,
+  // onReorderVideoClips, // Commented out - not currently used
+  onUpdateVideoClipPosition,
+  onUpdateTextClipPosition,
+  // onReorderTextClips, // Commented out - not currently used
+  // onReorderSoundClips, // Commented out - not currently used
   onResizeVideoClip,
+  onUpdateSoundClipPosition,
   pixelsPerSecond = 40,
   currentTime = 0,
   isPlaying = false,
@@ -80,11 +78,13 @@ export default function Timeline({
   const [dragStartX, setDragStartX] = useState(0);
   const [startWidth, setStartWidth] = useState(0);
   const [resizeHandle, setResizeHandle] = useState<'left' | 'right' | null>(null);
-  const [draggedClip, setDraggedClip] = useState<{ id: string; type: 'video' | 'text' | 'sound'; index: number } | null>(null);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
-  const [dragOverType, setDragOverType] = useState<'video' | 'text' | 'sound' | null>(null);
+  // const [draggedClip, setDraggedClip] = useState<{ id: string; type: 'video' | 'text' | 'sound'; index: number } | null>(null);
+  const [dragOverIndex] = useState<number | null>(null);
+  const [dragOverType] = useState<'video' | 'text' | 'sound' | null>(null);
   const playheadRef = useRef<HTMLDivElement>(null);
   const [isDraggingPlayhead, setIsDraggingPlayhead] = useState(false);
+  const [dragDirection, setDragDirection] = useState<'left' | 'right'>('right');
+  const [initialDragX, setInitialDragX] = useState(0);
 
   const handleMouseDown = (e: React.MouseEvent, clipId: string) => {
     if ((e.target as HTMLElement).classList.contains('resize-handle')) {
@@ -92,71 +92,74 @@ export default function Timeline({
     }
     setIsDragging(true);
     setActiveClip(clipId);
+    setInitialDragX(e.clientX);
     setDragStartX(e.clientX);
   };
 
-  const handleDragStart = (e: React.DragEvent, id: string, type: 'video' | 'text' | 'sound', index: number) => {
-    setDraggedClip({ id, type, index });
-    e.dataTransfer.effectAllowed = 'move';
-  };
+  // Drag and drop handlers - currently unused but preserved for future implementation
+  // const handleDragStart = (e: React.DragEvent, id: string, type: 'video' | 'text' | 'sound', index: number) => {
+  //   setDraggedClip({ id, type, index });
+  //   e.dataTransfer.effectAllowed = 'move';
+  // };
 
-  const handleDragOver = (e: React.DragEvent, type: 'video' | 'text' | 'sound', index: number) => {
-    e.preventDefault();
-    if (draggedClip && draggedClip.type === type) {
-      setDragOverIndex(index);
-      setDragOverType(type);
-    }
-  };
+  // const handleDragOver = (e: React.DragEvent, type: 'video' | 'text' | 'sound', index: number) => {
+  //   e.preventDefault();
+  //   if (draggedClip && draggedClip.type === type) {
+  //     setDragOverIndex(index);
+  //     setDragOverType(type);
+  //   }
+  // };
 
-  const handleDragEnd = () => {
-    setDraggedClip(null);
-    setDragOverIndex(null);
-    setDragOverType(null);
-  };
+  // const handleDragEnd = () => {
+  //   setDraggedClip(null);
+  //   setDragOverIndex(null);
+  //   setDragOverType(null);
+  // };
 
-  const handleDrop = (e: React.DragEvent, type: 'video' | 'text' | 'sound', dropIndex: number) => {
-    e.preventDefault();
+  // const handleDrop = (e: React.DragEvent, type: 'video' | 'text' | 'sound', dropIndex: number) => {
+  //   e.preventDefault();
     
-    if (!draggedClip || draggedClip.type !== type) return;
+  //   if (!draggedClip || draggedClip.type !== type) return;
     
-    if (type === 'video' && onReorderVideoClips) {
-      const newClips = [...clips];
-      const [movedClip] = newClips.splice(draggedClip.index, 1);
-      newClips.splice(dropIndex, 0, movedClip);
-      onReorderVideoClips(newClips);
-    } else if (type === 'text' && onReorderTextClips) {
-      const newClips = [...textClips];
-      const [movedClip] = newClips.splice(draggedClip.index, 1);
-      newClips.splice(dropIndex, 0, movedClip);
-      onReorderTextClips(newClips);
-    } else if (type === 'sound' && onReorderSoundClips) {
-      const newClips = [...soundClips];
-      const [movedClip] = newClips.splice(draggedClip.index, 1);
-      newClips.splice(dropIndex, 0, movedClip);
-      onReorderSoundClips(newClips);
-    }
+  //   if (type === 'video' && onReorderVideoClips) {
+  //     const newClips = [...clips];
+  //     const [movedClip] = newClips.splice(draggedClip.index, 1);
+  //     newClips.splice(dropIndex, 0, movedClip);
+  //     onReorderVideoClips(newClips);
+  //   } else if (type === 'text' && onReorderTextClips) {
+  //     const newClips = [...textClips];
+  //     const [movedClip] = newClips.splice(draggedClip.index, 1);
+  //     newClips.splice(dropIndex, 0, movedClip);
+  //     onReorderTextClips(newClips);
+  //   } else if (type === 'sound' && onReorderSoundClips) {
+  //     const newClips = [...soundClips];
+  //     const [movedClip] = newClips.splice(draggedClip.index, 1);
+  //     newClips.splice(dropIndex, 0, movedClip);
+  //     onReorderSoundClips(newClips);
+  //   }
     
-    handleDragEnd();
-  };
+  //   handleDragEnd();
+  // };
 
   const handleResizeStart = (e: React.MouseEvent, clipId: string, handle: 'left' | 'right', clipType: 'video' | 'text' | 'sound' = 'video') => {
     e.stopPropagation();
+    e.preventDefault(); // 이벤트 전파 방지
     setIsResizing(true);
     setResizeHandle(handle);
     setActiveClip(clipId);
     setActiveClipType(clipType);
     setDragStartX(e.clientX);
     
-    // 클립 요소를 정확히 찾기
-    const clipElement = document.querySelector(`[data-clip-id="${clipId}"]`) as HTMLElement;
-    if (clipElement) {
-      // 텍스트/사운드 클립의 경우 내부 div의 width를 가져옴
-      if (clipType === 'text' || clipType === 'sound') {
-        const innerClip = clipElement.querySelector('.group') as HTMLElement;
-        setStartWidth(innerClip ? innerClip.offsetWidth : clipElement.offsetWidth);
-      } else {
-        setStartWidth(clipElement.offsetWidth);
-      }
+    // 현재 클립의 duration 값을 가져와서 시작 width로 설정
+    if (clipType === 'video') {
+      const clip = clips.find(c => c.id === clipId);
+      setStartWidth(clip?.duration || 200);
+    } else if (clipType === 'text') {
+      const clip = textClips.find(c => c.id === clipId);
+      setStartWidth(clip?.duration || 200);
+    } else if (clipType === 'sound') {
+      const clip = soundClips.find(c => c.id === clipId);
+      setStartWidth(clip?.duration || 200);
     }
   };
 
@@ -166,38 +169,39 @@ export default function Timeline({
 
       if (isResizing) {
         const delta = e.clientX - dragStartX;
+        let newWidth;
+        
+        if (resizeHandle === 'left') {
+          newWidth = Math.max(80, startWidth - delta);
+        } else {
+          newWidth = Math.max(80, startWidth + delta);
+        }
+        
+        // Apply max duration limits for all clip types
+        if (activeClipType === 'video') {
+          const clipData = clips.find(c => c.id === activeClip);
+          newWidth = validateClipDuration(newWidth, clipData?.maxDuration);
+        } else if (activeClipType === 'text') {
+          const clipData = textClips.find(c => c.id === activeClip);
+          newWidth = validateClipDuration(newWidth, clipData?.maxDuration);
+        } else if (activeClipType === 'sound') {
+          const clipData = soundClips.find(c => c.id === activeClip);
+          newWidth = validateClipDuration(newWidth, clipData?.maxDuration);
+        }
+        
+        // DOM 업데이트: 모든 클립 타입에 대해 외부 wrapper의 width를 조절
         const clipElement = document.querySelector(`[data-clip-id="${activeClip}"]`) as HTMLElement;
         if (clipElement) {
-          let newWidth;
-          
-          if (activeClipType === 'video') {
-            const clipData = clips.find(c => c.id === activeClip);
-            const maxPx = clipData?.max_duration_px ?? Infinity;
-            
-            if (resizeHandle === 'left') {
-              newWidth = Math.max(80, startWidth - delta);
-            } else {
-              newWidth = Math.max(80, startWidth + delta);
-            }
-            // 실제 영상 길이 초과 불가
-            newWidth = Math.min(newWidth, maxPx);
-            clipElement.style.width = `${newWidth}px`;
-          } else {
-            // 텍스트와 사운드 클립은 최대 제한 없음
-            if (resizeHandle === 'left') {
-              newWidth = Math.max(80, startWidth - delta);
-            } else {
-              newWidth = Math.max(80, startWidth + delta);
-            }
-            // 텍스트/사운드 클립의 경우 내부 div의 width를 변경
-            const innerClip = clipElement.querySelector('.group') as HTMLElement;
-            if (innerClip) {
-              innerClip.style.width = `${newWidth}px`;
-            }
-          }
+          clipElement.style.width = `${newWidth}px`;
         }
       } else if (isDragging) {
         const delta = e.clientX - dragStartX;
+        
+        // Detect drag direction based on movement from initial position
+        const totalDelta = e.clientX - initialDragX;
+        const currentDirection = totalDelta >= 0 ? 'right' : 'left';
+        setDragDirection(currentDirection);
+        
         const clipElement = document.querySelector(`[data-clip-id="${activeClip}"]`) as HTMLElement;
         if (clipElement) {
           clipElement.style.transform = `translateX(${delta}px)`;
@@ -209,26 +213,88 @@ export default function Timeline({
       if (activeClip) {
         const clipElement = document.querySelector(`[data-clip-id="${activeClip}"]`) as HTMLElement;
         if (clipElement && isDragging) {
+          const delta = parseFloat(clipElement.style.transform.replace(/translateX\(|px\)/g, '')) || 0;
+          
+          // Import helper functions for timeline positioning
+          import('../_utils/timeline-utils').then(({ snapToGrid, findNonOverlappingPositionWithDirection }) => {
+            // Handle position update for all clip types
+            if (activeClipType === 'video' && onUpdateVideoClipPosition) {
+              const currentClip = clips.find(c => c.id === activeClip);
+              if (currentClip) {
+                const newPosition = currentClip.position + delta;
+                const snappedPosition = snapToGrid(newPosition, pixelsPerSecond);
+                
+                // Check for overlaps and find best position based on drag direction
+                const otherClips = clips.filter(c => c.id !== activeClip);
+                const finalPosition = findNonOverlappingPositionWithDirection(
+                  otherClips,
+                  snappedPosition,
+                  currentClip.duration,
+                  dragDirection,
+                  pixelsPerSecond
+                );
+                
+                // Update the dragged clip position
+                onUpdateVideoClipPosition(activeClip, finalPosition);
+              }
+            } else if (activeClipType === 'text' && onUpdateTextClipPosition) {
+              const currentClip = textClips.find(c => c.id === activeClip);
+              if (currentClip) {
+                const newPosition = currentClip.position + delta;
+                const snappedPosition = snapToGrid(newPosition, pixelsPerSecond);
+                
+                // Check for overlaps and find best position based on drag direction
+                const otherClips = textClips.filter(c => c.id !== activeClip);
+                const finalPosition = findNonOverlappingPositionWithDirection(
+                  otherClips,
+                  snappedPosition,
+                  currentClip.duration,
+                  dragDirection,
+                  pixelsPerSecond
+                );
+                
+                // Update the dragged clip position
+                onUpdateTextClipPosition(activeClip, finalPosition);
+              }
+            } else if (activeClipType === 'sound' && onUpdateSoundClipPosition) {
+              const currentClip = soundClips.find(c => c.id === activeClip);
+              if (currentClip) {
+                const newPosition = currentClip.position + delta;
+                const snappedPosition = snapToGrid(newPosition, pixelsPerSecond);
+                
+                // Check for overlaps and find best position based on drag direction
+                const otherClips = soundClips.filter(c => c.id !== activeClip);
+                const finalPosition = findNonOverlappingPositionWithDirection(
+                  otherClips,
+                  snappedPosition,
+                  currentClip.duration,
+                  dragDirection,
+                  pixelsPerSecond
+                );
+                
+                // Update the dragged clip position
+                onUpdateSoundClipPosition(activeClip, finalPosition);
+              }
+            }
+          });
           clipElement.style.transform = '';
         }
         // 리사이징 종료 시, 실제 duration을 업데이트
         if (clipElement && isResizing) {
-          let newWidth;
+          const finalWidth = clipElement.offsetWidth;
           
           if (activeClipType === 'video' && onResizeVideoClip) {
-            newWidth = clipElement.offsetWidth;
             const clipData = clips.find(c => c.id === activeClip);
-            const maxPx = clipData?.max_duration_px ?? Infinity;
-            newWidth = Math.min(newWidth, maxPx);
-            onResizeVideoClip(activeClip, newWidth);
+            const maxPx = clipData?.maxDuration ?? Infinity;
+            const clampedWidth = Math.min(finalWidth, maxPx);
+            onResizeVideoClip(activeClip, clampedWidth);
           } else if (activeClipType === 'text' && onResizeTextClip) {
-            const innerClip = clipElement.querySelector('.group') as HTMLElement;
-            newWidth = innerClip ? innerClip.offsetWidth : clipElement.offsetWidth;
-            onResizeTextClip(activeClip, newWidth);
+            onResizeTextClip(activeClip, finalWidth);
           } else if (activeClipType === 'sound' && onResizeSoundClip) {
-            const innerClip = clipElement.querySelector('.group') as HTMLElement;
-            newWidth = innerClip ? innerClip.offsetWidth : clipElement.offsetWidth;
-            onResizeSoundClip(activeClip, newWidth);
+            const clipData = soundClips.find(c => c.id === activeClip);
+            const maxPx = clipData?.maxDuration ?? Infinity;
+            const clampedWidth = Math.min(finalWidth, maxPx);
+            onResizeSoundClip(activeClip, clampedWidth);
           }
         }
       }
@@ -246,7 +312,7 @@ export default function Timeline({
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [activeClip, activeClipType, isDragging, isResizing, dragStartX, startWidth, resizeHandle, clips, onResizeVideoClip, onResizeTextClip, onResizeSoundClip]);
+  }, [activeClip, activeClipType, isDragging, isResizing, dragStartX, startWidth, resizeHandle, clips, textClips, soundClips, onResizeVideoClip, onResizeTextClip, onResizeSoundClip, onUpdateVideoClipPosition, onUpdateTextClipPosition, onUpdateSoundClipPosition, pixelsPerSecond, dragDirection, initialDragX]);
 
   // 타임라인 눈금: 1칸 = 1초, 30초까지 표시
   const timeMarkers = Array.from({ length: 31 }, (_, i) => {
@@ -267,16 +333,6 @@ export default function Timeline({
     
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
-    const time = Math.max(0, Math.min(x / pixelsPerSecond, totalDuration));
-    onSeek(time);
-  };
-  
-  // 트랙 영역 클릭으로 seek (padding 고려)
-  const handleTrackClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!onSeek || isResizing || isDragging) return;
-    
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left - 8; // padding 8px 보정
     const time = Math.max(0, Math.min(x / pixelsPerSecond, totalDuration));
     onSeek(time);
   };
@@ -372,21 +428,28 @@ export default function Timeline({
               </button>
             </div>
           </div>
-          <div className="flex-1 p-2 overflow-x-auto" onClick={handleTrackClick}>
-            <div className="flex gap-2 items-center overflow-visible">
+          <div className="flex-1 p-2 overflow-x-auto">
+            <div className="relative min-h-[40px]">
               {clips.map((clip, index) => (
                 <div 
                   key={clip.id}
                   data-clip-id={clip.id}
-                  className={`group relative timeline-clip ${
+                  className={`group absolute top-0 timeline-clip ${
                     dragOverType === 'video' && dragOverIndex === index ? 'opacity-50' : ''
                   }`}
-                  style={{ width: `${clip.duration}px`, position: 'relative' }}
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, clip.id, 'video', index)}
-                  onDragOver={(e) => handleDragOver(e, 'video', index)}
-                  onDrop={(e) => handleDrop(e, 'video', index)}
-                  onDragEnd={handleDragEnd}
+                  style={{ 
+                    width: `${clip.duration}px`,
+                    left: `${clip.position}px`
+                  }}
+                  onMouseDown={(e) => {
+                    if (!(e.target as HTMLElement).classList.contains('resize-handle')) {
+                      setIsDragging(true);
+                      setActiveClip(clip.id);
+                      setActiveClipType('video');
+                      setInitialDragX(e.clientX);
+                      setDragStartX(e.clientX);
+                    }
+                  }}
                 >
                   <div 
                     className="w-full h-8 bg-gradient-to-r from-gray-900 to-gray-800 rounded cursor-pointer hover:from-gray-800 hover:to-gray-700 transition-colors relative overflow-hidden border border-gray-700"
@@ -438,20 +501,28 @@ export default function Timeline({
               </button>
             </div>
           </div>
-          <div className="flex-1 p-2 overflow-x-auto" onClick={handleTrackClick}>
-            <div className="flex gap-2 items-center min-h-[40px]">
+          <div className="flex-1 p-2 overflow-x-auto">
+            <div className="relative min-h-[40px]">
               {textClips.map((clip, index) => (
                 <div
                   key={clip.id}
                   data-clip-id={clip.id}
-                  className={`timeline-clip ${
+                  className={`timeline-clip absolute top-0 ${
                     dragOverType === 'text' && dragOverIndex === index ? 'opacity-50' : ''
                   }`}
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, clip.id, 'text', index)}
-                  onDragOver={(e) => handleDragOver(e, 'text', index)}
-                  onDrop={(e) => handleDrop(e, 'text', index)}
-                  onDragEnd={handleDragEnd}
+                  style={{ 
+                    width: `${clip.duration}px`,
+                    left: `${clip.position}px`
+                  }}
+                  onMouseDown={(e) => {
+                    if (!(e.target as HTMLElement).classList.contains('resize-handle')) {
+                      setIsDragging(true);
+                      setActiveClip(clip.id);
+                      setActiveClipType('text');
+                      setInitialDragX(e.clientX);
+                      setDragStartX(e.clientX);
+                    }
+                  }}
                 >
                   <TextClip
                     clip={clip}
@@ -480,20 +551,28 @@ export default function Timeline({
               </button>
             </div>
           </div>
-          <div className="flex-1 p-2 overflow-x-auto" onClick={handleTrackClick}>
-            <div className="flex gap-2 items-center min-h-[40px]">
+          <div className="flex-1 p-2 overflow-x-auto">
+            <div className="relative min-h-[40px]">
               {soundClips.map((clip, index) => (
                 <div
                   key={clip.id}
                   data-clip-id={clip.id}
-                  className={`timeline-clip ${
+                  className={`timeline-clip absolute top-0 ${
                     dragOverType === 'sound' && dragOverIndex === index ? 'opacity-50' : ''
                   }`}
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, clip.id, 'sound', index)}
-                  onDragOver={(e) => handleDragOver(e, 'sound', index)}
-                  onDrop={(e) => handleDrop(e, 'sound', index)}
-                  onDragEnd={handleDragEnd}
+                  style={{ 
+                    width: `${clip.duration}px`,
+                    left: `${clip.position}px`
+                  }}
+                  onMouseDown={(e) => {
+                    if (!(e.target as HTMLElement).classList.contains('resize-handle')) {
+                      setIsDragging(true);
+                      setActiveClip(clip.id);
+                      setActiveClipType('sound');
+                      setInitialDragX(e.clientX);
+                      setDragStartX(e.clientX);
+                    }
+                  }}
                 >
                   <SoundClip
                     clip={clip}

@@ -2,8 +2,11 @@ export interface VideoClip {
   id: string;
   duration: number;
   position: number;
-  thumbnails: number;
+  thumbnails?: number;
   url?: string;
+  thumbnail?: string;
+  title?: string;
+  maxDuration?: number; // Maximum duration in pixels (actual video length)
 }
 
 export interface TextClip {
@@ -13,6 +16,7 @@ export interface TextClip {
   position: number;
   style: TextStyle;
   effect?: TextEffect;
+  maxDuration?: number; // For consistency, though text clips may not have a max duration
 }
 
 export interface SoundClip {
@@ -22,6 +26,7 @@ export interface SoundClip {
   position: number;
   volume: number;
   url?: string;
+  maxDuration?: number; // Maximum duration in pixels (actual audio length)
 }
 
 export interface TextStyle {
