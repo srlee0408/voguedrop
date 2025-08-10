@@ -57,14 +57,14 @@ export default function TextClip({
       className={`group relative w-full h-full ${isActive ? 'z-10' : ''}`}
       onDoubleClick={handleDoubleClick}
     >
-      <div className={`w-full h-8 bg-purple-900/50 backdrop-blur-sm rounded cursor-move hover:bg-purple-900/60 transition-colors ${
+      <div className={`w-full h-5 bg-purple-900/50 backdrop-blur-sm rounded cursor-move hover:bg-purple-900/60 transition-colors ${
         isActive ? 'ring-2 ring-[#38f47cf9]' : ''
       }`}>
-        <div className="absolute inset-0 flex items-center px-2 overflow-hidden">
-          <div className="flex items-center gap-2 w-full">
-            <i className="ri-text text-xs text-purple-300 flex-shrink-0"></i>
+        <div className="absolute inset-0 flex items-center px-1 overflow-hidden">
+          <div className="flex items-center gap-1 w-full">
+            <i className="ri-text text-[10px] text-purple-300 flex-shrink-0"></i>
             <span 
-              className={`text-xs text-white truncate ${getEffectClass()}`}
+              className={`text-[10px] text-white truncate ${getEffectClass()}`}
               style={{
                 ...getEffectStyle(),
                 color: clip.effect === 'gradient' ? undefined : clip.style.color,

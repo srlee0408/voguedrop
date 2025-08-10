@@ -42,16 +42,16 @@ export default function SoundClip({
       className={`group relative w-full h-full ${isActive ? 'z-10' : ''}`}
       onDoubleClick={handleDoubleClick}
     >
-      <div className={`w-full h-8 bg-green-900/50 backdrop-blur-sm rounded cursor-move hover:bg-green-900/60 transition-colors ${
+      <div className={`w-full h-5 bg-green-900/50 backdrop-blur-sm rounded cursor-move hover:bg-green-900/60 transition-colors ${
         isActive ? 'ring-2 ring-[#38f47cf9]' : ''
       }`}>
-        <div className="absolute inset-0 flex items-center px-2 overflow-hidden">
-          <div className="flex items-center gap-2 w-full">
-            <i className="ri-volume-up-line text-xs text-green-300 flex-shrink-0"></i>
-            <span className="text-xs text-white truncate flex-1">
+        <div className="absolute inset-0 flex items-center px-1 overflow-hidden">
+          <div className="flex items-center gap-1 w-full">
+            <i className="ri-volume-up-line text-[10px] text-green-300 flex-shrink-0"></i>
+            <span className="text-[10px] text-white truncate flex-1">
               {clip.name}
             </span>
-            <span className="text-[10px] text-gray-400 whitespace-nowrap">
+            <span className="text-[8px] text-gray-400 whitespace-nowrap">
               {formatDuration(clip.duration)}
             </span>
           </div>

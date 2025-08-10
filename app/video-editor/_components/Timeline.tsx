@@ -526,8 +526,8 @@ export default function Timeline({
       />
       <div className="relative flex-1 overflow-y-auto overflow-x-hidden min-h-0 timeline-content">
         <div className="flex border-b border-gray-700">
-          <div className="w-48 flex-shrink-0 p-2 border-r border-gray-700 flex items-center justify-center">
-            <span className="text-xs text-gray-400 font-medium">Add a clip</span>
+          <div className="w-48 flex-shrink-0 p-1 border-r border-gray-700 flex items-center justify-center">
+            <span className="text-[10px] text-gray-400 font-medium">Add a clip</span>
           </div>
           <div className="flex-1 overflow-x-auto bg-black relative">
               <div 
@@ -539,7 +539,7 @@ export default function Timeline({
                   {timeMarkers.map((time, index) => (
                     <span
                       key={index}
-                      className="text-xs text-gray-400 inline-flex items-center"
+                      className="text-[10px] text-gray-400 inline-flex items-center"
                       style={{ 
                         width: `${pixelsPerSecond}px`,
                         boxSizing: 'border-box',
@@ -555,19 +555,19 @@ export default function Timeline({
         </div>
         {/* Video Track */}
         <div className="flex border-b border-gray-700">
-          <div className="w-48 flex-shrink-0 p-2 border-r border-gray-700">
-            <div className="flex flex-col gap-2">
+          <div className="w-48 flex-shrink-0 p-1 border-r border-gray-700">
+            <div className="flex flex-col gap-1">
               <button 
                 onClick={onAddClip}
-                className="w-full h-8 bg-black rounded flex items-center justify-start gap-2 px-3 hover:bg-gray-900 transition-colors group"
+                className="w-full h-5 bg-black rounded flex items-center justify-start gap-1 px-2 hover:bg-gray-900 transition-colors group"
               >
-                <i className="ri-add-line text-sm text-[#38f47cf9] group-hover:text-white"></i>
-                <span className="text-sm text-[#38f47cf9] group-hover:text-white">Add Clip</span>
+                <i className="ri-add-line text-[10px] text-[#38f47cf9] group-hover:text-white"></i>
+                <span className="text-[10px] text-[#38f47cf9] group-hover:text-white">Add Clip</span>
               </button>
             </div>
           </div>
-          <div className="flex-1 p-2 overflow-x-auto">
-            <div className="relative min-h-[40px]">
+          <div className="flex-1 p-1 overflow-x-auto">
+            <div className="relative min-h-[24px]">
               {clips.map((clip, index) => (
                 <div 
                   key={clip.id}
@@ -591,12 +591,12 @@ export default function Timeline({
                   onContextMenu={(e) => handleContextMenu(e, clip.id, 'video')}
                 >
                   <div 
-                    className="w-full h-8 bg-gradient-to-r from-gray-900 to-gray-800 rounded cursor-pointer hover:from-gray-800 hover:to-gray-700 transition-colors relative overflow-hidden border border-gray-700"
+                    className="w-full h-5 bg-gradient-to-r from-gray-900 to-gray-800 rounded cursor-pointer hover:from-gray-800 hover:to-gray-700 transition-colors relative overflow-hidden border border-gray-700"
                     onMouseDown={(e) => handleMouseDown(e, clip.id)}
                   >
                     {/* 제목만 표시하는 막대 형태 */}
                     <div className="absolute inset-0 flex items-center">
-                      <div className="px-3 py-1 text-xs font-medium text-white/90 truncate">
+                      <div className="px-2 py-0.5 text-[10px] font-medium text-white/90 truncate">
                         {clip.title || 'Video Clip'}
                       </div>
                     </div>
@@ -617,19 +617,19 @@ export default function Timeline({
 
         {/* Text Track */}
         <div className="flex border-b border-gray-700">
-          <div className="w-48 flex-shrink-0 p-2 border-r border-gray-700">
-            <div className="flex flex-col gap-2">
+          <div className="w-48 flex-shrink-0 p-1 border-r border-gray-700">
+            <div className="flex flex-col gap-1">
               <button 
                 onClick={onAddText}
-                className="w-full h-8 bg-black rounded flex items-center justify-start gap-2 px-3 hover:bg-gray-900 transition-colors group"
+                className="w-full h-5 bg-black rounded flex items-center justify-start gap-1 px-2 hover:bg-gray-900 transition-colors group"
               >
-                <i className="ri-text text-sm text-[#38f47cf9] group-hover:text-white"></i>
-                <span className="text-sm text-[#38f47cf9] group-hover:text-white">Add Text</span>
+                <i className="ri-text text-[10px] text-[#38f47cf9] group-hover:text-white"></i>
+                <span className="text-[10px] text-[#38f47cf9] group-hover:text-white">Add Text</span>
               </button>
             </div>
           </div>
-          <div className="flex-1 p-2 overflow-x-auto">
-            <div className="relative min-h-[40px]">
+          <div className="flex-1 p-1 overflow-x-auto">
+            <div className="relative min-h-[24px]">
               {textClips.map((clip, index) => (
                 <div
                   key={clip.id}
@@ -668,19 +668,19 @@ export default function Timeline({
 
         {/* Sound Track */}
         <div className="flex">
-          <div className="w-48 flex-shrink-0 p-2 border-r border-gray-700">
-            <div className="flex flex-col gap-2">
+          <div className="w-48 flex-shrink-0 p-1 border-r border-gray-700">
+            <div className="flex flex-col gap-1">
               <button 
                 onClick={onAddSound}
-                className="w-full h-8 bg-black rounded flex items-center justify-start gap-2 px-3 hover:bg-gray-900 transition-colors group"
+                className="w-full h-5 bg-black rounded flex items-center justify-start gap-1 px-2 hover:bg-gray-900 transition-colors group"
               >
-                <i className="ri-music-line text-sm text-[#38f47cf9] group-hover:text-white"></i>
-                <span className="text-sm text-[#38f47cf9] group-hover:text-white">Add Sound</span>
+                <i className="ri-music-line text-[10px] text-[#38f47cf9] group-hover:text-white"></i>
+                <span className="text-[10px] text-[#38f47cf9] group-hover:text-white">Add Sound</span>
               </button>
             </div>
           </div>
-          <div className="flex-1 p-2 overflow-x-auto">
-            <div className="relative min-h-[40px]">
+          <div className="flex-1 p-1 overflow-x-auto">
+            <div className="relative min-h-[24px]">
               {soundClips.map((clip, index) => (
                 <div
                   key={clip.id}

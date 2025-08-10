@@ -98,7 +98,7 @@ export default function TimelineControls({
         </button>
 
         {/* 타임코드 표시 */}
-        <div className="flex items-center gap-2 ml-2 font-mono text-sm">
+        <div className="flex items-center gap-1 ml-2 font-mono text-xs">
           <span className="text-white">{displayTime}</span>
           <span className="text-gray-500">/</span>
           <span className="text-gray-400">{displayDuration}</span>
