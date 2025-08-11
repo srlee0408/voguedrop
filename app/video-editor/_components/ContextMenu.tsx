@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 
 interface ContextMenuItem {
   label: string;
@@ -51,12 +52,24 @@ export default function ContextMenu({ x, y, items, onClose }: ContextMenuProps) 
       let adjustedX = x;
       let adjustedY = y;
 
+      // 우측 경계 체크
       if (rect.right > viewportWidth) {
         adjustedX = x - rect.width;
       }
 
+      // 하단 경계 체크
       if (rect.bottom > viewportHeight) {
         adjustedY = y - rect.height;
+      }
+
+      // 좌측 경계 체크
+      if (adjustedX < 0) {
+        adjustedX = 0;
+      }
+
+      // 상단 경계 체크
+      if (adjustedY < 0) {
+        adjustedY = 0;
       }
 
       menuRef.current.style.left = `${adjustedX}px`;
@@ -64,10 +77,10 @@ export default function ContextMenu({ x, y, items, onClose }: ContextMenuProps) 
     }
   }, [x, y]);
 
-  return (
+  const menuContent = (
     <div
       ref={menuRef}
-      className="fixed bg-gray-800 border border-gray-700 rounded-lg shadow-xl py-2 z-[100] min-w-[180px]"
+      className="fixed bg-gray-800 border border-gray-700 rounded-lg shadow-xl py-2 z-[9999] min-w-[180px]"
       style={{ left: x, top: y }}
     >
       {items.map((item, index) => (
@@ -94,4 +107,11 @@ export default function ContextMenu({ x, y, items, onClose }: ContextMenuProps) 
       ))}
     </div>
   );
+
+  // Portal을 사용하여 document.body에 직접 렌더링
+  if (typeof document !== 'undefined') {
+    return createPortal(menuContent, document.body);
+  }
+
+  return null;
 }

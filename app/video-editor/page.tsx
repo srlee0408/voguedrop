@@ -29,9 +29,10 @@ interface HistoryState {
 export default function VideoEditorPage() {
   const searchParams = useSearchParams();
   const [projectTitle, setProjectTitle] = useState('Untitled Project');
+  const maxTimelineHeight = 220;
   
   // 타임라인 높이 관리 (픽셀 단위)
-  const [timelineHeight, setTimelineHeight] = useState(200); // 기본 200px 최대 300px 최소 100px
+  const [timelineHeight, setTimelineHeight] = useState(maxTimelineHeight); // 기본 220px
   const [isResizing, setIsResizing] = useState(false);
   const [dragStartY, setDragStartY] = useState(0);
   const [initialHeight, setInitialHeight] = useState(0);
@@ -561,7 +562,7 @@ export default function VideoEditorPage() {
       
       // 최소 100px (가장 아래), 최대 150px (가장 위 - 기본값)
       const minHeight = 100;
-      const maxHeight = 200;
+      const maxHeight = maxTimelineHeight;
       
       setTimelineHeight(Math.min(maxHeight, Math.max(minHeight, newHeight)));
     };
