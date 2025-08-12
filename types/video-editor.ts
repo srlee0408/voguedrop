@@ -29,6 +29,8 @@ export interface SoundClip {
   volume: number;
   url?: string;
   maxDuration?: number; // Maximum duration in pixels (actual audio length)
+  startTime?: number; // Start time in seconds within the original audio
+  endTime?: number; // End time in seconds within the original audio
 }
 
 export interface TextStyle {

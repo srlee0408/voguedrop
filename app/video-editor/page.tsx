@@ -16,7 +16,8 @@ import {
   duplicateSoundClip,
   splitVideoClip,
   splitTextClip,
-  splitSoundClip
+  splitSoundClip,
+  applyResizeTrim,
 } from './_utils/clip-operations';
 
 // 히스토리 상태 타입
@@ -345,10 +346,12 @@ export default function VideoEditorPage() {
     saveToHistory(); // 히스토리 저장
   };
 
-  const handleResizeSoundClip = (id: string, newDuration: number) => {
-    setSoundClips(soundClips.map(clip => 
-      clip.id === id ? { ...clip, duration: newDuration } : clip
-    ));
+  const handleResizeSoundClip = (id: string, newDuration: number, handle?: 'left' | 'right', deltaPosition?: number) => {
+    setSoundClips(prev => prev.map(clip => {
+      if (clip.id !== id) return clip;
+      const updates = applyResizeTrim(clip, newDuration, handle, deltaPosition, PIXELS_PER_SECOND);
+      return { ...clip, ...updates };
+    }));
   };
 
   const handleReorderVideoClips = (newClips: typeof timelineClips) => {
@@ -425,7 +428,7 @@ export default function VideoEditorPage() {
     if (!clip) return;
     
     const playheadPosition = currentTime * PIXELS_PER_SECOND;
-    const result = splitSoundClip(clip, playheadPosition);
+    const result = splitSoundClip(clip, playheadPosition, PIXELS_PER_SECOND);
     
     if (result) {
       const { firstClip, secondClip } = result;
@@ -439,36 +442,8 @@ export default function VideoEditorPage() {
   const handleResizeVideoClip = (id: string, newDuration: number, handle?: 'left' | 'right', deltaPosition?: number) => {
     setTimelineClips(prev => prev.map(clip => {
       if (clip.id !== id) return clip;
-      
-      // 기본적으로 duration 업데이트
-      let updatedClip = { ...clip, duration: newDuration };
-      
-      // 왼쪽 핸들로 리사이즈한 경우 startTime 조절
-      if (handle === 'left' && deltaPosition !== undefined) {
-        const deltaSeconds = deltaPosition / PIXELS_PER_SECOND;
-        const currentStartTime = clip.startTime || 0;
-        const newStartTime = Math.max(0, currentStartTime + deltaSeconds);
-        
-        updatedClip = {
-          ...updatedClip,
-          startTime: newStartTime,
-          // endTime이 설정되어 있다면 같이 조절 (전체 재생 구간 유지)
-          ...(clip.endTime !== undefined && {
-            endTime: clip.endTime + deltaSeconds
-          })
-        };
-      }
-      // 오른쪽 핸들로 리사이즈한 경우 endTime 조절
-      else if (handle === 'right') {
-        const currentStartTime = clip.startTime || 0;
-        const durationSeconds = newDuration / PIXELS_PER_SECOND;
-        updatedClip = {
-          ...updatedClip,
-          endTime: currentStartTime + durationSeconds
-        };
-      }
-      
-      return updatedClip;
+      const updates = applyResizeTrim(clip, newDuration, handle, deltaPosition, PIXELS_PER_SECOND);
+      return { ...clip, ...updates };
     }));
   };
 

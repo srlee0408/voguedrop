@@ -7,7 +7,6 @@ interface SoundClipProps {
   clip: SoundClipType;
   onEdit?: (clip: SoundClipType) => void;
   onDelete?: (id: string) => void;
-  onResize?: (id: string, newDuration: number) => void;
   onResizeStart?: (e: React.MouseEvent, handle: 'left' | 'right') => void;
   isActive?: boolean;
   pixelsPerSecond?: number;

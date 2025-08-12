@@ -27,7 +27,7 @@ interface TimelineProps {
   onSplitTextClip?: (id: string) => void;
   onSplitSoundClip?: (id: string) => void;
   onResizeTextClip?: (id: string, newDuration: number) => void;
-  onResizeSoundClip?: (id: string, newDuration: number) => void;
+  onResizeSoundClip?: (id: string, newDuration: number, handle?: 'left' | 'right', deltaPosition?: number) => void;
   onReorderVideoClips?: (clips: VideoClipType[]) => void;
   onUpdateVideoClipPosition?: (id: string, newPosition: number) => void;
   onUpdateTextClipPosition?: (id: string, newPosition: number) => void;
@@ -451,7 +451,9 @@ export default function Timeline({
               onUpdateSoundClipPosition(activeClip, finalPosition);
             }
             if (onResizeSoundClip) {
-              onResizeSoundClip(activeClip, clampedWidth);
+              // position 변화량 계산 (왼쪽 핸들일 때만)
+              const deltaPosition = resizeHandle === 'left' ? finalPosition - startPosition : 0;
+              onResizeSoundClip(activeClip, clampedWidth, resizeHandle || undefined, deltaPosition);
             }
           }
           
@@ -788,7 +790,6 @@ export default function Timeline({
                     clip={clip}
                     onEdit={onEditTextClip}
                     onDelete={onDeleteTextClip}
-                    onResize={onResizeTextClip}
                     onResizeStart={(e, handle) => handleResizeStart(e, clip.id, handle, 'text')}
                     isActive={activeClip === clip.id}
                   />
@@ -842,7 +843,6 @@ export default function Timeline({
                     clip={clip}
                     onEdit={onEditSoundClip}
                     onDelete={onDeleteSoundClip}
-                    onResize={onResizeSoundClip}
                     onResizeStart={(e, handle) => handleResizeStart(e, clip.id, handle, 'sound')}
                     isActive={activeClip === clip.id}
                     pixelsPerSecond={pixelsPerSecond}

@@ -7,7 +7,6 @@ interface TextClipProps {
   clip: TextClipType;
   onEdit?: (clip: TextClipType) => void;
   onDelete?: (id: string) => void;
-  onResize?: (id: string, newDuration: number) => void;
   onResizeStart?: (e: React.MouseEvent, handle: 'left' | 'right') => void;
   isActive?: boolean;
 }

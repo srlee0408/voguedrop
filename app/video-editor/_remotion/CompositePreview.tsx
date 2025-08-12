@@ -213,6 +213,10 @@ export const CompositePreview: React.FC<CompositePreviewProps> = ({
         const audioFrom = pxToFrames(sound.position || 0);
         const audioDuration = pxToFrames(sound.duration);
         
+        // 비디오와 동일한 트리밍 적용
+        const startFrom = sound.startTime ? Math.round(sound.startTime * 30) : 0;
+        const endAt = sound.endTime ? Math.round(sound.endTime * 30) : undefined;
+        
         return (
           <Sequence
             key={sound.id}
@@ -222,6 +226,8 @@ export const CompositePreview: React.FC<CompositePreviewProps> = ({
             <Audio 
               src={sound.url} 
               volume={(sound.volume || 100) / 100}
+              startFrom={startFrom}
+              endAt={endAt}
             />
           </Sequence>
         );

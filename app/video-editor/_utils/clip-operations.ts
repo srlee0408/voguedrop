@@ -148,7 +148,8 @@ export function splitTextClip(
 
 export function splitSoundClip(
   clip: SoundClip,
-  splitPosition: number
+  splitPosition: number,
+  pixelsPerSecond: number = 40
 ): { firstClip: SoundClip; secondClip: SoundClip } | null {
   const clipStart = clip.position;
   const clipEnd = clip.position + clip.duration;
@@ -159,9 +160,20 @@ export function splitSoundClip(
   
   const splitPoint = splitPosition - clipStart;
   
+  // Calculate time positions (similar to splitVideoClip)
+  const originalStartTime = clip.startTime || 0;
+  const originalEndTime = clip.endTime || (clip.maxDuration ? clip.maxDuration / pixelsPerSecond : clip.duration / pixelsPerSecond);
+  const totalDurationInSeconds = originalEndTime - originalStartTime;
+  
+  // Calculate the split time within the original audio
+  const splitRatio = splitPoint / clip.duration;
+  const splitTimeInSeconds = originalStartTime + (totalDurationInSeconds * splitRatio);
+  
   const firstClip: SoundClip = {
     ...clip,
     duration: splitPoint,
+    startTime: originalStartTime,
+    endTime: splitTimeInSeconds,
   };
   
   const secondClip: SoundClip = {
@@ -169,9 +181,45 @@ export function splitSoundClip(
     id: `sound-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     duration: clip.duration - splitPoint,
     position: splitPosition,
+    startTime: splitTimeInSeconds,
+    endTime: originalEndTime,
   };
   
   return { firstClip, secondClip };
+}
+
+/**
+ * 리사이즈 시 트리밍 시작/끝 시간을 일관된 규칙으로 갱신합니다.
+ * - 왼쪽 핸들: startTime만 이동, endTime은 정의되어 있으면 유지합니다
+ * - 오른쪽 핸들: endTime = startTime + (duration_px / pixelsPerSecond)
+ */
+export function applyResizeTrim<T extends { duration: number; startTime?: number; endTime?: number }>(
+  clip: T,
+  newDurationPx: number,
+  handle?: 'left' | 'right',
+  deltaPositionPx?: number,
+  pixelsPerSecond: number = 40
+): Partial<T> {
+  // duration은 px 단위로 유지 (타임라인과 동일 단위)
+  const updates: Partial<T> = { duration: newDurationPx } as Partial<T>;
+
+  if (handle === 'left' && typeof deltaPositionPx === 'number') {
+    const deltaSeconds = deltaPositionPx / pixelsPerSecond;
+    const currentStart = clip.startTime ?? 0;
+    const newStart = Math.max(0, currentStart + deltaSeconds);
+    (updates as any).startTime = newStart;
+
+    // endTime이 정의되어 있다면 끝 지점은 고정해 유지
+    if (clip.endTime !== undefined) {
+      (updates as any).endTime = clip.endTime;
+    }
+  } else if (handle === 'right') {
+    const currentStart = clip.startTime ?? 0;
+    const durationSeconds = newDurationPx / pixelsPerSecond;
+    (updates as any).endTime = currentStart + durationSeconds;
+  }
+
+  return updates;
 }
 
 // 플레이헤드 위치에서 클립 찾기
