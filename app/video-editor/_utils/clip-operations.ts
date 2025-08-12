@@ -207,14 +207,14 @@ export function applyResizeTrim<T extends { duration: number; startTime?: number
     const deltaSeconds = deltaPositionPx / pixelsPerSecond;
     const currentStart = clip.startTime ?? 0;
     const newStart = Math.max(0, currentStart + deltaSeconds);
-    (updates as any).startTime = newStart;
+    (updates as Record<string, unknown>).startTime = newStart;
     // 새로운 duration에 맞춰 endTime 재계산 (일관된 구간 길이 유지)
     const durationSeconds = newDurationPx / pixelsPerSecond;
-    (updates as any).endTime = newStart + durationSeconds;
+    (updates as Record<string, unknown>).endTime = newStart + durationSeconds;
   } else if (handle === 'right') {
     const currentStart = clip.startTime ?? 0;
     const durationSeconds = newDurationPx / pixelsPerSecond;
-    (updates as any).endTime = currentStart + durationSeconds;
+    (updates as Record<string, unknown>).endTime = currentStart + durationSeconds;
   }
 
   return updates;

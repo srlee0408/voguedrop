@@ -282,16 +282,68 @@ export default function Timeline({
         let newPosition = startPosition;
 
         if (resizeHandle === 'left') {
-          // 왼쪽 핸들: 확장은 금지, 줄이기만 허용 (delta>0일 때만 반영)
-          const shrinkPx = Math.max(0, delta);
-          newWidth = Math.max(80, Math.min(startWidth, startWidth - shrinkPx));
-          const appliedDelta = startWidth - newWidth; // 실제 적용된 줄임량(px)
-          newPosition = Math.max(0, startPosition + appliedDelta);
+          // 왼쪽 핸들: 양방향 리사이즈 가능 (원본 범위 내에서)
+          // delta < 0: 왼쪽으로 확장, delta > 0: 오른쪽으로 축소
+          newPosition = Math.max(0, startPosition + delta);
+          newWidth = startWidth + (startPosition - newPosition);
+          
+          // 최소 너비 체크
+          if (newWidth < 80) {
+            newWidth = 80;
+            newPosition = startPosition + startWidth - 80;
+          }
+          
+          // 원본 시작점을 넘어서 확장하지 않도록 제한
+          if (activeClipType === 'video' || activeClipType === 'sound') {
+            const clipData = activeClipType === 'video' 
+              ? clips.find(c => c.id === activeClip)
+              : soundClips.find(c => c.id === activeClip);
+            
+            if (clipData) {
+              const currentStartTime = clipData.startTime || 0;
+              const maxDuration = clipData.maxDuration || Infinity;
+              
+              // 왼쪽으로 확장 시 원본 시작점(0) 체크
+              const deltaPositionPx = newPosition - startPosition;
+              const newStartTimeSeconds = currentStartTime + (deltaPositionPx / pixelsPerSecond);
+              
+              if (newStartTimeSeconds < 0) {
+                // 원본 시작점을 넘어서는 확장 제한
+                const maxExpansion = currentStartTime * pixelsPerSecond;
+                newPosition = Math.max(0, startPosition - maxExpansion);
+                newWidth = startWidth + (startPosition - newPosition);
+              }
+              
+              // 원본 끝점을 넘어서지 않도록 제한
+              const newEndTimeSeconds = newStartTimeSeconds + (newWidth / pixelsPerSecond);
+              if (isFinite(maxDuration / pixelsPerSecond) && newEndTimeSeconds > maxDuration / pixelsPerSecond) {
+                newWidth = (maxDuration / pixelsPerSecond - newStartTimeSeconds) * pixelsPerSecond;
+              }
+            }
+          }
         } else {
-          // 오른쪽 핸들: 확장은 금지, 줄이기만 허용 (delta<0일 때만 반영)
-          const shrinkPx = Math.max(0, -delta);
-          newWidth = Math.max(80, Math.min(startWidth, startWidth - shrinkPx));
-          // 오른쪽 핸들은 position 고정
+          // 오른쪽 핸들: 양방향 리사이즈 가능 (원본 범위 내에서)
+          // delta > 0: 오른쪽으로 확장, delta < 0: 왼쪽으로 축소
+          newWidth = Math.max(80, startWidth + delta);
+          
+          // 원본 끝점을 넘어서 확장하지 않도록 제한
+          if (activeClipType === 'video' || activeClipType === 'sound') {
+            const clipData = activeClipType === 'video'
+              ? clips.find(c => c.id === activeClip)
+              : soundClips.find(c => c.id === activeClip);
+            
+            if (clipData) {
+              const currentStartTime = clipData.startTime || 0;
+              const maxDuration = clipData.maxDuration || Infinity;
+              
+              // 원본 길이를 초과하지 않도록 제한
+              const maxAllowedWidth = isFinite(maxDuration) 
+                ? maxDuration - (currentStartTime * pixelsPerSecond)
+                : newWidth;
+              
+              newWidth = Math.min(newWidth, maxAllowedWidth);
+            }
+          }
         }
 
         // Apply max duration limits for all clip types (안전 장치)
