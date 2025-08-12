@@ -422,7 +422,12 @@ export default function Timeline({
           if (activeClipType === 'video') {
             const clipData = clips.find(c => c.id === activeClip);
             const maxPx = clipData?.maxDuration ?? Infinity;
-            const clampedWidth = Math.min(finalWidth, maxPx);
+            const startSeconds = clipData?.startTime || 0;
+            // 왼쪽 핸들이면 새로운 startTime을 미리 계산하여 남은 길이 내에서만 허용
+            const deltaPositionPx = resizeHandle === 'left' ? (finalPosition - startPosition) : 0;
+            const newStartSeconds = Math.max(0, startSeconds + (deltaPositionPx / pixelsPerSecond));
+            const maxAllowedWidth = isFinite(maxPx) ? Math.max(0, maxPx - (newStartSeconds * pixelsPerSecond)) : finalWidth;
+            const clampedWidth = Math.min(finalWidth, maxAllowedWidth);
             
             // 왼쪽 핸들일 때는 position도 업데이트
             if (resizeHandle === 'left' && onUpdateVideoClipPosition) {
@@ -444,7 +449,11 @@ export default function Timeline({
           } else if (activeClipType === 'sound') {
             const clipData = soundClips.find(c => c.id === activeClip);
             const maxPx = clipData?.maxDuration ?? Infinity;
-            const clampedWidth = Math.min(finalWidth, maxPx);
+            const startSeconds = clipData?.startTime || 0;
+            const deltaPositionPx = resizeHandle === 'left' ? (finalPosition - startPosition) : 0;
+            const newStartSeconds = Math.max(0, startSeconds + (deltaPositionPx / pixelsPerSecond));
+            const maxAllowedWidth = isFinite(maxPx) ? Math.max(0, maxPx - (newStartSeconds * pixelsPerSecond)) : finalWidth;
+            const clampedWidth = Math.min(finalWidth, maxAllowedWidth);
             
             // 왼쪽 핸들일 때는 position도 업데이트
             if (resizeHandle === 'left' && onUpdateSoundClipPosition) {
@@ -457,10 +466,8 @@ export default function Timeline({
             }
           }
           
-          // 스타일 리셋 - 오른쪽 핸들일 때만 left 리셋
-          if (resizeHandle === 'right') {
-            clipElement.style.left = '';
-          }
+          // 스타일 리셋: 상태 반영 후 인라인 스타일은 초기화
+          clipElement.style.left = '';
           clipElement.style.width = '';
         }
       }
