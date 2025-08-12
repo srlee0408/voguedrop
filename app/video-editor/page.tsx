@@ -437,8 +437,40 @@ export default function VideoEditorPage() {
     }
   };
 
-  const handleResizeVideoClip = (id: string, newDuration: number) => {
-    setTimelineClips(prev => prev.map(c => c.id === id ? { ...c, duration: newDuration } : c));
+  const handleResizeVideoClip = (id: string, newDuration: number, handle?: 'left' | 'right', deltaPosition?: number) => {
+    setTimelineClips(prev => prev.map(clip => {
+      if (clip.id !== id) return clip;
+      
+      // 기본적으로 duration 업데이트
+      let updatedClip = { ...clip, duration: newDuration };
+      
+      // 왼쪽 핸들로 리사이즈한 경우 startTime 조절
+      if (handle === 'left' && deltaPosition !== undefined) {
+        const deltaSeconds = deltaPosition / PIXELS_PER_SECOND;
+        const currentStartTime = clip.startTime || 0;
+        const newStartTime = Math.max(0, currentStartTime + deltaSeconds);
+        
+        updatedClip = {
+          ...updatedClip,
+          startTime: newStartTime,
+          // endTime이 설정되어 있다면 같이 조절 (전체 재생 구간 유지)
+          ...(clip.endTime !== undefined && {
+            endTime: clip.endTime + deltaSeconds
+          })
+        };
+      }
+      // 오른쪽 핸들로 리사이즈한 경우 endTime 조절
+      else if (handle === 'right') {
+        const currentStartTime = clip.startTime || 0;
+        const durationSeconds = newDuration / PIXELS_PER_SECOND;
+        updatedClip = {
+          ...updatedClip,
+          endTime: currentStartTime + durationSeconds
+        };
+      }
+      
+      return updatedClip;
+    }));
   };
 
   const handleReorderTextClips = (newClips: TextClip[]) => {
@@ -476,6 +508,26 @@ export default function VideoEditorPage() {
       if (isPlaying) {
         playerRef.current.pause();
       } else {
+        // 총 길이 계산
+        const videoEnd = timelineClips.length > 0 
+          ? Math.max(...timelineClips.map(c => (c.position || 0) + c.duration))
+          : 0;
+        const textEnd = textClips.length > 0
+          ? Math.max(...textClips.map(c => (c.position || 0) + c.duration))
+          : 0;
+        const soundEnd = soundClips.length > 0
+          ? Math.max(...soundClips.map(c => (c.position || 0) + c.duration))
+          : 0;
+        
+        const totalPx = Math.max(videoEnd, textEnd, soundEnd);
+        const totalSeconds = totalPx / PIXELS_PER_SECOND;
+        
+        // 현재 위치가 끝이면 처음부터 재생
+        if (currentTime >= totalSeconds - 0.1) {
+          playerRef.current.seekTo(0);
+          setCurrentTime(0);
+        }
+        
         playerRef.current.play();
       }
     }
@@ -519,10 +571,10 @@ export default function VideoEditorPage() {
         const time = frame / 30; // 30fps 기준
         
         // Player가 끝에서 자동으로 0으로 리셋된 경우 감지
-        if (prevFrameRef.current > totalFrames * 0.9 && frame < 10) {
+        if (prevFrameRef.current > totalFrames - 5 && frame < 10) {
           console.log('재생 완료! (자동 리셋 감지)');
           setIsPlaying(false);
-          setCurrentTime(0);
+          setCurrentTime(totalSeconds); // 끝 위치에 유지
           if (playerRef.current) {
             playerRef.current.pause();
           }
@@ -530,14 +582,13 @@ export default function VideoEditorPage() {
           return;
         }
         
-        // 재생이 거의 끝에 도달한 경우 (95% 이상)
-        if (frame >= totalFrames * 0.95) {
-          console.log('재생 완료! 정지하고 처음으로 돌아갑니다.');
+        // 재생이 완전히 끝에 도달한 경우
+        if (frame >= totalFrames - 1) {
+          console.log('재생 완료! 끝에서 정지합니다.');
           setIsPlaying(false);
-          setCurrentTime(0);
+          setCurrentTime(totalSeconds); // 끝 위치에 유지
           if (playerRef.current) {
             playerRef.current.pause();
-            playerRef.current.seekTo(0);
           }
           prevFrameRef.current = 0;
           return;
@@ -552,7 +603,7 @@ export default function VideoEditorPage() {
           총프레임: totalFrames,
           현재시간: time,
           총시간: totalSeconds,
-          재생완료여부: frame >= totalFrames * 0.95
+          재생완료여부: frame >= totalFrames - 1
         });
       }
     }, 100); // 100ms마다 업데이트

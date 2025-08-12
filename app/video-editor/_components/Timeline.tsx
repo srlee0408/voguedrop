@@ -33,7 +33,7 @@ interface TimelineProps {
   onUpdateTextClipPosition?: (id: string, newPosition: number) => void;
   onReorderTextClips?: (clips: TextClipType[]) => void;
   onReorderSoundClips?: (clips: SoundClipType[]) => void;
-  onResizeVideoClip?: (id: string, newDuration: number) => void;
+  onResizeVideoClip?: (id: string, newDuration: number, handle?: 'left' | 'right', deltaPosition?: number) => void;
   onUpdateSoundClipPosition?: (id: string, newPosition: number) => void;
   pixelsPerSecond?: number;
   currentTime?: number; // in seconds
@@ -340,6 +340,15 @@ export default function Timeline({
               if (currentClip) {
                 const newPosition = Math.max(0, currentClip.position + delta);
                 
+                console.log('비디오 클립 드래그 디버그:', {
+                  클립ID: activeClip,
+                  현재위치: currentClip.position,
+                  델타: delta,
+                  새위치: newPosition,
+                  드래그방향: dragDirection,
+                  클립길이: currentClip.duration
+                });
+                
                 // Check for overlaps and find best position based on drag direction
                 const otherClips = clips.filter(c => c.id !== activeClip);
                 const finalPosition = findNonOverlappingPositionWithDirection(
@@ -349,6 +358,8 @@ export default function Timeline({
                   dragDirection
                 );
                 
+                console.log('최종위치:', finalPosition, '차이:', finalPosition - newPosition);
+                
                 // Update the dragged clip position
                 onUpdateVideoClipPosition(activeClip, finalPosition);
               }
@@ -356,6 +367,15 @@ export default function Timeline({
               const currentClip = textClips.find(c => c.id === activeClip);
               if (currentClip) {
                 const newPosition = Math.max(0, currentClip.position + delta);
+                
+                console.log('텍스트 클립 드래그 디버그:', {
+                  클립ID: activeClip,
+                  현재위치: currentClip.position,
+                  델타: delta,
+                  새위치: newPosition,
+                  드래그방향: dragDirection,
+                  클립길이: currentClip.duration
+                });
                 
                 // Check for overlaps and find best position based on drag direction
                 const otherClips = textClips.filter(c => c.id !== activeClip);
@@ -365,6 +385,8 @@ export default function Timeline({
                   currentClip.duration,
                   dragDirection
                 );
+                
+                console.log('최종위치:', finalPosition, '차이:', finalPosition - newPosition);
                 
                 // Update the dragged clip position
                 onUpdateTextClipPosition(activeClip, finalPosition);
@@ -390,23 +412,55 @@ export default function Timeline({
           });
           clipElement.style.transform = '';
         }
-        // 리사이징 종료 시, 실제 duration을 업데이트
+        // 리사이징 종료 시, 실제 duration과 position을 업데이트
         if (clipElement && isResizing) {
           const finalWidth = clipElement.offsetWidth;
+          // 왼쪽 핸들로 리사이즈한 경우에만 position 변경
+          const finalPosition = resizeHandle === 'left' 
+            ? (parseFloat(clipElement.style.left) || startPosition)
+            : startPosition;
           
-          if (activeClipType === 'video' && onResizeVideoClip) {
+          if (activeClipType === 'video') {
             const clipData = clips.find(c => c.id === activeClip);
             const maxPx = clipData?.maxDuration ?? Infinity;
             const clampedWidth = Math.min(finalWidth, maxPx);
-            onResizeVideoClip(activeClip, clampedWidth);
-          } else if (activeClipType === 'text' && onResizeTextClip) {
-            onResizeTextClip(activeClip, finalWidth);
-          } else if (activeClipType === 'sound' && onResizeSoundClip) {
+            
+            // 왼쪽 핸들일 때는 position도 업데이트
+            if (resizeHandle === 'left' && onUpdateVideoClipPosition) {
+              onUpdateVideoClipPosition(activeClip, finalPosition);
+            }
+            if (onResizeVideoClip) {
+              // position 변화량 계산 (왼쪽 핸들일 때만)
+              const deltaPosition = resizeHandle === 'left' ? finalPosition - startPosition : 0;
+              onResizeVideoClip(activeClip, clampedWidth, resizeHandle || undefined, deltaPosition);
+            }
+          } else if (activeClipType === 'text') {
+            // 왼쪽 핸들일 때는 position도 업데이트
+            if (resizeHandle === 'left' && onUpdateTextClipPosition) {
+              onUpdateTextClipPosition(activeClip, finalPosition);
+            }
+            if (onResizeTextClip) {
+              onResizeTextClip(activeClip, finalWidth);
+            }
+          } else if (activeClipType === 'sound') {
             const clipData = soundClips.find(c => c.id === activeClip);
             const maxPx = clipData?.maxDuration ?? Infinity;
             const clampedWidth = Math.min(finalWidth, maxPx);
-            onResizeSoundClip(activeClip, clampedWidth);
+            
+            // 왼쪽 핸들일 때는 position도 업데이트
+            if (resizeHandle === 'left' && onUpdateSoundClipPosition) {
+              onUpdateSoundClipPosition(activeClip, finalPosition);
+            }
+            if (onResizeSoundClip) {
+              onResizeSoundClip(activeClip, clampedWidth);
+            }
           }
+          
+          // 스타일 리셋 - 오른쪽 핸들일 때만 left 리셋
+          if (resizeHandle === 'right') {
+            clipElement.style.left = '';
+          }
+          clipElement.style.width = '';
         }
       }
       setActiveClip(null);
@@ -423,7 +477,7 @@ export default function Timeline({
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [activeClip, activeClipType, isDragging, isResizing, dragStartX, startWidth, resizeHandle, clips, textClips, soundClips, onResizeVideoClip, onResizeTextClip, onResizeSoundClip, onUpdateVideoClipPosition, onUpdateTextClipPosition, onUpdateSoundClipPosition, pixelsPerSecond, dragDirection, initialDragX]);
+  }, [activeClip, activeClipType, isDragging, isResizing, dragStartX, startWidth, startPosition, resizeHandle, clips, textClips, soundClips, onResizeVideoClip, onResizeTextClip, onResizeSoundClip, onUpdateVideoClipPosition, onUpdateTextClipPosition, onUpdateSoundClipPosition, pixelsPerSecond, dragDirection, initialDragX]);
 
   // 타임라인 눈금: 1칸 = 1초, 30초까지 표시
   const timeMarkers = Array.from({ length: 31 }, (_, i) => {

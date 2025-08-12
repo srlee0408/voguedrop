@@ -220,50 +220,92 @@ export const findNonOverlappingPositionWithDirection = <T extends BaseClip>(
   duration: number,
   dragDirection: 'left' | 'right'
 ): number => {
-  // Special handling for position 0
-  if (requestedPosition === 0) {
-    // Check if there's a clip at position 0
-    const clipAtZero = clips.find(clip => clip.position === 0);
-    if (clipAtZero) {
-      // If there's a clip at 0, place the new clip to the right of it
-      return clipAtZero.duration; // Place directly after, no gap
-    }
-    // No clip at 0, can place there
-    return 0;
-  }
+  console.log('findNonOverlappingPositionWithDirection 호출:', {
+    요청위치: requestedPosition,
+    클립길이: duration,
+    드래그방향: dragDirection,
+    다른클립수: clips.length
+  });
+  
+  // 겹침을 허용할 최소 threshold (픽셀)
+  const OVERLAP_THRESHOLD = 20; // 20픽셀 이상 겹쳐야 자동 재배치
   
   // Find overlapping clips
-  const overlappingClips = clips.filter(clip =>
-    requestedPosition < clip.position + clip.duration &&
-    requestedPosition + duration > clip.position
-  );
+  const overlappingClips = clips.filter(clip => {
+    const clipStart = clip.position;
+    const clipEnd = clip.position + clip.duration;
+    const draggedStart = requestedPosition;
+    const draggedEnd = requestedPosition + duration;
+    
+    // 겹침 체크
+    if (draggedStart < clipEnd && draggedEnd > clipStart) {
+      // 겹침 정도 계산
+      const overlapStart = Math.max(draggedStart, clipStart);
+      const overlapEnd = Math.min(draggedEnd, clipEnd);
+      const overlapAmount = overlapEnd - overlapStart;
+      
+      console.log(`클립과 겹침: ${overlapAmount}px`);
+      
+      // threshold 이상 겹칠 때만 재배치 대상
+      return overlapAmount > OVERLAP_THRESHOLD;
+    }
+    return false;
+  });
+  
+  console.log('재배치 필요한 겹치는 클립들:', overlappingClips.map(c => ({
+    위치: c.position,
+    길이: c.duration,
+    끝: c.position + c.duration
+  })));
   
   if (overlappingClips.length === 0) {
-    // No overlap, place at requested position
+    // No significant overlap, place at requested position
+    console.log('충분한 겹침 없음, 요청 위치 사용:', requestedPosition);
     return Math.max(0, requestedPosition);
   }
   
-  if (dragDirection === 'right') {
-    // Dragging right: place after the rightmost overlapping clip
-    const rightmostClip = overlappingClips.reduce((max, clip) => 
-      (clip.position + clip.duration > max.position + max.duration) ? clip : max
-    );
-    return rightmostClip.position + rightmostClip.duration; // Place directly after, no gap
+  // 드래그된 클립의 중심점
+  const draggedCenter = requestedPosition + (duration / 2);
+  
+  // 겹치는 클립들 중 가장 가까운 클립 찾기
+  const closestClip = overlappingClips.reduce((closest, clip) => {
+    const clipCenter = clip.position + (clip.duration / 2);
+    const closestCenter = closest.position + (closest.duration / 2);
+    
+    const distToCurrent = Math.abs(draggedCenter - clipCenter);
+    const distToClosest = Math.abs(draggedCenter - closestCenter);
+    
+    return distToCurrent < distToClosest ? clip : closest;
+  });
+  
+  // 가장 가까운 클립의 중심과 비교하여 배치 위치 결정
+  const targetClipCenter = closestClip.position + (closestClip.duration / 2);
+  
+  console.log('위치 기반 배치:', {
+    드래그클립중심: draggedCenter,
+    타겟클립중심: targetClipCenter,
+    타겟클립: closestClip,
+    오른쪽배치여부: draggedCenter > targetClipCenter
+  });
+  
+  if (draggedCenter > targetClipCenter) {
+    // 드래그한 클립의 중심이 타겟 클립보다 오른쪽 → 오른쪽에 배치
+    const finalPos = closestClip.position + closestClip.duration;
+    console.log('타겟 클립의 오른쪽에 배치:', finalPos);
+    return finalPos;
   } else {
-    // Dragging left: place before the leftmost overlapping clip
-    const leftmostClip = overlappingClips.reduce((min, clip) => 
-      clip.position < min.position ? clip : min
-    );
-    const leftPosition = leftmostClip.position - duration;
-    // If placing to the left would put it at negative position, place to the right instead
+    // 드래그한 클립의 중심이 타겟 클립보다 왼쪽 → 왼쪽에 배치
+    const leftPosition = closestClip.position - duration;
+    
+    console.log('타겟 클립의 왼쪽에 배치 시도:', leftPosition);
+    
+    // 음수 위치가 되면 오른쪽에 배치
     if (leftPosition < 0) {
-      // Find the rightmost position of overlapping clips and place after
-      const rightmostClip = overlappingClips.reduce((max, clip) => 
-        (clip.position + clip.duration > max.position + max.duration) ? clip : max
-      );
-      return rightmostClip.position + rightmostClip.duration; // Place directly after, no gap
+      const finalPos = closestClip.position + closestClip.duration;
+      console.log('음수 위치 방지 - 오른쪽에 배치:', finalPos);
+      return finalPos;
     }
-    return Math.max(0, leftPosition); // Place directly before, no gap
+    return leftPosition;
   }
 };
 
