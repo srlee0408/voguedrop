@@ -212,11 +212,27 @@ export default function VideoEditorPage() {
         const min_px = 80;
         const computed_px = Math.max(min_px, Math.round((duration_seconds || 0) * PIXELS_PER_SECOND));
         
-        setTimelineClips(prev => prev.map(clip => 
-          clip.id === clipId 
-            ? { ...clip, duration: computed_px, maxDuration: computed_px }
-            : clip
-        ));
+        setTimelineClips(prev => {
+          // 현재 클립의 인덱스 찾기
+          const clipIndex = prev.findIndex(c => c.id === clipId);
+          if (clipIndex === -1) return prev;
+          
+          // 현재 클립의 이전 duration
+          const oldDuration = prev[clipIndex].duration;
+          const durationDiff = computed_px - oldDuration;
+          
+          // 클립들 업데이트
+          return prev.map((clip, idx) => {
+            if (clip.id === clipId) {
+              // 현재 클립: duration 업데이트
+              return { ...clip, duration: computed_px, maxDuration: computed_px };
+            } else if (idx > clipIndex) {
+              // 이후 클립들: position 조정 (간격 제거)
+              return { ...clip, position: clip.position + durationDiff };
+            }
+            return clip;
+          });
+        });
       });
 
       return newClip;

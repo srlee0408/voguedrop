@@ -91,6 +91,7 @@ export default function Timeline({
   const [isResizing, setIsResizing] = useState(false);
   const [dragStartX, setDragStartX] = useState(0);
   const [startWidth, setStartWidth] = useState(0);
+  const [startPosition, setStartPosition] = useState(0);
   const [resizeHandle, setResizeHandle] = useState<'left' | 'right' | null>(null);
   // const [draggedClip, setDraggedClip] = useState<{ id: string; type: 'video' | 'text' | 'sound'; index: number } | null>(null);
   const [dragOverIndex] = useState<number | null>(null);
@@ -249,16 +250,19 @@ export default function Timeline({
     setActiveClipType(clipType);
     setDragStartX(e.clientX);
     
-    // 현재 클립의 duration 값을 가져와서 시작 width로 설정
+    // 현재 클립의 duration과 position 값을 가져와서 저장
     if (clipType === 'video') {
       const clip = clips.find(c => c.id === clipId);
       setStartWidth(clip?.duration || 200);
+      setStartPosition(clip?.position || 0);
     } else if (clipType === 'text') {
       const clip = textClips.find(c => c.id === clipId);
       setStartWidth(clip?.duration || 200);
+      setStartPosition(clip?.position || 0);
     } else if (clipType === 'sound') {
       const clip = soundClips.find(c => c.id === clipId);
       setStartWidth(clip?.duration || 200);
+      setStartPosition(clip?.position || 0);
     }
   };
 
@@ -269,10 +273,21 @@ export default function Timeline({
       if (isResizing) {
         const delta = e.clientX - dragStartX;
         let newWidth;
+        let newPosition = startPosition;
         
         if (resizeHandle === 'left') {
+          // 왼쪽 핸들: position 이동, width 조절 (끝 위치 고정)
           newWidth = Math.max(80, startWidth - delta);
+          newPosition = Math.max(0, startPosition + delta);
+          
+          // 최대 duration 제한 시, position 조정도 함께 제한
+          const widthDiff = startWidth - newWidth;
+          const actualDelta = Math.min(delta, widthDiff);
+          if (actualDelta !== delta) {
+            newPosition = startPosition + actualDelta;
+          }
         } else {
+          // 오른쪽 핸들: position 고정, width만 조절
           newWidth = Math.max(80, startWidth + delta);
         }
         
@@ -288,10 +303,13 @@ export default function Timeline({
           newWidth = validateClipDuration(newWidth, clipData?.maxDuration);
         }
         
-        // DOM 업데이트: 모든 클립 타입에 대해 외부 wrapper의 width를 조절
+        // DOM 업데이트: 왼쪽 핸들일 때는 position도 함께 조절
         const clipElement = document.querySelector(`[data-clip-id="${activeClip}"]`) as HTMLElement;
         if (clipElement) {
           clipElement.style.width = `${newWidth}px`;
+          if (resizeHandle === 'left') {
+            clipElement.style.left = `${newPosition}px`;
+          }
         }
       } else if (isDragging) {
         const delta = e.clientX - dragStartX;
@@ -315,22 +333,20 @@ export default function Timeline({
           const delta = parseFloat(clipElement.style.transform.replace(/translateX\(|px\)/g, '')) || 0;
           
           // Import helper functions for timeline positioning
-          import('../_utils/timeline-utils').then(({ snapToGrid, findNonOverlappingPositionWithDirection }) => {
+          import('../_utils/timeline-utils').then(({ findNonOverlappingPositionWithDirection }) => {
             // Handle position update for all clip types
             if (activeClipType === 'video' && onUpdateVideoClipPosition) {
               const currentClip = clips.find(c => c.id === activeClip);
               if (currentClip) {
-                const newPosition = currentClip.position + delta;
-                const snappedPosition = snapToGrid(newPosition, pixelsPerSecond);
+                const newPosition = Math.max(0, currentClip.position + delta);
                 
                 // Check for overlaps and find best position based on drag direction
                 const otherClips = clips.filter(c => c.id !== activeClip);
                 const finalPosition = findNonOverlappingPositionWithDirection(
                   otherClips,
-                  snappedPosition,
+                  newPosition,
                   currentClip.duration,
-                  dragDirection,
-                  pixelsPerSecond
+                  dragDirection
                 );
                 
                 // Update the dragged clip position
@@ -339,17 +355,15 @@ export default function Timeline({
             } else if (activeClipType === 'text' && onUpdateTextClipPosition) {
               const currentClip = textClips.find(c => c.id === activeClip);
               if (currentClip) {
-                const newPosition = currentClip.position + delta;
-                const snappedPosition = snapToGrid(newPosition, pixelsPerSecond);
+                const newPosition = Math.max(0, currentClip.position + delta);
                 
                 // Check for overlaps and find best position based on drag direction
                 const otherClips = textClips.filter(c => c.id !== activeClip);
                 const finalPosition = findNonOverlappingPositionWithDirection(
                   otherClips,
-                  snappedPosition,
+                  newPosition,
                   currentClip.duration,
-                  dragDirection,
-                  pixelsPerSecond
+                  dragDirection
                 );
                 
                 // Update the dragged clip position
@@ -358,17 +372,15 @@ export default function Timeline({
             } else if (activeClipType === 'sound' && onUpdateSoundClipPosition) {
               const currentClip = soundClips.find(c => c.id === activeClip);
               if (currentClip) {
-                const newPosition = currentClip.position + delta;
-                const snappedPosition = snapToGrid(newPosition, pixelsPerSecond);
+                const newPosition = Math.max(0, currentClip.position + delta);
                 
                 // Check for overlaps and find best position based on drag direction
                 const otherClips = soundClips.filter(c => c.id !== activeClip);
                 const finalPosition = findNonOverlappingPositionWithDirection(
                   otherClips,
-                  snappedPosition,
+                  newPosition,
                   currentClip.duration,
-                  dragDirection,
-                  pixelsPerSecond
+                  dragDirection
                 );
                 
                 // Update the dragged clip position
@@ -431,6 +443,19 @@ export default function Timeline({
 
   // 타임라인 클릭으로 seek
   const handleTimelineClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!onSeek || isResizing || isDragging) return;
+    
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const time = Math.max(0, Math.min(x / pixelsPerSecond, totalDuration));
+    onSeek(time);
+  };
+
+  // 클립 트랙 영역 클릭으로 seek
+  const handleTrackClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    // 클립 자체를 클릭한 경우는 무시
+    if ((e.target as HTMLElement).closest('.timeline-clip')) return;
+    
     if (!onSeek || isResizing || isDragging) return;
     
     const rect = e.currentTarget.getBoundingClientRect();
@@ -614,7 +639,7 @@ export default function Timeline({
               </button>
             </div>
           </div>
-          <div className="flex-1 p-1 overflow-x-auto">
+          <div className="flex-1 p-1 overflow-x-auto" onClick={handleTrackClick}>
             <div className="relative min-h-[24px]">
               {clips.map((clip, index) => (
                 <div 
@@ -679,7 +704,7 @@ export default function Timeline({
               </button>
             </div>
           </div>
-          <div className="flex-1 p-1 overflow-x-auto">
+          <div className="flex-1 p-1 overflow-x-auto" onClick={handleTrackClick}>
             <div className="relative min-h-[24px]">
               {textClips.map((clip, index) => (
                 <div
@@ -733,7 +758,7 @@ export default function Timeline({
               </button>
             </div>
           </div>
-          <div className="flex-1 p-1 overflow-x-auto">
+          <div className="flex-1 p-1 overflow-x-auto" onClick={handleTrackClick}>
             <div className="relative min-h-[24px]">
               {soundClips.map((clip, index) => (
                 <div

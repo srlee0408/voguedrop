@@ -99,7 +99,7 @@ export const getNextAvailablePosition = <T extends BaseClip>(
     ...clips.map(clip => clip.position + clip.duration)
   );
   
-  return lastClipEnd + 20; // Add small gap
+  return lastClipEnd; // No gap between clips
 };
 
 /**
@@ -130,7 +130,7 @@ export const findAvailablePosition = <T extends BaseClip>(
     if (currentPosition + duration <= clip.position) {
       return currentPosition;
     }
-    currentPosition = clip.position + clip.duration + 20; // Small gap
+    currentPosition = clip.position + clip.duration; // No gap between clips
   }
   
   return currentPosition;
@@ -218,8 +218,7 @@ export const findNonOverlappingPositionWithDirection = <T extends BaseClip>(
   clips: T[],
   requestedPosition: number,
   duration: number,
-  dragDirection: 'left' | 'right',
-  gridSize: number
+  dragDirection: 'left' | 'right'
 ): number => {
   // Special handling for position 0
   if (requestedPosition === 0) {
@@ -227,7 +226,7 @@ export const findNonOverlappingPositionWithDirection = <T extends BaseClip>(
     const clipAtZero = clips.find(clip => clip.position === 0);
     if (clipAtZero) {
       // If there's a clip at 0, place the new clip to the right of it
-      return snapToGrid(clipAtZero.duration, gridSize);
+      return clipAtZero.duration; // Place directly after, no gap
     }
     // No clip at 0, can place there
     return 0;
@@ -249,7 +248,7 @@ export const findNonOverlappingPositionWithDirection = <T extends BaseClip>(
     const rightmostClip = overlappingClips.reduce((max, clip) => 
       (clip.position + clip.duration > max.position + max.duration) ? clip : max
     );
-    return snapToGrid(rightmostClip.position + rightmostClip.duration, gridSize);
+    return rightmostClip.position + rightmostClip.duration; // Place directly after, no gap
   } else {
     // Dragging left: place before the leftmost overlapping clip
     const leftmostClip = overlappingClips.reduce((min, clip) => 
@@ -262,9 +261,9 @@ export const findNonOverlappingPositionWithDirection = <T extends BaseClip>(
       const rightmostClip = overlappingClips.reduce((max, clip) => 
         (clip.position + clip.duration > max.position + max.duration) ? clip : max
       );
-      return snapToGrid(rightmostClip.position + rightmostClip.duration, gridSize);
+      return rightmostClip.position + rightmostClip.duration; // Place directly after, no gap
     }
-    return snapToGrid(leftPosition, gridSize);
+    return Math.max(0, leftPosition); // Place directly before, no gap
   }
 };
 
@@ -364,4 +363,35 @@ export const getTimelineEnd = <T extends BaseClip>(clips: T[]): number => {
     const clipEnd = clip.position + clip.duration;
     return Math.max(max, clipEnd);
   }, 0);
+};
+
+/**
+ * Recalculate clip positions after duration change
+ * Ensures clips remain tightly packed without gaps
+ * @param clips Array of clips
+ * @param changedClipId ID of the clip whose duration changed
+ * @param newDuration New duration of the changed clip
+ * @returns Updated clips array with recalculated positions
+ */
+export const recalculatePositionsAfterDurationChange = <T extends BaseClip>(
+  clips: T[],
+  changedClipId: string,
+  newDuration: number
+): T[] => {
+  const clipIndex = clips.findIndex(c => c.id === changedClipId);
+  if (clipIndex === -1) return clips;
+  
+  const oldDuration = clips[clipIndex].duration;
+  const durationDiff = newDuration - oldDuration;
+  
+  return clips.map((clip, idx) => {
+    if (clip.id === changedClipId) {
+      // Update the changed clip's duration
+      return { ...clip, duration: newDuration };
+    } else if (idx > clipIndex) {
+      // Adjust positions of clips after the changed clip
+      return { ...clip, position: clip.position + durationDiff };
+    }
+    return clip;
+  });
 };
