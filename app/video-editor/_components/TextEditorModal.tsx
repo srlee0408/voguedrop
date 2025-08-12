@@ -21,6 +21,7 @@ const fontFamilies = [
 ];
 
 const presetColors = [
+  '#000000',
   '#FFFFFF',
   '#38f47cf9',
   '#3b82f6',
