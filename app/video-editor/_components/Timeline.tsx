@@ -278,26 +278,23 @@ export default function Timeline({
 
       if (isResizing) {
         const delta = e.clientX - dragStartX;
-        let newWidth;
+        let newWidth = startWidth;
         let newPosition = startPosition;
-        
+
         if (resizeHandle === 'left') {
-          // 왼쪽 핸들: position 이동, width 조절 (끝 위치 고정)
-          newWidth = Math.max(80, startWidth - delta);
-          newPosition = Math.max(0, startPosition + delta);
-          
-          // 최대 duration 제한 시, position 조정도 함께 제한
-          const widthDiff = startWidth - newWidth;
-          const actualDelta = Math.min(delta, widthDiff);
-          if (actualDelta !== delta) {
-            newPosition = startPosition + actualDelta;
-          }
+          // 왼쪽 핸들: 확장은 금지, 줄이기만 허용 (delta>0일 때만 반영)
+          const shrinkPx = Math.max(0, delta);
+          newWidth = Math.max(80, Math.min(startWidth, startWidth - shrinkPx));
+          const appliedDelta = startWidth - newWidth; // 실제 적용된 줄임량(px)
+          newPosition = Math.max(0, startPosition + appliedDelta);
         } else {
-          // 오른쪽 핸들: position 고정, width만 조절
-          newWidth = Math.max(80, startWidth + delta);
+          // 오른쪽 핸들: 확장은 금지, 줄이기만 허용 (delta<0일 때만 반영)
+          const shrinkPx = Math.max(0, -delta);
+          newWidth = Math.max(80, Math.min(startWidth, startWidth - shrinkPx));
+          // 오른쪽 핸들은 position 고정
         }
-        
-        // Apply max duration limits for all clip types
+
+        // Apply max duration limits for all clip types (안전 장치)
         if (activeClipType === 'video') {
           const clipData = clips.find(c => c.id === activeClip);
           newWidth = validateClipDuration(newWidth, clipData?.maxDuration);
@@ -308,8 +305,8 @@ export default function Timeline({
           const clipData = soundClips.find(c => c.id === activeClip);
           newWidth = validateClipDuration(newWidth, clipData?.maxDuration);
         }
-        
-        // DOM 업데이트: 왼쪽 핸들일 때는 position도 함께 조절
+
+        // DOM 업데이트
         const clipElement = document.querySelector(`[data-clip-id="${activeClip}"]`) as HTMLElement;
         if (clipElement) {
           clipElement.style.width = `${newWidth}px`;
