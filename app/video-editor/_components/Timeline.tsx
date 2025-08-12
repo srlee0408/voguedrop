@@ -35,6 +35,9 @@ interface TimelineProps {
   onReorderSoundClips?: (clips: SoundClipType[]) => void;
   onResizeVideoClip?: (id: string, newDuration: number, handle?: 'left' | 'right', deltaPosition?: number) => void;
   onUpdateSoundClipPosition?: (id: string, newPosition: number) => void;
+  onUpdateAllVideoClips?: (clips: VideoClipType[]) => void;
+  onUpdateAllTextClips?: (clips: TextClipType[]) => void;
+  onUpdateAllSoundClips?: (clips: SoundClipType[]) => void;
   pixelsPerSecond?: number;
   currentTime?: number; // in seconds
   isPlaying?: boolean;
@@ -73,6 +76,9 @@ export default function Timeline({
   // onReorderSoundClips, // Commented out - not currently used
   onResizeVideoClip,
   onUpdateSoundClipPosition,
+  onUpdateAllVideoClips,
+  onUpdateAllTextClips,
+  onUpdateAllSoundClips,
   pixelsPerSecond = 40,
   currentTime = 0,
   isPlaying = false,
@@ -333,80 +339,73 @@ export default function Timeline({
           const delta = parseFloat(clipElement.style.transform.replace(/translateX\(|px\)/g, '')) || 0;
           
           // Import helper functions for timeline positioning
-          import('../_utils/timeline-utils').then(({ findNonOverlappingPositionWithDirection }) => {
+          import('../_utils/timeline-utils').then(({ magneticPositioning }) => {
             // Handle position update for all clip types
-            if (activeClipType === 'video' && onUpdateVideoClipPosition) {
+            if (activeClipType === 'video' && onUpdateAllVideoClips) {
               const currentClip = clips.find(c => c.id === activeClip);
               if (currentClip) {
                 const newPosition = Math.max(0, currentClip.position + delta);
                 
-                console.log('비디오 클립 드래그 디버그:', {
-                  클립ID: activeClip,
-                  현재위치: currentClip.position,
-                  델타: delta,
-                  새위치: newPosition,
-                  드래그방향: dragDirection,
-                  클립길이: currentClip.duration
-                });
-                
-                // Check for overlaps and find best position based on drag direction
-                const otherClips = clips.filter(c => c.id !== activeClip);
-                const finalPosition = findNonOverlappingPositionWithDirection(
-                  otherClips,
+                // Use magnetic positioning to prevent overlaps and push clips
+                const { targetPosition, adjustedClips } = magneticPositioning(
+                  clips,
+                  activeClip,
                   newPosition,
-                  currentClip.duration,
-                  dragDirection
+                  currentClip.duration
                 );
                 
-                console.log('최종위치:', finalPosition, '차이:', finalPosition - newPosition);
                 
-                // Update the dragged clip position
-                onUpdateVideoClipPosition(activeClip, finalPosition);
+                // Update all clips including the dragged one
+                const updatedClips = [
+                  ...adjustedClips,
+                  { ...currentClip, position: targetPosition }
+                ].sort((a, b) => a.position - b.position);
+                
+                onUpdateAllVideoClips(updatedClips);
               }
-            } else if (activeClipType === 'text' && onUpdateTextClipPosition) {
+            } else if (activeClipType === 'text' && onUpdateAllTextClips) {
               const currentClip = textClips.find(c => c.id === activeClip);
               if (currentClip) {
                 const newPosition = Math.max(0, currentClip.position + delta);
                 
-                console.log('텍스트 클립 드래그 디버그:', {
-                  클립ID: activeClip,
-                  현재위치: currentClip.position,
-                  델타: delta,
-                  새위치: newPosition,
-                  드래그방향: dragDirection,
-                  클립길이: currentClip.duration
-                });
-                
-                // Check for overlaps and find best position based on drag direction
-                const otherClips = textClips.filter(c => c.id !== activeClip);
-                const finalPosition = findNonOverlappingPositionWithDirection(
-                  otherClips,
+                // Use magnetic positioning to prevent overlaps and push clips
+                const { targetPosition, adjustedClips } = magneticPositioning(
+                  textClips,
+                  activeClip,
                   newPosition,
-                  currentClip.duration,
-                  dragDirection
+                  currentClip.duration
                 );
                 
-                console.log('최종위치:', finalPosition, '차이:', finalPosition - newPosition);
                 
-                // Update the dragged clip position
-                onUpdateTextClipPosition(activeClip, finalPosition);
+                // Update all clips including the dragged one
+                const updatedClips = [
+                  ...adjustedClips,
+                  { ...currentClip, position: targetPosition }
+                ].sort((a, b) => a.position - b.position);
+                
+                onUpdateAllTextClips(updatedClips);
               }
-            } else if (activeClipType === 'sound' && onUpdateSoundClipPosition) {
+            } else if (activeClipType === 'sound' && onUpdateAllSoundClips) {
               const currentClip = soundClips.find(c => c.id === activeClip);
               if (currentClip) {
                 const newPosition = Math.max(0, currentClip.position + delta);
                 
-                // Check for overlaps and find best position based on drag direction
-                const otherClips = soundClips.filter(c => c.id !== activeClip);
-                const finalPosition = findNonOverlappingPositionWithDirection(
-                  otherClips,
+                // Use magnetic positioning to prevent overlaps and push clips
+                const { targetPosition, adjustedClips } = magneticPositioning(
+                  soundClips,
+                  activeClip,
                   newPosition,
-                  currentClip.duration,
-                  dragDirection
+                  currentClip.duration
                 );
                 
-                // Update the dragged clip position
-                onUpdateSoundClipPosition(activeClip, finalPosition);
+                
+                // Update all clips including the dragged one
+                const updatedClips = [
+                  ...adjustedClips,
+                  { ...currentClip, position: targetPosition }
+                ].sort((a, b) => a.position - b.position);
+                
+                onUpdateAllSoundClips(updatedClips);
               }
             }
           });
@@ -477,7 +476,7 @@ export default function Timeline({
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [activeClip, activeClipType, isDragging, isResizing, dragStartX, startWidth, startPosition, resizeHandle, clips, textClips, soundClips, onResizeVideoClip, onResizeTextClip, onResizeSoundClip, onUpdateVideoClipPosition, onUpdateTextClipPosition, onUpdateSoundClipPosition, pixelsPerSecond, dragDirection, initialDragX]);
+  }, [activeClip, activeClipType, isDragging, isResizing, dragStartX, startWidth, startPosition, resizeHandle, clips, textClips, soundClips, onResizeVideoClip, onResizeTextClip, onResizeSoundClip, onUpdateVideoClipPosition, onUpdateTextClipPosition, onUpdateSoundClipPosition, onUpdateAllVideoClips, onUpdateAllTextClips, onUpdateAllSoundClips, pixelsPerSecond, dragDirection, initialDragX]);
 
   // 타임라인 눈금: 1칸 = 1초, 30초까지 표시
   const timeMarkers = Array.from({ length: 31 }, (_, i) => {

@@ -67,7 +67,6 @@ export function useCanvas() {
 
   const addNewImage = useCallback(() => {
     // Placeholder for adding new image functionality
-    console.log('Add new image');
   }, []);
 
   return {

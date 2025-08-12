@@ -335,9 +335,8 @@ export default function VideoEditorPage() {
     saveToHistory(); // Save to history after adding
   };
 
-  const handleEditSoundClip = (clip: SoundClip) => {
+  const handleEditSoundClip = () => {
     // TODO: Implement sound editing modal
-    console.log('Edit sound clip:', clip);
   };
 
   const handleDeleteSoundClip = (id: string) => {
@@ -502,6 +501,22 @@ export default function VideoEditorPage() {
     saveToHistory();
   };
 
+  // 전체 클립 배열 업데이트 (magnetic positioning용)
+  const handleUpdateAllVideoClips = (newClips: VideoClip[]) => {
+    setTimelineClips(newClips);
+    saveToHistory();
+  };
+
+  const handleUpdateAllTextClips = (newClips: TextClip[]) => {
+    setTextClips(newClips);
+    saveToHistory();
+  };
+
+  const handleUpdateAllSoundClips = (newClips: SoundClip[]) => {
+    setSoundClips(newClips);
+    saveToHistory();
+  };
+
   // 재생 제어 함수들
   const handlePlayPause = () => {
     if (playerRef.current) {
@@ -572,8 +587,7 @@ export default function VideoEditorPage() {
         
         // Player가 끝에서 자동으로 0으로 리셋된 경우 감지
         if (prevFrameRef.current > totalFrames - 5 && frame < 10) {
-          console.log('재생 완료! (자동 리셋 감지)');
-          setIsPlaying(false);
+                    setIsPlaying(false);
           setCurrentTime(totalSeconds); // 끝 위치에 유지
           if (playerRef.current) {
             playerRef.current.pause();
@@ -584,8 +598,7 @@ export default function VideoEditorPage() {
         
         // 재생이 완전히 끝에 도달한 경우
         if (frame >= totalFrames - 1) {
-          console.log('재생 완료! 끝에서 정지합니다.');
-          setIsPlaying(false);
+                    setIsPlaying(false);
           setCurrentTime(totalSeconds); // 끝 위치에 유지
           if (playerRef.current) {
             playerRef.current.pause();
@@ -597,14 +610,6 @@ export default function VideoEditorPage() {
         // 정상 재생 중
         prevFrameRef.current = frame;
         setCurrentTime(time);
-        
-        console.log('재생 상태:', {
-          현재프레임: frame,
-          총프레임: totalFrames,
-          현재시간: time,
-          총시간: totalSeconds,
-          재생완료여부: frame >= totalFrames - 1
-        });
       }
     }, 100); // 100ms마다 업데이트
     
@@ -727,6 +732,9 @@ export default function VideoEditorPage() {
           onUpdateVideoClipPosition={handleUpdateVideoClipPosition}
           onUpdateTextClipPosition={handleUpdateTextClipPosition}
           onUpdateSoundClipPosition={handleUpdateSoundClipPosition}
+          onUpdateAllVideoClips={handleUpdateAllVideoClips}
+          onUpdateAllTextClips={handleUpdateAllTextClips}
+          onUpdateAllSoundClips={handleUpdateAllSoundClips}
           pixelsPerSecond={PIXELS_PER_SECOND}
           currentTime={currentTime}
           isPlaying={isPlaying}
@@ -752,7 +760,7 @@ export default function VideoEditorPage() {
           onClose={() => setShowSoundLibrary(false)}
           onCreateVideo={() => {
             // TODO: Implement create video functionality
-            console.log('Create video');
+            // Create video
           }}
           onSelectSounds={async (sounds) => {
             // Import helper functions

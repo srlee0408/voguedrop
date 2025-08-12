@@ -23,7 +23,6 @@ export function CanvasHistoryPanel({
     async function fetchVideoHistory() {
       try {
         if (!user) {
-          console.log('No authenticated user');
           setDbVideos([]);
           setIsLoading(false);
           return;

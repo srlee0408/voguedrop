@@ -317,33 +317,23 @@ export default function CanvasPage() {
             const jobStartTime = jobStartTimes.get(job.jobId) || Date.now();
             const elapsedTime = Date.now() - jobStartTime;
             const elapsedMinutes = Math.floor(elapsedTime / 60000);
-            const elapsedSeconds = Math.floor(elapsedTime / 1000);
             
-            // UI 상태 업데이트 - 로그로만 출력
-            console.log('[VideoGeneration] Elapsed time:', { elapsedMinutes, elapsedSeconds });
+            // UI 상태 업데이트
             
             // 5분 경과 체크
             if (elapsedMinutes >= 5 && elapsedTime % 60000 < 2000) { // 매 분마다 한 번만 체크
-              console.log(`Job ${job.jobId}: ${elapsedMinutes}분 경과, webhook 상태 확인`);
               
               // webhook 상태 확인
               const webhookCheckResponse = await fetch(`/api/canvas/jobs/${job.jobId}/check-webhook`);
               const webhookCheckData = await webhookCheckResponse.json();
               
-              // webhook 상태 로그 출력
-              console.log('[VideoGeneration] Webhook status:', webhookCheckData.webhookStatus || 'pending');
               
               if (webhookCheckData.webhookCheckRequired) {
-                console.log(`Job ${job.jobId}: webhook 미수신으로 fal.ai 직접 확인 필요`);
                 
                 // poll 엔드포인트로 fal.ai 상태 직접 확인
                 const pollResponse = await fetch(`/api/canvas/jobs/${job.jobId}/poll`);
                 const pollData = await pollResponse.json();
                 
-                // webhook 상태 로그 출력
-                if (pollData.webhookStatus) {
-                  console.log('[VideoGeneration] Webhook status updated:', pollData.webhookStatus);
-                }
                 
                 if (pollData.status === 'completed' || pollData.status === 'failed') {
                   return { ...pollData, originalIndex };
@@ -387,7 +377,6 @@ export default function CanvasPage() {
                 // 유틸리티 함수를 사용하여 애니메이션 시간 계산
                 const animationDuration = calculateCompletionAnimationDuration(currentProgressValue);
                 
-                console.log(`[VideoGeneration] Completion animation: ${currentProgressValue}% -> 100% in ${animationDuration}ms`);
                 
                 // 완료 애니메이션
                 const animateToComplete = () => {
@@ -710,13 +699,13 @@ export default function CanvasPage() {
           negativePrompt={negativePrompt}
           onPromptChange={setPromptText}
           onNegativePromptChange={setNegativePrompt}
-          onApply={() => console.log("Generating with prompt:", promptText)}
+          onApply={() => {}}
         />
         
         <CameraModal
           isOpen={isCameraModalOpen}
           onClose={() => setIsCameraModalOpen(false)}
-          onCapture={(imageData) => console.log("Captured image:", imageData)}
+          onCapture={() => {}}
         />
         
         <ModelModal

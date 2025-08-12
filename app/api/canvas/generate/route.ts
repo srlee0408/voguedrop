@@ -106,17 +106,11 @@ export async function POST(request: NextRequest) {
         finalImageUrl = await uploadBase64Image(imageUrl, userId);
         
         // CDN 전파를 위한 대기 및 접근성 확인
-        console.log('Waiting for CDN propagation and checking accessibility...');
         await new Promise(resolve => setTimeout(resolve, 5000));
         
         // 이미지 접근 가능 여부 확인
         try {
-          const checkResponse = await fetch(finalImageUrl, { method: 'HEAD' });
-          console.log('Image accessibility check:', {
-            url: finalImageUrl,
-            status: checkResponse.status,
-            ok: checkResponse.ok
-          });
+          await fetch(finalImageUrl, { method: 'HEAD' });
         } catch (checkError) {
           console.error('Image accessibility check failed:', checkError);
         }
@@ -184,7 +178,6 @@ export async function POST(request: NextRequest) {
         try {
           // 두 번째 모델(Hailo)은 3초 대기 후 실행 (현재는 hailo만 사용하므로 실행되지 않음)
           // if (index === 1) {
-          //   console.log('Waiting 3 seconds before calling Hailo...');
           //   await new Promise(resolve => setTimeout(resolve, 3000));
           // }
           

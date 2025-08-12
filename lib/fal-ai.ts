@@ -62,48 +62,22 @@ export async function generateVideo({
         prompt_optimizer: true
       };
 
-  // 디버깅: 전송할 데이터 확인
-  console.log('🔍 Sending to fal.ai:', {
-    endpoint: modelEndpoint,
-    input: JSON.stringify(input, null, 2),
-    hasApiKey: !!process.env.FAL_API_KEY,
-    apiKeyLength: process.env.FAL_API_KEY?.length
-  });
-  
-  // Hailo의 경우 추가 디버깅
-  if (modelType === 'hailo') {
-    console.log('🔍 Hailo image URL check:', {
-      url: imageUrl,
-      isSupabaseUrl: imageUrl.includes('supabase.co'),
-      urlLength: imageUrl.length
-    });
-  }
 
   try {
     // ⭐️ fal.ai API 실제 호출 지점 (subscribe 방식)
     // 긴 처리 시간을 위한 비동기 큐 기반 처리
-    console.log(`🎬 ${modelType} 비디오 생성 시작...`);
     
     const result = await fal.subscribe(modelEndpoint, {
       input,
       logs: true,
       onQueueUpdate: (update) => {
-        if (update.status === "IN_PROGRESS") {
-          console.log(`⏳ ${modelType} 처리 중...`);
-          // 로그가 있으면 출력
-          if (update.logs) {
-            update.logs.map((log) => log.message).forEach(message => {
-              console.log(`  📝 ${modelType}: ${message}`);
-            });
-          }
-        } else if (update.status === "IN_QUEUE") {
-          console.log(`🔄 ${modelType} 대기열에 추가됨...`);
+        // Status update handling
+        if (update.status === "IN_PROGRESS" || update.status === "IN_QUEUE") {
+          // Silent processing
         }
       }
     }) as { video?: { url?: string }; requestId?: string };
 
-    console.log(`✅ ${modelType} 비디오 생성 완료!`);
-    console.log('Full result:', JSON.stringify(result, null, 2));
 
     // fal.subscribe 응답 구조 확인
     // 실제로는 result 자체에 video가 있음 (data 래핑 없이)

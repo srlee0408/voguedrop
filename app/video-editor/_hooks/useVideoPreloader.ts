@@ -48,7 +48,6 @@ export function useVideoPreloader(videoUrls: (string | undefined)[]) {
       
       // 로드 성공 핸들러
       const handleCanPlay = () => {
-        console.log(`Video preloaded: ${url}`);
         setPreloadStatus(prev => ({
           ...prev,
           [url]: { loading: false, loaded: true, error: null }

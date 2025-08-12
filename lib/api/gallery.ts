@@ -22,11 +22,6 @@ export async function getGalleryItems(): Promise<EffectTemplateWithMedia[]> {
 
     // Transform the data to match our interface
     const transformedData: EffectTemplateWithMedia[] = (data || []).map(item => {
-      // Debug: Log the storage path to check format
-      if (item.preview_media?.storage_path) {
-        console.log('Storage path:', item.preview_media.storage_path)
-      }
-      
       return {
         id: item.id,
         name: item.name,

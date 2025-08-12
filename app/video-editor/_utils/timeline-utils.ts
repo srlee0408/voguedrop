@@ -217,15 +217,8 @@ export const getNextPosition = <T extends BaseClip>(
 export const findNonOverlappingPositionWithDirection = <T extends BaseClip>(
   clips: T[],
   requestedPosition: number,
-  duration: number,
-  dragDirection: 'left' | 'right'
+  duration: number
 ): number => {
-  console.log('findNonOverlappingPositionWithDirection 호출:', {
-    요청위치: requestedPosition,
-    클립길이: duration,
-    드래그방향: dragDirection,
-    다른클립수: clips.length
-  });
   
   // 겹침을 허용할 최소 threshold (픽셀)
   const OVERLAP_THRESHOLD = 20; // 20픽셀 이상 겹쳐야 자동 재배치
@@ -244,23 +237,14 @@ export const findNonOverlappingPositionWithDirection = <T extends BaseClip>(
       const overlapEnd = Math.min(draggedEnd, clipEnd);
       const overlapAmount = overlapEnd - overlapStart;
       
-      console.log(`클립과 겹침: ${overlapAmount}px`);
-      
       // threshold 이상 겹칠 때만 재배치 대상
       return overlapAmount > OVERLAP_THRESHOLD;
     }
     return false;
   });
   
-  console.log('재배치 필요한 겹치는 클립들:', overlappingClips.map(c => ({
-    위치: c.position,
-    길이: c.duration,
-    끝: c.position + c.duration
-  })));
-  
   if (overlappingClips.length === 0) {
     // No significant overlap, place at requested position
-    console.log('충분한 겹침 없음, 요청 위치 사용:', requestedPosition);
     return Math.max(0, requestedPosition);
   }
   
@@ -281,32 +265,129 @@ export const findNonOverlappingPositionWithDirection = <T extends BaseClip>(
   // 가장 가까운 클립의 중심과 비교하여 배치 위치 결정
   const targetClipCenter = closestClip.position + (closestClip.duration / 2);
   
-  console.log('위치 기반 배치:', {
-    드래그클립중심: draggedCenter,
-    타겟클립중심: targetClipCenter,
-    타겟클립: closestClip,
-    오른쪽배치여부: draggedCenter > targetClipCenter
-  });
-  
   if (draggedCenter > targetClipCenter) {
     // 드래그한 클립의 중심이 타겟 클립보다 오른쪽 → 오른쪽에 배치
     const finalPos = closestClip.position + closestClip.duration;
-    console.log('타겟 클립의 오른쪽에 배치:', finalPos);
     return finalPos;
   } else {
     // 드래그한 클립의 중심이 타겟 클립보다 왼쪽 → 왼쪽에 배치
     const leftPosition = closestClip.position - duration;
     
-    console.log('타겟 클립의 왼쪽에 배치 시도:', leftPosition);
-    
     // 음수 위치가 되면 오른쪽에 배치
     if (leftPosition < 0) {
       const finalPos = closestClip.position + closestClip.duration;
-      console.log('음수 위치 방지 - 오른쪽에 배치:', finalPos);
       return finalPos;
     }
     return leftPosition;
   }
+};
+
+/**
+ * Magnetic positioning - automatically pushes clips to prevent overlap
+ * @param clips Array of all clips (including the one being dragged)
+ * @param draggedClipId ID of the clip being dragged
+ * @param requestedPosition Position where the clip is being placed
+ * @param duration Duration of the clip being placed
+ * @returns Target position and adjusted clips array
+ */
+export const magneticPositioning = <T extends BaseClip>(
+  clips: T[],
+  draggedClipId: string,
+  requestedPosition: number,
+  duration: number
+): { targetPosition: number; adjustedClips: T[] } => {
+  // 드래그된 클립 제외한 클립들을 position 순으로 정렬
+  const otherClips = clips.filter(c => c.id !== draggedClipId);
+  const sortedClips = [...otherClips].sort((a, b) => a.position - b.position);
+  
+  let targetPosition = Math.max(0, requestedPosition);
+  const adjustedClips: T[] = [];
+  
+  // 클립이 없으면 그냥 요청 위치에 배치
+  if (sortedClips.length === 0) {
+    return { targetPosition, adjustedClips: [] };
+  }
+  
+  // 맨 앞에 삽입하려는 경우 (첫 클립보다 앞)
+  if (sortedClips.length > 0 && targetPosition <= sortedClips[0].position) {
+    const firstClip = sortedClips[0];
+    
+    // 첫 클립과 겹치는지 확인
+    if (targetPosition + duration > firstClip.position) {
+      // 겹치면 모든 클립을 오른쪽으로 밀기
+      const pushAmount = (targetPosition + duration) - firstClip.position;
+      
+      for (const clip of sortedClips) {
+        adjustedClips.push({
+          ...clip,
+          position: clip.position + pushAmount
+        } as T);
+      }
+      return { targetPosition, adjustedClips };
+    }
+  }
+  
+  // 클립들 사이 또는 뒤에 삽입
+  let inserted = false;
+  
+  for (let i = 0; i < sortedClips.length; i++) {
+    const currentClip = sortedClips[i];
+    
+    // 아직 삽입하지 않은 경우
+    if (!inserted) {
+      // 현재 클립과 겹치는지 확인
+      if (targetPosition < currentClip.position + currentClip.duration && 
+          targetPosition + duration > currentClip.position) {
+        
+        // 클립 사이에 공간이 있는지 확인 (이전 클립과 현재 클립 사이)
+        if (i > 0) {
+          const prevClip = adjustedClips[i - 1];
+          const gapStart = prevClip.position + prevClip.duration;
+          const gapEnd = currentClip.position;
+          const gapSize = gapEnd - gapStart;
+          
+          if (gapSize >= duration) {
+            // 공간이 충분하면 사이에 배치
+            targetPosition = gapStart;
+            adjustedClips.push(currentClip as T);
+            inserted = true;
+            continue;
+          }
+        }
+        
+        // 공간이 부족하거나 겹치면 현재 클립부터 밀기
+        const pushAmount = (targetPosition + duration) - currentClip.position;
+        
+        adjustedClips.push({
+          ...currentClip,
+          position: currentClip.position + pushAmount
+        } as T);
+        
+        // 나머지 클립들도 같은 양만큼 밀기
+        for (let j = i + 1; j < sortedClips.length; j++) {
+          adjustedClips.push({
+            ...sortedClips[j],
+            position: sortedClips[j].position + pushAmount
+          } as T);
+        }
+        inserted = true;
+        break;
+      } else {
+        // 겹치지 않으면 그대로 유지
+        adjustedClips.push(currentClip as T);
+      }
+    } else {
+      // 이미 삽입했으면 나머지는 조정된 상태로 추가
+      break;
+    }
+  }
+  
+  // 모든 클립을 확인했는데 삽입하지 못한 경우 (맨 뒤에 배치)
+  if (!inserted) {
+    adjustedClips.push(...sortedClips.slice(adjustedClips.length) as T[]);
+  }
+  
+  return { targetPosition, adjustedClips };
 };
 
 /**
