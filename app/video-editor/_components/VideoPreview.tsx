@@ -6,6 +6,7 @@ import { CompositePreview } from '../_remotion/CompositePreview';
 import { TextClip as TextClipType, SoundClip as SoundClipType } from '@/types/video-editor';
 import TextOverlayEditor from './TextOverlayEditor';
 import { ASPECT_RATIOS, CAROUSEL_CONFIG, STYLES, AspectRatioValue } from '../_constants';
+// import { useVideoPreloader } from '../_hooks/useVideoPreloader';
 
 interface PreviewClip {
   id: string;
@@ -45,7 +46,9 @@ export default function VideoPreview({
   onUpdateTextSize,
   selectedTextClip,
   onSelectTextClip,
-  currentTime
+  currentTime,
+  isPlaying,
+  onPlayStateChange
 }: VideoPreviewProps) {
   // SSR-CSR hydration 안정화를 위한 마운트 플래그
   const [is_mounted, setIsMounted] = useState(false);
@@ -56,10 +59,51 @@ export default function VideoPreview({
   
   const containerRef = useRef<HTMLDivElement>(null);
   const { ITEM_WIDTH, ITEM_HEIGHT, ITEM_GAP } = CAROUSEL_CONFIG;
+  
+  // 비디오 URL 목록 추출 (프리로딩 비활성화 - Remotion이 자체 처리)
+  // const videoUrls = useMemo(() => clips.map(clip => clip.url), [clips]);
+  // const { loadingCount, loadedCount, totalCount } = useVideoPreloader(videoUrls);
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  // 스페이스바 키보드 단축키 이벤트 리스너
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // 텍스트 입력 중이 아닐 때만 동작
+      const target = event.target as HTMLElement;
+      if (target.tagName === 'INPUT' || 
+          target.tagName === 'TEXTAREA' || 
+          target.isContentEditable) {
+        return;
+      }
+      
+      // 스페이스바 감지
+      if (event.key === ' ' || event.code === 'Space') {
+        event.preventDefault(); // 기본 스크롤 동작 방지
+        
+        // 재생/일시정지 토글
+        if (onPlayStateChange && playerRef?.current) {
+          if (isPlaying) {
+            playerRef.current.pause();
+            onPlayStateChange(false);
+          } else {
+            playerRef.current.play();
+            onPlayStateChange(true);
+          }
+        }
+      }
+    };
+
+    // 이벤트 리스너 등록
+    window.addEventListener('keydown', handleKeyDown);
+
+    // 클린업
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isPlaying, onPlayStateChange, playerRef]);
 
   // 초기/클립 변경 시 기본 선택: 첫 번째 클립
   useEffect(() => {

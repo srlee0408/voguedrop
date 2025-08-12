@@ -59,15 +59,21 @@ export const CompositePreview: React.FC<CompositePreviewProps> = ({
           key={video.id}
           from={video.from}
           durationInFrames={video.durationInFrames}
+          premountFor={300} // 10초(300프레임) 미리 마운트하여 충분한 프리로딩 시간 확보
         >
           <OffthreadVideo 
             src={video.url}
             startFrom={video.startFrom}
             endAt={video.endAt}
+            pauseWhenBuffering={true} // 버퍼링 시 일시정지하여 끊김 방지
+            onError={(e) => {
+              console.error(`Video loading error for ${video.id}:`, e);
+            }}
+            // 첫 번째 비디오는 즉시 로드, 나머지는 순차적으로
             style={{ 
               width: '100%', 
               height: '100%', 
-              objectFit: 'cover' 
+              objectFit: 'cover'
             }}
           />
         </Sequence>
