@@ -201,14 +201,12 @@ export default function Timeline({
   const handleResizeStart = (e: React.MouseEvent, clipId: string, handle: 'left' | 'right', clipType: 'video' | 'text' | 'sound' = 'video') => {
     e.stopPropagation();
     e.preventDefault(); // 이벤트 전파 방지
-    console.log('🔧 리사이즈 시작:', { clipId, handle, clipType, clientX: e.clientX });
     setIsResizing(true);
     setResizeHandle(handle);
     setActiveClip(clipId);
     setActiveClipType(clipType);
     setDragStartX(e.clientX);
     setResizeMoved(false);
-    console.log('🔧 resizeMoved 초기화: false');
     
     // 현재 클립의 duration과 position 값을 가져와서 저장
     if (clipType === 'video') {
@@ -234,17 +232,8 @@ export default function Timeline({
         const delta = e.clientX - dragStartX;
         const moveDistance = Math.abs(delta);
         
-        console.log('🎯 마우스 이동:', { 
-          delta, 
-          moveDistance, 
-          resizeMoved, 
-          threshold: RESIZE_ACTIVATION_DELTA,
-          willActivate: moveDistance > RESIZE_ACTIVATION_DELTA 
-        });
-
         // 아직 resizeMoved가 false이고, 움직인 거리가 임계값을 넘으면 true로 설정
         if (!resizeMoved && moveDistance > RESIZE_ACTIVATION_DELTA) {
-          console.log('✅ 리사이즈 활성화! moveDistance:', moveDistance);
           setResizeMoved(true);
         }
 
@@ -432,11 +421,9 @@ export default function Timeline({
         }
         // 리사이징 종료 시, 실제 duration과 position을 업데이트
         if (clipElement && isResizing) {
-          console.log('🏁 리사이즈 종료:', { resizeMoved, isResizing, activeClip });
           
           // 클릭만 했다가 놓은 경우: 원래 값으로 복원
           if (!resizeMoved) {
-            console.log('❌ 리사이즈 취소 (단순 클릭으로 판단)');
             
             // 클립의 원래 position과 duration 값으로 스타일 복원
             let originalPosition = 0;
@@ -462,11 +449,9 @@ export default function Timeline({
               }
             }
             
-            console.log('🔄 원래 값으로 복원:', { originalPosition, originalDuration });
             clipElement.style.left = `${originalPosition}px`;
             clipElement.style.width = `${originalDuration}px`;
           } else {
-            console.log('✅ 리사이즈 적용');
             const finalWidth = clipElement.offsetWidth;
             // 왼쪽 핸들로 리사이즈한 경우에만 position 변경
             const finalPosition = resizeHandle === 'left' 
@@ -523,16 +508,13 @@ export default function Timeline({
             // 스타일 리셋: 상태 반영 후 인라인 스타일은 초기화
             // 오른쪽 핸들일 때는 left 스타일 유지 (position 변경 없으므로)
             if (resizeHandle === 'left') {
-              console.log('🔄 왼쪽 핸들: left 스타일 초기화');
               clipElement.style.left = '';
             } else {
-              console.log('🔄 오른쪽 핸들: left 스타일 유지');
             }
             clipElement.style.width = '';
           }
         }
       }
-      console.log('🔚 모든 상태 리셋');
       setActiveClip(null);
       setActiveClipType(null);
       setIsDragging(false);
