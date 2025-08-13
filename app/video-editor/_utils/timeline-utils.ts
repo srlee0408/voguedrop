@@ -332,14 +332,28 @@ export const magneticPositioning = <T extends BaseClip>(
         왼쪽클립끝: leftEnd,
         오른쪽클립시작: rightStart,
         간격: gap,
-        필요공간: duration
+        필요공간: duration,
+        요청위치: requestedPosition
       });
       
       if (gap >= duration) {
-        // 공간이 충분하면 그 사이에 배치
-        console.log('공간 충분 - 사이에 정확히 배치');
+        // 공간이 충분하면 사용자가 드래그한 위치에 배치
+        // 단, 왼쪽 클립과 겹치지 않고 오른쪽 클립과도 겹치지 않도록 조정
+        let finalPosition = requestedPosition;
+        
+        // 왼쪽 클립과 겹치는 경우 조정
+        if (finalPosition < leftEnd) {
+          finalPosition = leftEnd;
+        }
+        
+        // 오른쪽 클립과 겹치는 경우 조정
+        if (finalPosition + duration > rightStart) {
+          finalPosition = rightStart - duration;
+        }
+        
+        console.log('공간 충분 - 사용자 위치에 배치:', finalPosition);
         return {
-          targetPosition: leftEnd, // 왼쪽 클립 바로 뒤
+          targetPosition: finalPosition,
           adjustedClips: otherClips
         };
       } else {
@@ -359,7 +373,7 @@ export const magneticPositioning = <T extends BaseClip>(
         });
         
         return {
-          targetPosition: leftEnd, // 왼쪽 클립 바로 뒤에 정확히 배치
+          targetPosition: leftEnd, // 공간이 부족할 때만 왼쪽 클립에 붙임
           adjustedClips
         };
       }
