@@ -220,7 +220,7 @@ export default function CanvasPage() {
   };
 
   // Generate 버튼 활성화 조건 계산
-  const canGenerate = !!currentGeneratingImage && selectedEffects.length > 0;
+  const canGenerate = !!currentGeneratingImage && (selectedEffects.length > 0 || promptText.trim().length > 0);
 
   // 콘텐츠 제거 핸들러
   const handleRemoveContent = (index: number, type: 'image' | 'video') => {
@@ -252,8 +252,8 @@ export default function CanvasPage() {
       return;
     }
 
-    if (selectedEffects.length === 0) {
-      setGenerationError('Please select at least one effect.');
+    if (selectedEffects.length === 0 && !promptText.trim()) {
+      setGenerationError('Please select at least one effect or enter a prompt.');
       return;
     }
 
