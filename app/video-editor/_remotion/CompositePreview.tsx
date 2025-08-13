@@ -1,5 +1,5 @@
 import React from 'react';
-import { AbsoluteFill, Sequence, OffthreadVideo, Audio } from 'remotion';
+import { AbsoluteFill, Sequence, OffthreadVideo, Audio, useVideoConfig } from 'remotion';
 import { TextClip as TextClipType, SoundClip as SoundClipType } from '@/types/video-editor';
 
 interface VideoClip {
@@ -27,11 +27,19 @@ export const CompositePreview: React.FC<CompositePreviewProps> = ({
   pixelsPerSecond = 40,
   backgroundColor = 'black'
 }) => {
+  const { width, height } = useVideoConfig();
+  
   // 픽셀을 프레임으로 변환 (40px = 1초 = 30프레임)
   const pxToFrames = (px: number): number => {
     const seconds = px / pixelsPerSecond;
     return Math.round(seconds * 30); // 30fps
   };
+  
+  // 비율 계산
+  const aspectRatio = width / height;
+  const is16by9 = Math.abs(aspectRatio - 16/9) < 0.01;
+  const is9by16 = Math.abs(aspectRatio - 9/16) < 0.01;
+  const is1by1 = Math.abs(aspectRatio - 1) < 0.01;
   
   // 비디오 클립들을 position 기반으로 배치
   const videoSequences = videoClips
@@ -55,13 +63,132 @@ export const CompositePreview: React.FC<CompositePreviewProps> = ({
   
   return (
     <AbsoluteFill style={{ backgroundColor }}>
+      {/* Letterbox 효과 - 모든 비율에 적용 */}
+      {(is16by9 || is9by16 || is1by1) && (
+        <>
+          {/* 16:9 - 상하 letterbox */}
+          {is16by9 && (
+            <>
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: '10%',
+                  background: 'linear-gradient(to bottom, rgba(0,0,0,0.8), rgba(0,0,0,0))',
+                  pointerEvents: 'none',
+                  zIndex: 5,
+                }}
+              />
+              <div
+                style={{
+                  position: 'absolute',
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  height: '10%',
+                  background: 'linear-gradient(to top, rgba(0,0,0,0.8), rgba(0,0,0,0))',
+                  pointerEvents: 'none',
+                  zIndex: 5,
+                }}
+              />
+            </>
+          )}
+          
+          {/* 9:16 - 좌우 letterbox */}
+          {is9by16 && (
+            <>
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  bottom: 0,
+                  width: '10%',
+                  background: 'linear-gradient(to right, rgba(0,0,0,0.8), rgba(0,0,0,0))',
+                  pointerEvents: 'none',
+                  zIndex: 5,
+                }}
+              />
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  right: 0,
+                  bottom: 0,
+                  width: '10%',
+                  background: 'linear-gradient(to left, rgba(0,0,0,0.8), rgba(0,0,0,0))',
+                  pointerEvents: 'none',
+                  zIndex: 5,
+                }}
+              />
+            </>
+          )}
+          
+          {/* 1:1 - 네 방향 모두 letterbox */}
+          {is1by1 && (
+            <>
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: '8%',
+                  background: 'linear-gradient(to bottom, rgba(0,0,0,0.8), rgba(0,0,0,0))',
+                  pointerEvents: 'none',
+                  zIndex: 5,
+                }}
+              />
+              <div
+                style={{
+                  position: 'absolute',
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  height: '8%',
+                  background: 'linear-gradient(to top, rgba(0,0,0,0.8), rgba(0,0,0,0))',
+                  pointerEvents: 'none',
+                  zIndex: 5,
+                }}
+              />
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  bottom: 0,
+                  width: '8%',
+                  background: 'linear-gradient(to right, rgba(0,0,0,0.8), rgba(0,0,0,0))',
+                  pointerEvents: 'none',
+                  zIndex: 5,
+                }}
+              />
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  right: 0,
+                  bottom: 0,
+                  width: '8%',
+                  background: 'linear-gradient(to left, rgba(0,0,0,0.8), rgba(0,0,0,0))',
+                  pointerEvents: 'none',
+                  zIndex: 5,
+                }}
+              />
+            </>
+          )}
+        </>
+      )}
+      
       {/* 1. 비디오 레이어 - 순차 재생 */}
       {videoSequences.map(video => (
         <Sequence
           key={video.id}
           from={video.from}
           durationInFrames={video.durationInFrames}
-          premountFor={300} // 10초(300프레임) 미리 마운트하여 충분한 프리로딩 시간 확보
+          premountFor={Infinity} // 모든 비디오를 미리 마운트하여 끊김 없는 재생
         >
           <OffthreadVideo 
             src={video.url}

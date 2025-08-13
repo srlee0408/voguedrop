@@ -441,6 +441,12 @@ export default function VideoEditorPage() {
   };
 
   const handleResizeVideoClip = (id: string, newDuration: number, handle?: 'left' | 'right', deltaPosition?: number) => {
+    // 안전장치: 최소 너비 체크
+    if (newDuration <= 0) {
+      console.error('[page.tsx] Invalid newDuration:', newDuration, 'for clip:', id);
+      return;
+    }
+    
     setTimelineClips(prev => prev.map(clip => {
       if (clip.id !== id) return clip;
       const updates = applyResizeTrim(clip, newDuration, handle, deltaPosition, PIXELS_PER_SECOND);

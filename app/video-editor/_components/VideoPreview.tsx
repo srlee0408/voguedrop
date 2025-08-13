@@ -59,6 +59,10 @@ export default function VideoPreview({
   const [currentIndex, setCurrentIndex] = useState(0);
   // 전체 화면 미리보기 모달 상태
   const [isFullscreenOpen, setIsFullscreenOpen] = useState(false);
+  // Player 초기 로딩 상태 - 클립이 있으면 초기에 true
+  const [isPlayerLoading, setIsPlayerLoading] = useState(clips.length > 0);
+  // 버퍼링 상태 추적
+  const [isBuffering, setIsBuffering] = useState(false);
   
   const containerRef = useRef<HTMLDivElement>(null);
   const { ITEM_WIDTH, ITEM_HEIGHT, ITEM_GAP } = CAROUSEL_CONFIG;
@@ -118,6 +122,48 @@ export default function VideoPreview({
       setCurrentIndex(0);
     }
   }, [clips, selected_preview_clip_id]);
+  
+  // 클립이 변경될 때 로딩 상태 설정
+  useEffect(() => {
+    if (clips.length > 0) {
+      setIsPlayerLoading(true);
+      // 비디오 로딩에 필요한 최소 시간 설정
+      // premountFor=Infinity로 모든 비디오가 프리로드되므로 짧은 시간 설정
+      const timer = setTimeout(() => {
+        setIsPlayerLoading(false);
+      }, 1500); // 1.5초 후 로딩 해제
+      return () => clearTimeout(timer);
+    } else {
+      setIsPlayerLoading(false);
+    }
+  }, [clips.length]); // clips의 길이만 의존성으로 설정하여 불필요한 리렌더링 방지
+  
+  // Player 이벤트 리스너 설정 - 버퍼링 상태 추적
+  useEffect(() => {
+    if (!playerRef?.current) return;
+
+    const player = playerRef.current;
+    
+    // waiting 이벤트 - 버퍼링 시작
+    const handleWaiting = () => {
+      setIsBuffering(true);
+    };
+    
+    // resume 이벤트 - 버퍼링 종료
+    const handleResume = () => {
+      setIsBuffering(false);
+    };
+    
+    // 이벤트 리스너 등록
+    player.addEventListener('waiting', handleWaiting);
+    player.addEventListener('resume', handleResume);
+    
+    // 클린업
+    return () => {
+      player.removeEventListener('waiting', handleWaiting);
+      player.removeEventListener('resume', handleResume);
+    };
+  }, [playerRef]);
   
   // 선택된 클립이 변경되면 해당 인덱스로 이동
   useEffect(() => {
@@ -582,14 +628,34 @@ export default function VideoPreview({
                     display: 'block'
                   }}
                   controls={false}
-                    showVolumeControls={false}
-                    clickToPlay={false}
-                    doubleClickToFullscreen={false}
+                  showVolumeControls={false}
+                  clickToPlay={false}
+                  doubleClickToFullscreen={false}
                   />
                   
+                  {/* 초기 로딩 인디케이터 오버레이 */}
+                  {isPlayerLoading && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg z-50">
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="w-12 h-12 border-4 border-gray-600 border-t-[#38f47cf9] rounded-full animate-spin"></div>
+                        <p className="text-white text-sm font-medium">Loading videos...</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* 버퍼링 인디케이터 오버레이 */}
+                  {isBuffering && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-lg z-50">
+                      <div className="flex flex-col items-center gap-3">
+                        {/* 버퍼링 스피너 */}
+                        <div className="w-10 h-10 border-3 border-gray-500 border-t-[#38f47cf9] rounded-full animate-spin"></div>
+                        <p className="text-white/80 text-xs font-medium">Buffering...</p>
+                      </div>
+                    </div>
+                  )}
+                  
                   {/* 텍스트 편집 오버레이 - Player와 같은 컨테이너 내에 위치 */}
-                  <div className="absolute inset-0 overflow-hidden rounded-lg z-40">
-                    <TextOverlayEditor
+                  <TextOverlayEditor
                     textClips={textClips}
                     containerWidth={videoAspectRatio.width}
                     containerHeight={videoAspectRatio.height}
@@ -610,9 +676,9 @@ export default function VideoPreview({
                       if (onSelectTextClip) {
                         onSelectTextClip(id);
                       }
-                      }}
-                    />
-                  </div>
+                    }}
+                    aspectRatio={selectedAspectRatio}
+                  />
                 </div>
               </div>
             ) : (

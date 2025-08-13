@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { VideoClip as VideoClipType, TextClip as TextClipType, SoundClip as SoundClipType } from '@/types/video-editor';
-import { validateClipDuration, getTimelineEnd } from '../_utils/timeline-utils';
+import { validateClipDuration, getTimelineEnd, BaseClip } from '../_utils/timeline-utils';
 import TextClip from './TextClip';
 import SoundClip from './SoundClip';
 import TimelineControls from './TimelineControls';
@@ -102,6 +102,8 @@ export default function Timeline({
   const [initialDragX, setInitialDragX] = useState(0);
   const [resizeMoved, setResizeMoved] = useState(false);
   const RESIZE_ACTIVATION_DELTA = 10;
+  const [finalResizeWidth, setFinalResizeWidth] = useState(0);
+  const [finalResizePosition, setFinalResizePosition] = useState(0);
   
   // Shift + 드래그 범위 선택 상태
   const [isSelectingRange, setIsSelectingRange] = useState(false);
@@ -296,19 +298,28 @@ export default function Timeline({
     setResizeMoved(false);
     
     // 현재 클립의 duration과 position 값을 가져와서 저장
+    let currentWidth = 200;
+    let currentPosition = 0;
+    
     if (clipType === 'video') {
       const clip = clips.find(c => c.id === clipId);
-      setStartWidth(clip?.duration || 200);
-      setStartPosition(clip?.position || 0);
+      currentWidth = clip?.duration || 200;
+      currentPosition = clip?.position || 0;
     } else if (clipType === 'text') {
       const clip = textClips.find(c => c.id === clipId);
-      setStartWidth(clip?.duration || 200);
-      setStartPosition(clip?.position || 0);
+      currentWidth = clip?.duration || 200;
+      currentPosition = clip?.position || 0;
     } else if (clipType === 'sound') {
       const clip = soundClips.find(c => c.id === clipId);
-      setStartWidth(clip?.duration || 200);
-      setStartPosition(clip?.position || 0);
+      currentWidth = clip?.duration || 200;
+      currentPosition = clip?.position || 0;
     }
+    
+    setStartWidth(currentWidth);
+    setStartPosition(currentPosition);
+    // 초기값 설정 - 리사이징 시작 시 현재 값으로 초기화
+    setFinalResizeWidth(currentWidth);
+    setFinalResizePosition(currentPosition);
   };
 
   useEffect(() => {
@@ -326,20 +337,32 @@ export default function Timeline({
 
         let newWidth = startWidth;
         let newPosition = startPosition;
+        let isBlocked = false; // 초기 블로킹 플래그
+
+        // 같은 트랙의 다른 클립들 가져오기 (현재 클립 제외)
+        let trackClips: BaseClip[] = [];
+        if (activeClipType === 'video') {
+          trackClips = clips.filter(c => c.id !== activeClip);
+        } else if (activeClipType === 'text') {
+          trackClips = textClips.filter(c => c.id !== activeClip);
+        } else if (activeClipType === 'sound') {
+          trackClips = soundClips.filter(c => c.id !== activeClip);
+        }
+
+        // 인접 클립 찾기
+        const leftAdjacentClip = trackClips
+          .filter(c => c.position + c.duration <= startPosition)
+          .sort((a, b) => (b.position + b.duration) - (a.position + a.duration))[0];
+        
+        const rightAdjacentClip = trackClips
+          .filter(c => c.position >= startPosition + startWidth)
+          .sort((a, b) => a.position - b.position)[0];
 
         if (resizeHandle === 'left') {
           // 왼쪽 핸들: 양방향 리사이즈 가능 (원본 범위 내에서)
           // delta < 0: 왼쪽으로 확장, delta > 0: 오른쪽으로 축소
-          newPosition = Math.max(0, startPosition + delta);
-          newWidth = startWidth + (startPosition - newPosition);
           
-          // 최소 너비 체크
-          if (newWidth < 80) {
-            newWidth = 80;
-            newPosition = startPosition + startWidth - 80;
-          }
-          
-          // 원본 시작점을 넘어서 확장하지 않도록 제한
+          // 초기 블로킹 체크: 원본 시작점에서 더 확장 불가
           if (activeClipType === 'video' || activeClipType === 'sound') {
             const clipData = activeClipType === 'video' 
               ? clips.find(c => c.id === activeClip)
@@ -347,32 +370,78 @@ export default function Timeline({
             
             if (clipData) {
               const currentStartTime = clipData.startTime || 0;
-              const maxDuration = clipData.maxDuration || Infinity;
-              
-              // 왼쪽으로 확장 시 원본 시작점(0) 체크
-              const deltaPositionPx = newPosition - startPosition;
-              const newStartTimeSeconds = currentStartTime + (deltaPositionPx / pixelsPerSecond);
-              
-              if (newStartTimeSeconds < 0) {
-                // 원본 시작점을 넘어서는 확장 제한
-                const maxExpansion = currentStartTime * pixelsPerSecond;
-                newPosition = Math.max(0, startPosition - maxExpansion);
-                newWidth = startWidth + (startPosition - newPosition);
-              }
-              
-              // 원본 끝점을 넘어서지 않도록 제한
-              const newEndTimeSeconds = newStartTimeSeconds + (newWidth / pixelsPerSecond);
-              if (isFinite(maxDuration / pixelsPerSecond) && newEndTimeSeconds > maxDuration / pixelsPerSecond) {
-                newWidth = (maxDuration / pixelsPerSecond - newStartTimeSeconds) * pixelsPerSecond;
+              // 이미 원본 시작점(0)에 있고 더 왼쪽으로 확장하려는 경우
+              if (currentStartTime === 0 && delta < 0) {
+                isBlocked = true;
+                newPosition = startPosition;
+                newWidth = startWidth;
               }
             }
           }
+          
+          // 블로킹되지 않은 경우에만 계산 수행
+          if (!isBlocked) {
+            // 기본 계산
+            newPosition = Math.max(0, startPosition + delta);
+            newWidth = startWidth + (startPosition - newPosition);
+            
+            // 1. 왼쪽 인접 클립과의 충돌 체크
+            if (leftAdjacentClip) {
+              const minPosition = leftAdjacentClip.position + leftAdjacentClip.duration;
+              if (newPosition < minPosition) {
+                newPosition = minPosition;
+                newWidth = startPosition + startWidth - newPosition;
+              }
+            }
+            
+            // 2. 원본 범위 체크 (video/sound만)
+            if (activeClipType === 'video' || activeClipType === 'sound') {
+              const clipData = activeClipType === 'video' 
+                ? clips.find(c => c.id === activeClip)
+                : soundClips.find(c => c.id === activeClip);
+              
+              if (clipData) {
+                const currentStartTime = clipData.startTime || 0;
+                const maxDuration = clipData.maxDuration || Infinity;
+                
+                // 왼쪽으로 확장 시 원본 시작점(0) 체크
+                const deltaPositionPx = newPosition - startPosition;
+                const newStartTimeSeconds = currentStartTime + (deltaPositionPx / pixelsPerSecond);
+                
+                if (newStartTimeSeconds < 0) {
+                  // 원본 시작점을 넘어서는 확장 제한
+                  const maxExpansion = currentStartTime * pixelsPerSecond;
+                  newPosition = Math.max(0, startPosition - maxExpansion);
+                  newWidth = startWidth + (startPosition - newPosition);
+                }
+                
+                // 원본 끝점을 넘어서지 않도록 제한
+                const newEndTimeSeconds = newStartTimeSeconds + (newWidth / pixelsPerSecond);
+                if (isFinite(maxDuration / pixelsPerSecond) && newEndTimeSeconds > maxDuration / pixelsPerSecond) {
+                  newWidth = (maxDuration / pixelsPerSecond - newStartTimeSeconds) * pixelsPerSecond;
+                }
+              }
+            }
+            
+            // 3. 최종 최소 너비 체크
+            if (newWidth < 80) {
+              newWidth = 80;
+              const maxPossiblePosition = startPosition + startWidth - 80;
+              newPosition = Math.min(newPosition, maxPossiblePosition);
+              newPosition = Math.max(0, newPosition);
+            }
+            
+            // 4. Position 최종 검증
+            newPosition = Math.max(0, newPosition);
+            newWidth = startPosition + startWidth - newPosition;
+            newWidth = Math.max(80, newWidth);
+          }
+          
         } else {
           // 오른쪽 핸들: 양방향 리사이즈 가능 (원본 범위 내에서)
           // delta > 0: 오른쪽으로 확장, delta < 0: 왼쪽으로 축소
-          newWidth = Math.max(80, startWidth + delta);
           
-          // 원본 끝점을 넘어서 확장하지 않도록 제한
+          // 초기 블로킹 체크: 원본 끝점에서 더 확장 불가
           if (activeClipType === 'video' || activeClipType === 'sound') {
             const clipData = activeClipType === 'video'
               ? clips.find(c => c.id === activeClip)
@@ -382,34 +451,85 @@ export default function Timeline({
               const currentStartTime = clipData.startTime || 0;
               const maxDuration = clipData.maxDuration || Infinity;
               
-              // 원본 길이를 초과하지 않도록 제한
-              const maxAllowedWidth = isFinite(maxDuration) 
-                ? maxDuration - (currentStartTime * pixelsPerSecond)
-                : newWidth;
-              
-              newWidth = Math.min(newWidth, maxAllowedWidth);
+              if (isFinite(maxDuration)) {
+                // 현재 클립의 끝 시간 계산
+                const currentEndTimeSeconds = currentStartTime + (startWidth / pixelsPerSecond);
+                const maxEndTimeSeconds = maxDuration / pixelsPerSecond;
+                
+                // 이미 원본 끝에 도달했고 더 오른쪽으로 확장하려는 경우
+                if (Math.abs(currentEndTimeSeconds - maxEndTimeSeconds) < 0.01 && delta > 0) {
+                  isBlocked = true;
+                  newWidth = startWidth;
+                }
+              }
             }
+          }
+          
+          // 블로킹되지 않은 경우에만 계산 수행
+          if (!isBlocked) {
+            // 기본 계산
+            newWidth = startWidth + delta;
+            
+            // 1. 오른쪽 인접 클립과의 충돌 체크
+            if (rightAdjacentClip) {
+              const maxWidth = rightAdjacentClip.position - startPosition;
+              if (newWidth > maxWidth) {
+                newWidth = maxWidth;
+              }
+            }
+            
+            // 2. 원본 범위 체크 (video/sound만)
+            if (activeClipType === 'video' || activeClipType === 'sound') {
+              const clipData = activeClipType === 'video'
+                ? clips.find(c => c.id === activeClip)
+                : soundClips.find(c => c.id === activeClip);
+              
+              if (clipData) {
+                const currentStartTime = clipData.startTime || 0;
+                const maxDuration = clipData.maxDuration || Infinity;
+                
+                // 원본 길이를 초과하지 않도록 제한
+                const maxAllowedWidth = isFinite(maxDuration) 
+                  ? maxDuration - (currentStartTime * pixelsPerSecond)
+                  : newWidth;
+                
+                newWidth = Math.min(newWidth, maxAllowedWidth);
+              }
+            }
+            
+            // 3. 최종 최소 너비 보장
+            newWidth = Math.max(80, newWidth);
           }
         }
 
-        // Apply max duration limits for all clip types (안전 장치)
-        if (activeClipType === 'video') {
-          const clipData = clips.find(c => c.id === activeClip);
-          newWidth = validateClipDuration(newWidth, clipData?.maxDuration);
-        } else if (activeClipType === 'text') {
-          const clipData = textClips.find(c => c.id === activeClip);
-          newWidth = validateClipDuration(newWidth, clipData?.maxDuration);
-        } else if (activeClipType === 'sound') {
-          const clipData = soundClips.find(c => c.id === activeClip);
-          newWidth = validateClipDuration(newWidth, clipData?.maxDuration);
+        // 블로킹되지 않은 경우에만 추가 처리
+        if (!isBlocked) {
+          // Apply max duration limits for all clip types (안전 장치)
+          if (activeClipType === 'video') {
+            const clipData = clips.find(c => c.id === activeClip);
+            newWidth = validateClipDuration(newWidth, clipData?.maxDuration);
+          } else if (activeClipType === 'text') {
+            const clipData = textClips.find(c => c.id === activeClip);
+            newWidth = validateClipDuration(newWidth, clipData?.maxDuration);
+          } else if (activeClipType === 'sound') {
+            const clipData = soundClips.find(c => c.id === activeClip);
+            newWidth = validateClipDuration(newWidth, clipData?.maxDuration);
+          }
         }
 
-        // DOM 업데이트
-        const clipElement = document.querySelector(`[data-clip-id="${activeClip}"]`) as HTMLElement;
-        if (clipElement) {
-          clipElement.style.width = `${newWidth}px`;
-          if (resizeHandle === 'left') {
-            clipElement.style.left = `${newPosition}px`;
+        // 최종 값 상태로 저장 (mouseUp에서 사용)
+        // 블로킹 상태에 관계없이 항상 유효한 값을 저장
+        setFinalResizeWidth(newWidth);
+        setFinalResizePosition(newPosition);
+        
+        // DOM 업데이트 - 블로킹되지 않은 경우에만
+        if (!isBlocked) {
+          const clipElement = document.querySelector(`[data-clip-id="${activeClip}"]`) as HTMLElement;
+          if (clipElement) {
+            clipElement.style.width = `${newWidth}px`;
+            if (resizeHandle === 'left') {
+              clipElement.style.left = `${newPosition}px`;
+            }
           }
         }
       } else if (isDragging) {
@@ -527,16 +647,63 @@ export default function Timeline({
             clipElement.style.left = `${originalPosition}px`;
             clipElement.style.width = `${originalDuration}px`;
           } else {
-            const finalWidth = clipElement.offsetWidth;
+            // DOM에서 읽지 말고 저장된 상태 사용
+            const finalWidth = finalResizeWidth || startWidth;
             // 왼쪽 핸들로 리사이즈한 경우에만 position 변경
             const finalPosition = resizeHandle === 'left' 
-              ? (parseFloat(clipElement.style.left) || startPosition)
+              ? (finalResizePosition !== null && finalResizePosition !== undefined ? finalResizePosition : startPosition)
               : startPosition;
+            
+            // 안전장치: 너비가 0이거나 음수인 경우 원래 값 사용
+            if (finalWidth <= 0) {
+              console.warn('[Timeline] Invalid width detected:', finalWidth, 'Using original width:', startWidth);
+              // 원래 값으로 복원
+              let originalWidth = startWidth;
+              let originalPosition = startPosition;
+              
+              if (activeClipType === 'video') {
+                const clip = clips.find(c => c.id === activeClip);
+                if (clip) {
+                  originalWidth = clip.duration;
+                  originalPosition = clip.position;
+                }
+              } else if (activeClipType === 'text') {
+                const clip = textClips.find(c => c.id === activeClip);
+                if (clip) {
+                  originalWidth = clip.duration;
+                  originalPosition = clip.position;
+                }
+              } else if (activeClipType === 'sound') {
+                const clip = soundClips.find(c => c.id === activeClip);
+                if (clip) {
+                  originalWidth = clip.duration;
+                  originalPosition = clip.position;
+                }
+              }
+              
+              // DOM 스타일 복원
+              clipElement.style.width = `${originalWidth}px`;
+              clipElement.style.left = `${originalPosition}px`;
+              return; // 업데이트 호출하지 않음
+            }
             
             if (activeClipType === 'video') {
               const clipData = clips.find(c => c.id === activeClip);
               const maxPx = clipData?.maxDuration ?? Infinity;
               const startSeconds = clipData?.startTime || 0;
+              const endSeconds = clipData?.endTime;
+              
+              // 오른쪽 핸들로 리사이즈한 경우: endTime이 이미 maxDuration에 도달했다면 그대로 유지
+              if (resizeHandle === 'right' && endSeconds && isFinite(maxPx)) {
+                const maxEndSeconds = maxPx / pixelsPerSecond;
+                if (Math.abs(endSeconds - maxEndSeconds) < 0.01) {
+                  // 이미 끝에 도달한 상태, 현재 너비 유지
+                  // 블로킹된 상태에서는 업데이트를 호출하지 않음 (이미 최대값에 있음)
+                  // 스타일도 그대로 유지
+                  return;
+                }
+              }
+              
               // 왼쪽 핸들이면 새로운 startTime을 미리 계산하여 남은 길이 내에서만 허용
               const deltaPositionPx = resizeHandle === 'left' ? (finalPosition - startPosition) : 0;
               const newStartSeconds = Math.max(0, startSeconds + (deltaPositionPx / pixelsPerSecond));
@@ -548,6 +715,11 @@ export default function Timeline({
                 onUpdateVideoClipPosition(activeClip, finalPosition);
               }
               if (onResizeVideoClip) {
+                // 안전장치: 너비가 0이거나 음수면 호출하지 않음
+                if (clampedWidth <= 0) {
+                  console.error('[Timeline] Invalid clampedWidth:', clampedWidth, 'Skipping resize');
+                  return;
+                }
                 // position 변화량 계산 (왼쪽 핸들일 때만)
                 const deltaPosition = resizeHandle === 'left' ? finalPosition - startPosition : 0;
                 onResizeVideoClip(activeClip, clampedWidth, resizeHandle || undefined, deltaPosition);
@@ -580,13 +752,9 @@ export default function Timeline({
               }
             }
 
-            // 스타일 리셋: 상태 반영 후 인라인 스타일은 초기화
-            // 오른쪽 핸들일 때는 left 스타일 유지 (position 변경 없으므로)
-            if (resizeHandle === 'left') {
-              clipElement.style.left = '';
-            } else {
-            }
-            clipElement.style.width = '';
+            // 스타일은 리셋하지 않고 유지 - React 상태 업데이트가 DOM을 다시 렌더링할 때까지
+            // 인라인 스타일을 지우면 width가 0이 될 수 있음
+            // React가 다음 렌더링 사이클에서 상태 기반으로 스타일을 다시 설정할 것임
           }
         }
       }
@@ -596,6 +764,8 @@ export default function Timeline({
       setIsResizing(false);
       setResizeHandle(null);
       setResizeMoved(false);
+      setFinalResizeWidth(0);
+      setFinalResizePosition(0);
     };
 
     document.addEventListener('mousemove', handleMouseMove);
@@ -605,7 +775,7 @@ export default function Timeline({
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [activeClip, activeClipType, isDragging, isResizing, dragStartX, startWidth, startPosition, resizeHandle, clips, textClips, soundClips, onResizeVideoClip, onResizeTextClip, onResizeSoundClip, onUpdateVideoClipPosition, onUpdateTextClipPosition, onUpdateSoundClipPosition, onUpdateAllVideoClips, onUpdateAllTextClips, onUpdateAllSoundClips, pixelsPerSecond, dragDirection, initialDragX, resizeMoved]);
+  }, [activeClip, activeClipType, isDragging, isResizing, dragStartX, startWidth, startPosition, resizeHandle, clips, textClips, soundClips, onResizeVideoClip, onResizeTextClip, onResizeSoundClip, onUpdateVideoClipPosition, onUpdateTextClipPosition, onUpdateSoundClipPosition, onUpdateAllVideoClips, onUpdateAllTextClips, onUpdateAllSoundClips, pixelsPerSecond, dragDirection, initialDragX, resizeMoved, finalResizeWidth, finalResizePosition]);
 
   // 드래그 범위 선택 마우스 다운 (Shift 없이도 동작, 헤더 제외)
   const handleSelectionMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {

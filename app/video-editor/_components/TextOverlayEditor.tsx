@@ -13,6 +13,7 @@ interface TextOverlayEditorProps {
   onUpdateSize: (id: string, fontSize: number) => void;
   selectedClip: string | null;
   onSelectClip: (id: string | null) => void;
+  aspectRatio?: string;
 }
 
 
@@ -25,7 +26,8 @@ export default function TextOverlayEditor({
   onUpdatePosition,
   onUpdateSize,
   selectedClip,
-  onSelectClip
+  onSelectClip,
+  aspectRatio
 }: TextOverlayEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [draggedClip, setDraggedClip] = useState<string | null>(null);
@@ -33,17 +35,24 @@ export default function TextOverlayEditor({
   const [showGuides, setShowGuides] = useState(false);
   const [resizingClip, setResizingClip] = useState<string | null>(null);
   const [resizeStart, setResizeStart] = useState({ y: 0, size: 0 });
+  const [, setForceUpdate] = useState(0);
 
   // DOM 크기 기반 스케일 계산 (원본 해상도 대비 표시 배율)
   const getScale = useCallback(() => {
     const rect = containerRef.current?.getBoundingClientRect();
-    if (rect && (containerWidth || 1080) && (containerHeight || 1920)) {
-      const scaleX = rect.width / (containerWidth || 1080);
-      const scaleY = rect.height / (containerHeight || 1920);
-      return Math.min(scaleX, scaleY);
+    if (rect && containerWidth && containerHeight) {
+      const scaleX = rect.width / containerWidth;
+      const scaleY = rect.height / containerHeight;
+      const scale = Math.min(scaleX, scaleY);
+      // 비율 변경 시 더 정확한 스케일 계산을 위한 로직
+      if (aspectRatio) {
+        // 컨테이너가 실제로 리렌더링된 후의 크기를 사용
+        return scale;
+      }
+      return scale;
     }
     return 1;
-  }, [containerWidth, containerHeight]);
+  }, [containerWidth, containerHeight, aspectRatio]);
 
   // 현재 시간에 활성화된 텍스트 클립만 필터링
   const getActiveTextClips = () => {
@@ -250,6 +259,14 @@ export default function TextOverlayEditor({
     }
   }, [draggedClip, resizingClip, dragOffset, resizeStart, textClips, getContainerSize, getScale, onUpdatePosition, onUpdateSize]);
 
+  // 비율 변경 시 강제 리렌더링
+  useEffect(() => {
+    // aspectRatio 또는 container 크기가 변경되면 DOM이 업데이트될 때까지 대기 후 리렌더링
+    requestAnimationFrame(() => {
+      setForceUpdate(prev => prev + 1);
+    });
+  }, [aspectRatio, containerWidth, containerHeight]);
+
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
@@ -274,15 +291,24 @@ export default function TextOverlayEditor({
   return (
     <div 
       ref={containerRef}
-      className="absolute inset-0 z-40 flex items-center justify-center"
-      onClick={() => onSelectClip(null)} // 빈 공간 클릭 시 선택 해제
+      className="absolute inset-0 overflow-hidden rounded-lg flex items-center justify-center"
+      style={{ 
+        zIndex: 50,
+        pointerEvents: 'none' // 컨테이너는 이벤트를 받지 않음
+      }}
     >
       <div
         style={{
           width: `${scaledSize.width}px`,
           height: `${scaledSize.height}px`,
-          // transform 제거 - 크기로 직접 적용
           position: 'relative',
+          pointerEvents: 'auto' // 내부 컨테이너는 이벤트를 받음
+        }}
+        onClick={(e) => {
+          // 빈 공간 클릭 시 선택 해제
+          if (e.target === e.currentTarget) {
+            onSelectClip(null);
+          }
         }}
       >
         {showGuides && (
@@ -338,7 +364,7 @@ export default function TextOverlayEditor({
             fontWeight
           );
           
-          const { width: textWidth, height: textHeight, scaledFontSize } = textMeasurement;
+          const { width: textWidth, height: textHeight } = textMeasurement;
           
           // 2. 패딩 계산 - 스케일 적용
           const hasBackground = !!clip.style?.backgroundColor;
@@ -351,25 +377,22 @@ export default function TextOverlayEditor({
           const boxWidth = (textWidth * scale) + (PADDING_X * 2);
           const boxHeight = (textHeight * scale) + (PADDING_Y * 2);
           
-          // 4. 시각적 스타일 조정 - 폰트 크기도 동일 스케일 적용
-          const displayFontSize = actualFontSize * scale;
-          const isSmallText = displayFontSize < 30;
-          const cornerSize = (isSmallText ? 8 : 12) * scale;
-          const shadowStyle = isSmallText 
-            ? `0 0 0 ${1 * scale}px rgba(255, 255, 255, 0.6)` 
-            : `0 0 0 ${2 * scale}px rgba(255, 255, 255, 0.5), 0 0 ${20 * scale}px rgba(255, 255, 255, 0.3)`;
+          // 4. 시각적 스타일 조정
+          const cornerSize = 12 * scale; // 항상 같은 크기의 코너 사용
           // ---- [ 단순화 종료 ] ----
 
           return (
             <div
               key={clip.id}
-              className="absolute pointer-events-auto"
+              className="absolute"
               style={{
                 left: `${x}px`,
                 top: `${y}px`,
                 transform: transform_style,
                 cursor: draggedClip === clip.id ? 'grabbing' : 'grab',
                 transition: draggedClip === clip.id ? 'none' : 'all 0.1s',
+                pointerEvents: 'auto', // 명시적으로 포인터 이벤트 활성화
+                zIndex: isSelected ? 52 : 51 // 선택된 요소를 위로
               }}
               onMouseDown={(e) => handleMouseDown(e, clip.id)}
               onClick={(e) => {
@@ -388,9 +411,9 @@ export default function TextOverlayEditor({
                   padding: hasBackground 
                     ? `${20 * displayScale}px ${30 * displayScale}px` 
                     : '0',
-                  backgroundColor: 'transparent',
+                  backgroundColor: isSelected ? 'rgba(56, 244, 124, 0.1)' : 'transparent', // 선택 시 약간 보이게
                   borderRadius: '8px',
-                  border: '2px solid transparent',
+                  border: isSelected ? '1px solid rgba(56, 244, 124, 0.3)' : '2px solid transparent',
                   boxSizing: 'border-box',
                   userSelect: 'none',
                   cursor: 'move',
@@ -401,8 +424,8 @@ export default function TextOverlayEditor({
                 }}
               >
                 {/* 텍스트는 표시하지 않음. 실제 Remotion 텍스트가 아래에서 보임 */}
-                {/* 코너 마커 - 선택 시에만 표시 (작은 텍스트는 표시 안 함) */}
-                {isSelected && !isSmallText && (
+                {/* 코너 마커 - 선택 시에만 표시 (모든 크기에서 표시) */}
+                {isSelected && (
                   <>
                     {/* Top-left corner */}
                     <div 

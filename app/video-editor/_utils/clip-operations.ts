@@ -200,8 +200,11 @@ export function applyResizeTrim<T extends { duration: number; startTime?: number
   deltaPositionPx?: number,
   pixelsPerSecond: number = 40
 ): Partial<T> {
+  // 안전장치: 최소 너비 보장
+  const safeDuration = Math.max(80, newDurationPx);
+  
   // duration은 px 단위로 유지 (타임라인과 동일 단위)
-  const updates: Partial<T> = { duration: newDurationPx } as Partial<T>;
+  const updates: Partial<T> = { duration: safeDuration } as Partial<T>;
 
   if (handle === 'left' && typeof deltaPositionPx === 'number') {
     const deltaSeconds = deltaPositionPx / pixelsPerSecond;
@@ -209,11 +212,11 @@ export function applyResizeTrim<T extends { duration: number; startTime?: number
     const newStart = Math.max(0, currentStart + deltaSeconds);
     (updates as Record<string, unknown>).startTime = newStart;
     // 새로운 duration에 맞춰 endTime 재계산 (일관된 구간 길이 유지)
-    const durationSeconds = newDurationPx / pixelsPerSecond;
+    const durationSeconds = safeDuration / pixelsPerSecond;
     (updates as Record<string, unknown>).endTime = newStart + durationSeconds;
   } else if (handle === 'right') {
     const currentStart = clip.startTime ?? 0;
-    const durationSeconds = newDurationPx / pixelsPerSecond;
+    const durationSeconds = safeDuration / pixelsPerSecond;
     (updates as Record<string, unknown>).endTime = currentStart + durationSeconds;
   }
 
