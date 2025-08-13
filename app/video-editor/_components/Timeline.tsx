@@ -532,18 +532,22 @@ export default function Timeline({
     };
   }, [activeClip, activeClipType, isDragging, isResizing, dragStartX, startWidth, startPosition, resizeHandle, clips, textClips, soundClips, onResizeVideoClip, onResizeTextClip, onResizeSoundClip, onUpdateVideoClipPosition, onUpdateTextClipPosition, onUpdateSoundClipPosition, onUpdateAllVideoClips, onUpdateAllTextClips, onUpdateAllSoundClips, pixelsPerSecond, dragDirection, initialDragX, resizeMoved]);
 
-  // 타임라인 눈금: 1칸 = 1초, 30초까지 표시
-  const timeMarkers = Array.from({ length: 31 }, (_, i) => {
-    const minutes = Math.floor(i / 60);
-    const seconds = i % 60;
-    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-  });
-
   // 전체 길이 계산 (초 단위) - 모든 트랙의 최대 끝 지점 계산
   const videoEnd = getTimelineEnd(clips) / pixelsPerSecond;
   const textEnd = getTimelineEnd(textClips) / pixelsPerSecond;
   const soundEnd = getTimelineEnd(soundClips) / pixelsPerSecond;
   const totalDuration = Math.max(videoEnd, textEnd, soundEnd, 0);
+
+  // 타임라인 눈금: 기본 60초, 컨텐츠가 더 길면 자동 확장 (10초 여유 추가)
+  const minimumDuration = 60; // 기본 60초
+  const bufferTime = 10; // 여유 시간 10초
+  const timelineLength = Math.max(minimumDuration, Math.ceil(totalDuration + bufferTime));
+  
+  const timeMarkers = Array.from({ length: timelineLength }, (_, i) => {
+    const minutes = Math.floor(i / 60);
+    const seconds = i % 60;
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  });
 
   // 플레이헤드 위치 계산 (픽셀)
   const playheadPosition = currentTime * pixelsPerSecond;
@@ -582,12 +586,15 @@ export default function Timeline({
     const handlePlayheadMouseMove = (e: MouseEvent) => {
       if (!isDraggingPlayhead || !onSeek) return;
       
-      // 타임라인 영역의 위치 계산
-      const timelineElement = document.querySelector('.timeline-content');
-      if (!timelineElement) return;
+      // 스크롤 가능한 타임라인 영역 찾기
+      const scrollContainer = document.querySelector('.timeline-content .overflow-x-auto');
+      if (!scrollContainer) return;
       
-      const rect = timelineElement.getBoundingClientRect();
-      const x = e.clientX - rect.left - 192 - 8; // 192px = 12rem (왼쪽 패널), 8px = padding
+      const rect = scrollContainer.getBoundingClientRect();
+      const scrollLeft = scrollContainer.scrollLeft;
+      
+      // 클릭 위치에서 왼쪽 고정 영역(w-48) 너비를 빼고, 스크롤 위치를 더함
+      const x = e.clientX - rect.left - 192 + scrollLeft; // 192px = 12rem (w-48)
       const time = Math.max(0, Math.min(x / pixelsPerSecond, totalDuration));
       onSeek(time);
     };
@@ -620,7 +627,7 @@ export default function Timeline({
         canUndo={canUndo}
         canRedo={canRedo}
       />
-      <div className="relative flex-1 overflow-y-auto overflow-x-hidden min-h-0 timeline-content">
+      <div className="relative flex-1 overflow-y-auto min-h-0 timeline-content">
         {/* Actions 툴바 - 항상 표시 */}
         <div className="flex border-b border-gray-700 bg-gray-900">
           <div className="w-48 flex-shrink-0 p-1 border-r border-gray-700 flex items-center justify-center">
@@ -703,14 +710,60 @@ export default function Timeline({
           </div>
         </div>
         
-        {/* Timeline - 시간 눈금 */}
-        <div className="flex border-b border-gray-700">
-          <div className="w-48 flex-shrink-0 p-1 border-r border-gray-700 flex items-center justify-center">
-            <span className="text-[10px] text-gray-400 font-medium">Timeline</span>
+        {/* 통합 스크롤 영역 시작 */}
+        <div className="flex overflow-x-auto">
+          {/* 왼쪽 고정 영역 */}
+          <div className="flex-shrink-0 w-48">
+            {/* Timeline 라벨 */}
+            <div className="border-b border-r border-gray-700 p-1 h-8 flex items-center justify-center">
+              <span className="text-[10px] text-gray-400 font-medium">Timeline</span>
+            </div>
+        
+            {/* Video Track 라벨 */}
+            <div className="border-b border-r border-gray-700 p-1">
+              <div className="flex flex-col gap-1">
+                <button 
+                  onClick={onAddClip}
+                  className="w-full h-5 bg-black rounded flex items-center justify-start gap-1 px-2 hover:bg-gray-900 transition-colors group"
+                >
+                  <i className="ri-add-line text-[10px] text-[#38f47cf9] group-hover:text-white"></i>
+                  <span className="text-[10px] text-[#38f47cf9] group-hover:text-white">Add Clip</span>
+                </button>
+              </div>
+            </div>
+            {/* Text Track 라벨 */}
+            <div className="border-b border-r border-gray-700 p-1">
+              <div className="flex flex-col gap-1">
+                <button 
+                  onClick={onAddText}
+                  className="w-full h-5 bg-black rounded flex items-center justify-start gap-1 px-2 hover:bg-gray-900 transition-colors group"
+                >
+                  <i className="ri-text text-[10px] text-[#38f47cf9] group-hover:text-white"></i>
+                  <span className="text-[10px] text-[#38f47cf9] group-hover:text-white">Add Text</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Sound Track 라벨 */}
+            <div className="border-r border-gray-700 p-1">
+              <div className="flex flex-col gap-1">
+                <button 
+                  onClick={onAddSound}
+                  className="w-full h-5 bg-black rounded flex items-center justify-start gap-1 px-2 hover:bg-gray-900 transition-colors group"
+                >
+                  <i className="ri-music-line text-[10px] text-[#38f47cf9] group-hover:text-white"></i>
+                  <span className="text-[10px] text-[#38f47cf9] group-hover:text-white">Add Sound</span>
+                </button>
+              </div>
+            </div>
           </div>
-          <div className="flex-1 overflow-x-auto bg-black relative">
+
+          {/* 오른쪽 스크롤 영역 */}
+          <div className="flex-1 relative" style={{ minWidth: `${timelineLength * pixelsPerSecond}px` }}>
+            {/* Timeline 눈금 */}
+            <div className="border-b border-gray-700 bg-black h-8">
               <div 
-                className="flex items-center h-8 relative"
+                className="flex items-center h-full relative"
                 onClick={handleTimelineClick}
                 style={{ cursor: 'pointer' }}
               >
@@ -730,25 +783,12 @@ export default function Timeline({
                   ))}
                 </div>
               </div>
-          </div>
-        </div>
-        
-        {/* Video Track */}
-        <div className="flex border-b border-gray-700">
-          <div className="w-48 flex-shrink-0 p-1 border-r border-gray-700">
-            <div className="flex flex-col gap-1">
-              <button 
-                onClick={onAddClip}
-                className="w-full h-5 bg-black rounded flex items-center justify-start gap-1 px-2 hover:bg-gray-900 transition-colors group"
-              >
-                <i className="ri-add-line text-[10px] text-[#38f47cf9] group-hover:text-white"></i>
-                <span className="text-[10px] text-[#38f47cf9] group-hover:text-white">Add Clip</span>
-              </button>
             </div>
-          </div>
-          <div className="flex-1 p-1 overflow-x-auto" onClick={handleTrackClick}>
-            <div className="relative min-h-[24px]">
-              {clips.map((clip) => (
+
+            {/* Video Track */}
+            <div className="border-b border-gray-700 p-1" onClick={handleTrackClick}>
+              <div className="relative min-h-[24px]">
+                {clips.map((clip) => (
                 <div 
                   key={clip.id}
                   data-clip-id={clip.id}
@@ -792,25 +832,12 @@ export default function Timeline({
                   </div>
                 </div>
               ))}
+              </div>
             </div>
-          </div>
-        </div>
 
-        {/* Text Track */}
-        <div className="flex border-b border-gray-700">
-          <div className="w-48 flex-shrink-0 p-1 border-r border-gray-700">
-            <div className="flex flex-col gap-1">
-              <button 
-                onClick={onAddText}
-                className="w-full h-5 bg-black rounded flex items-center justify-start gap-1 px-2 hover:bg-gray-900 transition-colors group"
-              >
-                <i className="ri-text text-[10px] text-[#38f47cf9] group-hover:text-white"></i>
-                <span className="text-[10px] text-[#38f47cf9] group-hover:text-white">Add Text</span>
-              </button>
-            </div>
-          </div>
-          <div className="flex-1 p-1 overflow-x-auto" onClick={handleTrackClick}>
-            <div className="relative min-h-[24px]">
+            {/* Text Track */}
+            <div className="border-b border-gray-700 p-1" onClick={handleTrackClick}>
+              <div className="relative min-h-[24px]">
               {textClips.map((clip) => (
                 <div
                   key={clip.id}
@@ -843,25 +870,12 @@ export default function Timeline({
                   />
                 </div>
               ))}
+              </div>
             </div>
-          </div>
-        </div>
 
-        {/* Sound Track */}
-        <div className="flex">
-          <div className="w-48 flex-shrink-0 p-1 border-r border-gray-700">
-            <div className="flex flex-col gap-1">
-              <button 
-                onClick={onAddSound}
-                className="w-full h-5 bg-black rounded flex items-center justify-start gap-1 px-2 hover:bg-gray-900 transition-colors group"
-              >
-                <i className="ri-music-line text-[10px] text-[#38f47cf9] group-hover:text-white"></i>
-                <span className="text-[10px] text-[#38f47cf9] group-hover:text-white">Add Sound</span>
-              </button>
-            </div>
-          </div>
-          <div className="flex-1 p-1 overflow-x-auto" onClick={handleTrackClick}>
-            <div className="relative min-h-[24px]">
+            {/* Sound Track */}
+            <div className="p-1" onClick={handleTrackClick}>
+              <div className="relative min-h-[24px]">
               {soundClips.map((clip) => (
                 <div
                   key={clip.id}
@@ -895,35 +909,38 @@ export default function Timeline({
                   />
                 </div>
               ))}
+              </div>
             </div>
-          </div>
-        </div>
-        {/* 통합 플레이헤드 - Timeline부터 시작 */}
-        <div
-          ref={playheadRef}
-          className="absolute bottom-0"
-          style={{
-            top: '32px', // Actions 툴바(32px) 아래부터 시작
-            left: `calc(12rem + ${playheadPosition}px + 8px - 6px)`, // 12rem = w-48, 8px = padding, -6px = 드래그 영역 중앙
-            zIndex: 50,
-            width: '13px', // 드래그 가능한 영역 너비
-            cursor: 'ew-resize'
-          }}
-          onMouseDown={handlePlayheadMouseDown}
-        >
-          {/* 실제 빨간 선 */}
-          <div 
-            className="absolute top-0 bottom-0 w-0.5 bg-red-500"
-            style={{
-              left: '50%',
-              transform: 'translateX(-50%)',
-              boxShadow: '0 0 6px rgba(239, 68, 68, 0.8)',
-              pointerEvents: 'none'
-            }}
-          />
-          {/* 플레이헤드 상단 삼각형 마커 */}
-          <div className="absolute -top-2 left-1/2 transform -translate-x-1/2">
-            <div className="w-0 h-0 border-l-[7px] border-l-transparent border-r-[7px] border-r-transparent border-t-[10px] border-t-red-500"></div>
+
+            {/* 통합 플레이헤드 - Timeline부터 시작 */}
+            <div
+              ref={playheadRef}
+              className="absolute"
+              style={{
+                top: '0', // 타임라인 눈금부터 시작
+                bottom: '0',
+                left: `${playheadPosition}px`,
+                zIndex: 50,
+                width: '13px', // 드래그 가능한 영역 너빔
+                cursor: 'ew-resize'
+              }}
+              onMouseDown={handlePlayheadMouseDown}
+            >
+              {/* 실제 빨간 선 */}
+              <div 
+                className="absolute top-0 bottom-0 w-0.5 bg-red-500"
+                style={{
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  boxShadow: '0 0 6px rgba(239, 68, 68, 0.8)',
+                  pointerEvents: 'none'
+                }}
+              />
+              {/* 플레이헤드 상단 삼각형 마커 */}
+              <div className="absolute -top-2 left-1/2 transform -translate-x-1/2">
+                <div className="w-0 h-0 border-l-[7px] border-l-transparent border-r-[7px] border-r-transparent border-t-[10px] border-t-red-500"></div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
