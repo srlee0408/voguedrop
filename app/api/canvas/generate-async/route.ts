@@ -126,10 +126,11 @@ export async function POST(request: NextRequest) {
     
     await logger.info('Prompt combination completed', {
       prompt_length: combinedPrompt?.length || 0,
-      effects_found: selectedEffects.length
+      effects_found: selectedEffects.length,
+      has_base_prompt: !!basePrompt
     });
     
-    if (!combinedPrompt) {
+    if (!combinedPrompt || !combinedPrompt.trim()) {
       await logger.error('Validation failed: No valid prompt generated');
       return NextResponse.json(
         { error: '최소 하나의 효과나 프롬프트가 필요합니다.' },

@@ -266,6 +266,16 @@ export default function SoundLibraryModal({ onClose, onSelectSounds, onCreateVid
             >
               Upload Audio
             </button>
+
+              {onCreateVideo && (
+                <button
+                  onClick={onCreateVideo}
+                  className="px-6 py-2 bg-primary rounded-button hover:bg-primary/90 text-black flex items-center gap-2"
+                >
+                  <i className="ri-arrow-up-line text-xl"></i>
+                  {t('videoEditor.controls.create')}
+                </button>
+              )}
           </div>
           
           {activeTab === 'preset' ? (
@@ -422,15 +432,6 @@ export default function SoundLibraryModal({ onClose, onSelectSounds, onCreateVid
                   : `Add Selected to Timeline (${selectedAudioIds.size})`
                 }
               </button>
-              {onCreateVideo && (
-                <button
-                  onClick={onCreateVideo}
-                  className="px-6 py-2 bg-primary rounded-button hover:bg-primary/90 text-black flex items-center gap-2"
-                >
-                  <i className="ri-arrow-up-line text-xl"></i>
-                  {t('videoEditor.controls.create')}
-                </button>
-              )}
             </div>
           </div>
         </div>
