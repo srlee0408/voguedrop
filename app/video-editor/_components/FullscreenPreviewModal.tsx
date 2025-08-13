@@ -98,6 +98,7 @@ export default function FullscreenPreviewModal({
       setIsBuffering(true); // 초기 버퍼링 상태
       let hasStartedPlaying = false;
       
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const player = playerRef.current as any;
       
       // 버퍼링 시작
@@ -119,6 +120,7 @@ export default function FullscreenPreviewModal({
       };
       
       // 첫 프레임 렌더링 완료
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const handleFrameUpdate = (e: any) => {
         if (e.detail && e.detail.frame >= 0 && isBuffering) {
           setIsBuffering(false);
@@ -166,7 +168,7 @@ export default function FullscreenPreviewModal({
       setIsBuffering(true);
       setIsPlaying(false);
     }
-  }, [isOpen]);
+  }, [isOpen, isBuffering]);
 
   // 재생 상태 업데이트
   useEffect(() => {
