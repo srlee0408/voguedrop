@@ -227,118 +227,118 @@ export default function VideoPreview({
           </button>
 
           {/* 클립 슬롯들 */}
-          <div 
-            ref={containerRef}
-            className="flex-1 overflow-hidden relative h-full"
-          >
+          {clips.length > 0 ? (
             <div 
-              className="flex items-center h-full"
-              style={{
-                transform: `translateX(${calculateTransform()}px)`,
-                transition: 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
-              }}
+              ref={containerRef}
+              className="flex-1 overflow-hidden relative h-full"
             >
-              {clips.map((clip, index) => {
-                const distance = Math.abs(index - currentIndex);
-                const isCenter = index === currentIndex;
-                const isAdjacent = distance === 1;
-                const scale = isCenter ? 1.1 : isAdjacent ? 0.9 : 0.75;
-                const opacity = isCenter ? 1 : isAdjacent ? 0.8 : 0.5;
-                
-                return (
-                  <div 
-                    key={clip.id} 
-                    className={`flex-shrink-0 transition-all duration-300 flex items-center group ${
-                      !isCenter ? 'hover:opacity-100' : ''
-                    }`}
-                    style={{
-                      width: `${ITEM_WIDTH}px`,
-                      height: `${ITEM_HEIGHT}px`,
-                      marginRight: `${ITEM_GAP}px`,
-                      transform: `scale(${scale})`,
-                      opacity: opacity,
-                    }}
-                  >
-                    <div className="bg-gray-900 rounded-lg overflow-hidden w-full h-full relative transition-all duration-200 hover:shadow-xl hover:shadow-black/50">
-                      <div
-                        role="button"
-                        tabIndex={0}
-                        className="relative w-full h-full cursor-pointer transition-all duration-200 hover:scale-105"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          goToIndex(index);
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
+              <div 
+                className="flex items-center h-full"
+                style={{
+                  transform: `translateX(${calculateTransform()}px)`,
+                  transition: 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
+                }}
+              >
+                {clips.map((clip, index) => {
+                  const distance = Math.abs(index - currentIndex);
+                  const isCenter = index === currentIndex;
+                  const isAdjacent = distance === 1;
+                  const scale = isCenter ? 1.1 : isAdjacent ? 0.9 : 0.75;
+                  const opacity = isCenter ? 1 : isAdjacent ? 0.8 : 0.5;
+                  
+                  return (
+                    <div 
+                      key={clip.id} 
+                      className={`flex-shrink-0 transition-all duration-300 flex items-center group ${
+                        !isCenter ? 'hover:opacity-100' : ''
+                      }`}
+                      style={{
+                        width: `${ITEM_WIDTH}px`,
+                        height: `${ITEM_HEIGHT}px`,
+                        marginRight: `${ITEM_GAP}px`,
+                        transform: `scale(${scale})`,
+                        opacity: opacity,
+                      }}
+                    >
+                      <div className="bg-gray-900 rounded-lg overflow-hidden w-full h-full relative transition-all duration-200 hover:shadow-xl hover:shadow-black/50">
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          className="relative w-full h-full cursor-pointer transition-all duration-200 hover:scale-105"
+                          onClick={(e) => {
+                            e.stopPropagation();
                             goToIndex(index);
-                          }
-                        }}
-                      >
-                        {/* 썸네일 이미지 - object-contain으로 비율 유지 */}
-                        {clip.thumbnail ? (
-                          <div
-                            className="absolute inset-0 bg-center bg-no-repeat transition-all duration-200 hover:brightness-110"
-                            style={{ 
-                              backgroundImage: `url('${clip.thumbnail}')`,
-                              backgroundSize: 'contain'
-                            }}
-                          />
-                        ) : (
-                          <div className="absolute inset-0 flex items-center justify-center text-gray-600">
-                            <i className="ri-video-line text-4xl"></i>
-                          </div>
-                        )}
-                        
-                        {/* 중앙 클립 강조 효과 */}
-                        {isCenter && (
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
-                        )}
-                        
-                        {/* 삭제 버튼 - 중앙 클립에만 표시 */}
-                        {onRemoveClip && isCenter && (
-                          <div className="absolute bottom-2 right-2">
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              goToIndex(index);
+                            }
+                          }}
+                        >
+                          {/* 썸네일 이미지 - object-contain으로 비율 유지 */}
+                          {clip.thumbnail ? (
                             <div
-                              role="button"
-                              tabIndex={0}
-                              className="w-7 h-7 flex items-center justify-center bg-black/40 hover:bg-black/60 rounded transition-opacity"
-                              onClick={(e) => { 
-                                e.stopPropagation(); 
-                                onRemoveClip(clip.id);
-                                // 삭제 후 인덱스 조정
-                                if (index === clips.length - 1 && index > 0) {
-                                  setCurrentIndex(index - 1);
-                                }
+                              className="absolute inset-0 bg-center bg-no-repeat transition-all duration-200 hover:brightness-110"
+                              style={{ 
+                                backgroundImage: `url('${clip.thumbnail}')`,
+                                backgroundSize: 'contain'
                               }}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter' || e.key === ' ') {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  onRemoveClip(clip.id);
-                                }
-                              }}
-                              aria-label="Remove clip"
-                            >
-                              <i className="ri-delete-bin-line text-white text-xs"></i>
+                            />
+                          ) : (
+                            <div className="absolute inset-0 flex items-center justify-center text-gray-600">
+                              <i className="ri-video-line text-4xl"></i>
                             </div>
-                          </div>
-                        )}
+                          )}
+                          
+                          {/* 중앙 클립 강조 효과 */}
+                          {isCenter && (
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
+                          )}
+                          
+                          {/* 삭제 버튼 - 중앙 클립에만 표시 */}
+                          {onRemoveClip && isCenter && (
+                            <div className="absolute bottom-2 right-2">
+                              <div
+                                role="button"
+                                tabIndex={0}
+                                className="w-7 h-7 flex items-center justify-center bg-black/40 hover:bg-black/60 rounded transition-opacity"
+                                onClick={(e) => { 
+                                  e.stopPropagation(); 
+                                  onRemoveClip(clip.id);
+                                  // 삭제 후 인덱스 조정
+                                  if (index === clips.length - 1 && index > 0) {
+                                    setCurrentIndex(index - 1);
+                                  }
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    onRemoveClip(clip.id);
+                                  }
+                                }}
+                                aria-label="Remove clip"
+                              >
+                                <i className="ri-delete-bin-line text-white text-xs"></i>
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-              
-              {/* 빈 상태 표시 */}
-              {clips.length === 0 && (
-                <div className="w-full h-full flex items-center justify-center">
-                  <div className="text-gray-500 text-sm">
-                    No clips added yet
-                  </div>
-                </div>
-              )}
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          ) : (
+            /* 빈 상태 표시 */
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-green-500 text-sm">
+                No clips added yet
+              </div>
+            </div>
+          )}
 
             {/* 다음 버튼 */}
             <button
@@ -636,9 +636,9 @@ export default function VideoPreview({
                       backgroundColor: previewBackground === 'checkerboard' ? 'transparent' : undefined 
                     }}
                   >
-                    <div className="text-gray-500 text-sm text-center">
+                    <div className="text-green-500 text-sm text-center">
                       <div className="mb-2">Add clips to see preview</div>
-                      <div className="text-xs text-gray-600">
+                      <div className="text-xs text-green-500">
                         {aspectRatioDimensions.description}
                       </div>
                     </div>
