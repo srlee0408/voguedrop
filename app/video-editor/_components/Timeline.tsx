@@ -69,11 +69,8 @@ export default function Timeline({
   onSplitSoundClip,
   onResizeTextClip,
   onResizeSoundClip,
-  // onReorderVideoClips, // Commented out - not currently used
   onUpdateVideoClipPosition,
   onUpdateTextClipPosition,
-  // onReorderTextClips, // Commented out - not currently used
-  // onReorderSoundClips, // Commented out - not currently used
   onResizeVideoClip,
   onUpdateSoundClipPosition,
   onUpdateAllVideoClips,
@@ -99,9 +96,6 @@ export default function Timeline({
   const [startWidth, setStartWidth] = useState(0);
   const [startPosition, setStartPosition] = useState(0);
   const [resizeHandle, setResizeHandle] = useState<'left' | 'right' | null>(null);
-  // const [draggedClip, setDraggedClip] = useState<{ id: string; type: 'video' | 'text' | 'sound'; index: number } | null>(null);
-  const [dragOverIndex] = useState<number | null>(null);
-  const [dragOverType] = useState<'video' | 'text' | 'sound' | null>(null);
   const playheadRef = useRef<HTMLDivElement>(null);
   const [isDraggingPlayhead, setIsDraggingPlayhead] = useState(false);
   const [dragDirection, setDragDirection] = useState<'left' | 'right'>('right');
@@ -204,60 +198,17 @@ export default function Timeline({
     return false;
   };
 
-  // Drag and drop handlers - currently unused but preserved for future implementation
-  // const handleDragStart = (e: React.DragEvent, id: string, type: 'video' | 'text' | 'sound', index: number) => {
-  //   setDraggedClip({ id, type, index });
-  //   e.dataTransfer.effectAllowed = 'move';
-  // };
-
-  // const handleDragOver = (e: React.DragEvent, type: 'video' | 'text' | 'sound', index: number) => {
-  //   e.preventDefault();
-  //   if (draggedClip && draggedClip.type === type) {
-  //     setDragOverIndex(index);
-  //     setDragOverType(type);
-  //   }
-  // };
-
-  // const handleDragEnd = () => {
-  //   setDraggedClip(null);
-  //   setDragOverIndex(null);
-  //   setDragOverType(null);
-  // };
-
-  // const handleDrop = (e: React.DragEvent, type: 'video' | 'text' | 'sound', dropIndex: number) => {
-  //   e.preventDefault();
-    
-  //   if (!draggedClip || draggedClip.type !== type) return;
-    
-  //   if (type === 'video' && onReorderVideoClips) {
-  //     const newClips = [...clips];
-  //     const [movedClip] = newClips.splice(draggedClip.index, 1);
-  //     newClips.splice(dropIndex, 0, movedClip);
-  //     onReorderVideoClips(newClips);
-  //   } else if (type === 'text' && onReorderTextClips) {
-  //     const newClips = [...textClips];
-  //     const [movedClip] = newClips.splice(draggedClip.index, 1);
-  //     newClips.splice(dropIndex, 0, movedClip);
-  //     onReorderTextClips(newClips);
-  //   } else if (type === 'sound' && onReorderSoundClips) {
-  //     const newClips = [...soundClips];
-  //     const [movedClip] = newClips.splice(draggedClip.index, 1);
-  //     newClips.splice(dropIndex, 0, movedClip);
-  //     onReorderSoundClips(newClips);
-  //   }
-    
-  //   handleDragEnd();
-  // };
-
   const handleResizeStart = (e: React.MouseEvent, clipId: string, handle: 'left' | 'right', clipType: 'video' | 'text' | 'sound' = 'video') => {
     e.stopPropagation();
     e.preventDefault(); // 이벤트 전파 방지
+    console.log('🔧 리사이즈 시작:', { clipId, handle, clipType, clientX: e.clientX });
     setIsResizing(true);
     setResizeHandle(handle);
     setActiveClip(clipId);
     setActiveClipType(clipType);
     setDragStartX(e.clientX);
     setResizeMoved(false);
+    console.log('🔧 resizeMoved 초기화: false');
     
     // 현재 클립의 duration과 position 값을 가져와서 저장
     if (clipType === 'video') {
@@ -281,13 +232,19 @@ export default function Timeline({
 
       if (isResizing) {
         const delta = e.clientX - dragStartX;
-
-        // 임계치 이전에는 리사이즈 적용하지 않음 (클릭 방지)
         const moveDistance = Math.abs(delta);
-        if (!resizeMoved && moveDistance < RESIZE_ACTIVATION_DELTA) {
-          return;
-        }
-        if (!resizeMoved && moveDistance >= RESIZE_ACTIVATION_DELTA) {
+        
+        console.log('🎯 마우스 이동:', { 
+          delta, 
+          moveDistance, 
+          resizeMoved, 
+          threshold: RESIZE_ACTIVATION_DELTA,
+          willActivate: moveDistance > RESIZE_ACTIVATION_DELTA 
+        });
+
+        // 아직 resizeMoved가 false이고, 움직인 거리가 임계값을 넘으면 true로 설정
+        if (!resizeMoved && moveDistance > RESIZE_ACTIVATION_DELTA) {
+          console.log('✅ 리사이즈 활성화! moveDistance:', moveDistance);
           setResizeMoved(true);
         }
 
@@ -475,11 +432,41 @@ export default function Timeline({
         }
         // 리사이징 종료 시, 실제 duration과 position을 업데이트
         if (clipElement && isResizing) {
-          // 클릭만 했다가 놓은 경우: 변경사항 적용 없이 스타일만 초기화
+          console.log('🏁 리사이즈 종료:', { resizeMoved, isResizing, activeClip });
+          
+          // 클릭만 했다가 놓은 경우: 원래 값으로 복원
           if (!resizeMoved) {
-            clipElement.style.left = '';
-            clipElement.style.width = '';
+            console.log('❌ 리사이즈 취소 (단순 클릭으로 판단)');
+            
+            // 클립의 원래 position과 duration 값으로 스타일 복원
+            let originalPosition = 0;
+            let originalDuration = 0;
+            
+            if (activeClipType === 'video') {
+              const clip = clips.find(c => c.id === activeClip);
+              if (clip) {
+                originalPosition = clip.position;
+                originalDuration = clip.duration;
+              }
+            } else if (activeClipType === 'text') {
+              const clip = textClips.find(c => c.id === activeClip);
+              if (clip) {
+                originalPosition = clip.position;
+                originalDuration = clip.duration;
+              }
+            } else if (activeClipType === 'sound') {
+              const clip = soundClips.find(c => c.id === activeClip);
+              if (clip) {
+                originalPosition = clip.position;
+                originalDuration = clip.duration;
+              }
+            }
+            
+            console.log('🔄 원래 값으로 복원:', { originalPosition, originalDuration });
+            clipElement.style.left = `${originalPosition}px`;
+            clipElement.style.width = `${originalDuration}px`;
           } else {
+            console.log('✅ 리사이즈 적용');
             const finalWidth = clipElement.offsetWidth;
             // 왼쪽 핸들로 리사이즈한 경우에만 position 변경
             const finalPosition = resizeHandle === 'left' 
@@ -539,11 +526,13 @@ export default function Timeline({
           }
         }
       }
+      console.log('🔚 모든 상태 리셋');
       setActiveClip(null);
       setActiveClipType(null);
       setIsDragging(false);
       setIsResizing(false);
       setResizeHandle(null);
+      setResizeMoved(false);
     };
 
     document.addEventListener('mousemove', handleMouseMove);
@@ -771,13 +760,11 @@ export default function Timeline({
           </div>
           <div className="flex-1 p-1 overflow-x-auto" onClick={handleTrackClick}>
             <div className="relative min-h-[24px]">
-              {clips.map((clip, index) => (
+              {clips.map((clip) => (
                 <div 
                   key={clip.id}
                   data-clip-id={clip.id}
                   className={`group absolute top-0 timeline-clip ${
-                    dragOverType === 'video' && dragOverIndex === index ? 'opacity-50' : ''
-                  } ${
                     selectedClip === clip.id ? 'ring-2 ring-[#38f47cf9] rounded' : ''
                   }`}
                   style={{ 
@@ -836,13 +823,11 @@ export default function Timeline({
           </div>
           <div className="flex-1 p-1 overflow-x-auto" onClick={handleTrackClick}>
             <div className="relative min-h-[24px]">
-              {textClips.map((clip, index) => (
+              {textClips.map((clip) => (
                 <div
                   key={clip.id}
                   data-clip-id={clip.id}
                   className={`timeline-clip absolute top-0 ${
-                    dragOverType === 'text' && dragOverIndex === index ? 'opacity-50' : ''
-                  } ${
                     selectedClip === clip.id ? 'ring-2 ring-[#38f47cf9] rounded' : ''
                   }`}
                   style={{ 
@@ -889,13 +874,11 @@ export default function Timeline({
           </div>
           <div className="flex-1 p-1 overflow-x-auto" onClick={handleTrackClick}>
             <div className="relative min-h-[24px]">
-              {soundClips.map((clip, index) => (
+              {soundClips.map((clip) => (
                 <div
                   key={clip.id}
                   data-clip-id={clip.id}
                   className={`timeline-clip absolute top-0 ${
-                    dragOverType === 'sound' && dragOverIndex === index ? 'opacity-50' : ''
-                  } ${
                     selectedClip === clip.id ? 'ring-2 ring-[#38f47cf9] rounded' : ''
                   }`}
                   style={{ 
