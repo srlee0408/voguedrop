@@ -94,24 +94,27 @@ export const CompositePreview: React.FC<CompositePreviewProps> = ({
             let left = '50%';
             let transform = 'translate(-50%, -50%)';
             
-            // 수직 위치
-            if (style?.verticalPosition === 'top') {
-              top = '15%';
-            } else if (style?.verticalPosition === 'bottom') {
-              top = '85%';
-            } else if (style?.positionY !== undefined) {
-              top = `${style.positionY}%`;
-            }
-            
-            // 수평 위치
-            if (style?.alignment === 'left') {
-              left = '10%';
-              transform = 'translateY(-50%)';
-            } else if (style?.alignment === 'right') {
-              left = '90%';
-              transform = 'translate(-100%, -50%)';
-            } else if (style?.positionX !== undefined) {
+            // positionX와 positionY가 있으면 우선 사용
+            if (style?.positionX !== undefined && style?.positionY !== undefined) {
               left = `${style.positionX}%`;
+              top = `${style.positionY}%`;
+              transform = 'translate(-50%, -50%)';
+            } else {
+              // 수직 위치
+              if (style?.verticalPosition === 'top') {
+                top = '15%';
+              } else if (style?.verticalPosition === 'bottom') {
+                top = '85%';
+              }
+              
+              // 수평 위치
+              if (style?.alignment === 'left') {
+                left = '10%';
+                transform = 'translateY(-50%)';
+              } else if (style?.alignment === 'right') {
+                left = '90%';
+                transform = 'translate(-100%, -50%)';
+              }
             }
             
             return { top, left, transform };
