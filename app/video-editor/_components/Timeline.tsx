@@ -521,7 +521,13 @@ export default function Timeline({
             }
 
             // 스타일 리셋: 상태 반영 후 인라인 스타일은 초기화
-            clipElement.style.left = '';
+            // 오른쪽 핸들일 때는 left 스타일 유지 (position 변경 없으므로)
+            if (resizeHandle === 'left') {
+              console.log('🔄 왼쪽 핸들: left 스타일 초기화');
+              clipElement.style.left = '';
+            } else {
+              console.log('🔄 오른쪽 핸들: left 스타일 유지');
+            }
             clipElement.style.width = '';
           }
         }
