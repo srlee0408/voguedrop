@@ -1095,41 +1095,35 @@ export default function Timeline({
             </div>
         
             {/* Video Track 라벨 */}
-            <div className="border-b border-r border-gray-700 p-1">
-              <div className="flex flex-col gap-1">
-                <button 
-                  onClick={onAddClip}
-                  className="w-full h-5 bg-black rounded flex items-center justify-start gap-1 px-2 hover:bg-gray-900 transition-colors group"
-                >
-                  <i className="ri-add-line text-[10px] text-[#38f47cf9] group-hover:text-white"></i>
-                  <span className="text-[10px] text-[#38f47cf9] group-hover:text-white">Add Clip</span>
-                </button>
-              </div>
+            <div className="border-b border-r border-gray-700 h-8 flex items-center justify-center px-2">
+              <button 
+                onClick={onAddClip}
+                className="w-32 h-6 bg-black rounded flex items-center justify-center gap-1.5 hover:bg-gray-900 transition-colors group"
+              >
+                <i className="ri-add-line text-[13px] text-[#38f47cf9] group-hover:text-white"></i>
+                <span className="text-[13px] text-[#38f47cf9] group-hover:text-white">Add Clip</span>
+              </button>
             </div>
             {/* Text Track 라벨 */}
-            <div className="border-b border-r border-gray-700 p-1">
-              <div className="flex flex-col gap-1">
-                <button 
-                  onClick={onAddText}
-                  className="w-full h-5 bg-black rounded flex items-center justify-start gap-1 px-2 hover:bg-gray-900 transition-colors group"
-                >
-                  <i className="ri-text text-[10px] text-[#38f47cf9] group-hover:text-white"></i>
-                  <span className="text-[10px] text-[#38f47cf9] group-hover:text-white">Add Text</span>
-                </button>
-              </div>
+            <div className="border-b border-r border-gray-700 h-8 flex items-center justify-center px-2">
+              <button 
+                onClick={onAddText}
+                className="w-32 h-6 bg-black rounded flex items-center justify-center gap-1.5 hover:bg-gray-900 transition-colors group"
+              >
+                <i className="ri-text text-[13px] text-[#38f47cf9] group-hover:text-white"></i>
+                <span className="text-[13px] text-[#38f47cf9] group-hover:text-white">Add Text</span>
+              </button>
             </div>
 
             {/* Sound Track 라벨 */}
-            <div className="border-r border-gray-700 p-1">
-              <div className="flex flex-col gap-1">
-                <button 
-                  onClick={onAddSound}
-                  className="w-full h-5 bg-black rounded flex items-center justify-start gap-1 px-2 hover:bg-gray-900 transition-colors group"
-                >
-                  <i className="ri-music-line text-[10px] text-[#38f47cf9] group-hover:text-white"></i>
-                  <span className="text-[10px] text-[#38f47cf9] group-hover:text-white">Add Sound</span>
-                </button>
-              </div>
+            <div className="border-r border-gray-700 h-8 flex items-center justify-center px-2">
+              <button 
+                onClick={onAddSound}
+                className="w-32 h-6 bg-black rounded flex items-center justify-center gap-1.5 hover:bg-gray-900 transition-colors group"
+              >
+                <i className="ri-music-line text-[13px] text-[#38f47cf9] group-hover:text-white"></i>
+                <span className="text-[13px] text-[#38f47cf9] group-hover:text-white">Add Sound</span>
+              </button>
             </div>
           </div>
 
@@ -1166,8 +1160,8 @@ export default function Timeline({
             </div>
 
             {/* Video Track */}
-            <div className="border-b border-gray-700 p-1" onClick={handleTrackClick}>
-              <div className="relative min-h-[24px]">
+            <div className="border-b border-gray-700 h-8 flex items-center" onClick={handleTrackClick}>
+              <div className="relative w-full h-5">
                 {clips.map((clip) => {
                   const isRectSelected = rectSelectedClips.some(c => c.id === clip.id && c.type === 'video');
                   return (
@@ -1224,8 +1218,8 @@ export default function Timeline({
             </div>
 
             {/* Text Track */}
-            <div className="border-b border-gray-700 p-1" onClick={handleTrackClick}>
-              <div className="relative min-h-[24px]">
+            <div className="border-b border-gray-700 h-8 flex items-center" onClick={handleTrackClick}>
+              <div className="relative w-full h-5">
               {textClips.map((clip) => {
                 const isRectSelected = rectSelectedClips.some(c => c.id === clip.id && c.type === 'text');
                 return (
@@ -1270,8 +1264,8 @@ export default function Timeline({
             </div>
 
             {/* Sound Track */}
-            <div className="p-1" onClick={handleTrackClick}>
-              <div className="relative min-h-[24px]">
+            <div className="h-8 flex items-center" onClick={handleTrackClick}>
+              <div className="relative w-full h-5">
               {soundClips.map((clip) => {
                 const isRectSelected = rectSelectedClips.some(c => c.id === clip.id && c.type === 'sound');
                 return (

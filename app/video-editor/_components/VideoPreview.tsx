@@ -5,6 +5,7 @@ import { Player, PlayerRef } from '@remotion/player';
 import { CompositePreview } from '../_remotion/CompositePreview';
 import { TextClip as TextClipType, SoundClip as SoundClipType } from '@/types/video-editor';
 import TextOverlayEditor from './TextOverlayEditor';
+import FullscreenPreviewModal from './FullscreenPreviewModal';
 import { ASPECT_RATIOS, CAROUSEL_CONFIG, STYLES, AspectRatioValue } from '../_constants';
 // import { useVideoPreloader } from '../_hooks/useVideoPreloader';
 
@@ -56,6 +57,8 @@ export default function VideoPreview({
   const [selected_preview_clip_id, setSelectedPreviewClipId] = useState<string | null>(null);
   // 캐러셀 현재 인덱스
   const [currentIndex, setCurrentIndex] = useState(0);
+  // 전체 화면 미리보기 모달 상태
+  const [isFullscreenOpen, setIsFullscreenOpen] = useState(false);
   
   const containerRef = useRef<HTMLDivElement>(null);
   const { ITEM_WIDTH, ITEM_HEIGHT, ITEM_GAP } = CAROUSEL_CONFIG;
@@ -207,9 +210,9 @@ export default function VideoPreview({
 
   return (
     <div className="w-full h-full bg-black flex items-center">
-      <div className="flex gap-4 w-full h-full">
+      <div className="flex w-full h-full">
         {/* 좌측 50%: 캐러셀 형태의 클립 슬롯 */}
-        <div className="w-1/2 flex flex-col items-center justify-center relative">
+        <div className="w-1/2 flex flex-col items-center justify-center relative pr-2">
           {/* 캐러셀 컨테이너 */}
           <div className="flex items-center gap-2 w-full h-full relative">
           {/* 이전 버튼 */}
@@ -377,13 +380,20 @@ export default function VideoPreview({
           )}
         </div>
 
+        {/* 중앙 구분선 */}
+        <div className="w-px bg-gray-700"></div>
+
         {/* 우측 50%: 편집 화면 - 모든 트랙 합성 */}
-        <div className="w-1/2 bg-gray-900 rounded-lg overflow-visible relative flex flex-col">
-          <div className="absolute top-2 left-2 right-2 z-20 flex justify-between items-center">
+        <div className="w-1/2 bg-gray-900 rounded-lg overflow-hidden relative flex flex-col pl-2">
+          {/* 상단 컨트롤 바 */}
+          <div className="bg-gray-800/50 backdrop-blur-sm border-b border-gray-700 px-3 py-2 flex justify-between items-center z-20">
             <div className="flex items-center gap-2">
               <div className="bg-black/50 px-2 py-1 rounded text-xs font-medium">
                 Editor
               </div>
+              {/* 구분선 */}
+              <div className="w-px h-6 bg-gray-600 mx-2" />
+              
               {/* 배경 전환 버튼 */}
               <div className="flex gap-1 bg-black/50 p-1 rounded">
                 <button
@@ -427,6 +437,7 @@ export default function VideoPreview({
               <div className="relative group">
                 <button 
                   className="p-2 bg-black/50 rounded hover:bg-black/70 transition-colors"
+                  onClick={() => setIsFullscreenOpen(true)}
                 >
                   <i className="ri-play-circle-line text-primary"></i>
                 </button>
@@ -500,7 +511,8 @@ export default function VideoPreview({
               </div>
             </div>
           </div>
-          <div className={`w-full h-full relative flex items-center justify-center p-8 ${
+          {/* 비디오 프리뷰 영역 */}
+          <div className={`flex-1 relative flex items-center justify-center p-2 ${
             previewBackground === 'dark' ? 'bg-black' :
             previewBackground === 'light' ? 'bg-white' :
             'bg-gray-500'
@@ -520,21 +532,22 @@ export default function VideoPreview({
               <div 
                 className="relative shadow-2xl"
                 style={{
-                  width: selectedAspectRatio === '16:9' ? '90%' : 
+                  width: selectedAspectRatio === '16:9' ? '95%' : 
                          selectedAspectRatio === '1:1' ? 'auto' : 'auto',
                   height: selectedAspectRatio === '16:9' ? 'auto' : 
-                          selectedAspectRatio === '1:1' ? '90%' : '90%',
-                  maxWidth: '90%',
-                  maxHeight: '90%',
+                          selectedAspectRatio === '1:1' ? '95%' : '95%',
+                  maxWidth: '95%',
+                  maxHeight: '95%',
                   aspectRatio: aspectRatioDimensions.displayRatio,
                 }}
               >
-                {/* 빨간 테두리 - 시각적 가이드 */}
+                {/* 빨간 테두리 - 시각적 가이드 (오버레이 클릭 방해하지 않도록 뒤로 보내고 포인터 이벤트 비활성화) */}
                 <div 
-                  className="absolute inset-0 pointer-events-none z-30"
+                  className="absolute inset-0 z-10"
                   style={{
                     border: `2px solid ${STYLES.BORDER_COLOR}`,
-                    borderRadius: '0.5rem'
+                    borderRadius: '0.5rem',
+                    pointerEvents: 'none'
                   }}
                 />
                 
@@ -554,12 +567,10 @@ export default function VideoPreview({
                   component={CompositePreview}
                   inputProps={{
                     videoClips: clips,
-                    textClips: [], // 편집 모드에서는 텍스트를 Player에서 렌더링하지 않음
+                    textClips: textClips, // 텍스트 효과를 표시하기 위해 실제 데이터 전달
                     soundClips: soundClips,
                     pixelsPerSecond: 40,
-                    backgroundColor: previewBackground === 'dark' ? 'black' : 
-                                   previewBackground === 'light' ? 'white' : 
-                                   '#606060'
+                    backgroundColor: 'black' // 항상 검은색 배경으로 설정하여 letterbox 효과
                   }}
                   durationInFrames={calculateTotalFrames}
                   compositionWidth={videoAspectRatio.width}
@@ -577,29 +588,31 @@ export default function VideoPreview({
                   />
                   
                   {/* 텍스트 편집 오버레이 - Player와 같은 컨테이너 내에 위치 */}
-                  <TextOverlayEditor
-                  textClips={textClips}
-                  containerWidth={videoAspectRatio.width}
-                  containerHeight={videoAspectRatio.height}
-                  currentTime={currentTime || 0}
-                  pixelsPerSecond={40}
-                  onUpdatePosition={(id, x, y) => {
-                    if (onUpdateTextPosition) {
-                      onUpdateTextPosition(id, x, y);
-                    }
-                  }}
-                  onUpdateSize={(id, fontSize) => {
-                    if (onUpdateTextSize) {
-                      onUpdateTextSize(id, fontSize);
-                    }
-                  }}
-                  selectedClip={selectedTextClip || null}
-                  onSelectClip={(id) => {
-                    if (onSelectTextClip) {
-                      onSelectTextClip(id);
-                    }
+                  <div className="absolute inset-0 overflow-hidden rounded-lg z-40">
+                    <TextOverlayEditor
+                    textClips={textClips}
+                    containerWidth={videoAspectRatio.width}
+                    containerHeight={videoAspectRatio.height}
+                    currentTime={currentTime || 0}
+                    pixelsPerSecond={40}
+                    onUpdatePosition={(id, x, y) => {
+                      if (onUpdateTextPosition) {
+                        onUpdateTextPosition(id, x, y);
+                      }
                     }}
-                  />
+                    onUpdateSize={(id, fontSize) => {
+                      if (onUpdateTextSize) {
+                        onUpdateTextSize(id, fontSize);
+                      }
+                    }}
+                    selectedClip={selectedTextClip || null}
+                    onSelectClip={(id) => {
+                      if (onSelectTextClip) {
+                        onSelectTextClip(id);
+                      }
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
             ) : (
@@ -607,21 +620,22 @@ export default function VideoPreview({
                 <div 
                   className="relative shadow-2xl"
                   style={{
-                    width: selectedAspectRatio === '16:9' ? '90%' : 
+                    width: selectedAspectRatio === '16:9' ? '95%' : 
                            selectedAspectRatio === '1:1' ? 'auto' : 'auto',
                     height: selectedAspectRatio === '16:9' ? 'auto' : 
-                            selectedAspectRatio === '1:1' ? '90%' : '90%',
-                    maxWidth: '90%',
-                    maxHeight: '90%',
+                            selectedAspectRatio === '1:1' ? '95%' : '95%',
+                    maxWidth: '95%',
+                    maxHeight: '95%',
                     aspectRatio: aspectRatioDimensions.displayRatio,
                   }}
                 >
-                  {/* 빨간 테두리 - 시각적 가이드 */}
+                  {/* 빨간 테두리 - 시각적 가이드 (오버레이 클릭 방해하지 않도록 뒤로 보내고 포인터 이벤트 비활성화) */}
                   <div 
-                    className="absolute inset-0 pointer-events-none z-30"
+                    className="absolute inset-0 z-10"
                     style={{
                       border: `2px solid ${STYLES.BORDER_COLOR}`,
-                      borderRadius: '0.5rem'
+                      borderRadius: '0.5rem',
+                      pointerEvents: 'none'
                     }}
                   />
                   
@@ -639,7 +653,7 @@ export default function VideoPreview({
                     <div className="text-green-500 text-sm text-center">
                       <div className="mb-2">Add clips to see preview</div>
                       <div className="text-xs text-green-500">
-                        {aspectRatioDimensions.description}
+                      
                       </div>
                     </div>
                   </div>
@@ -649,6 +663,18 @@ export default function VideoPreview({
           </div>
         </div>
       </div>
+      
+      {/* 전체 화면 미리보기 모달 */}
+      <FullscreenPreviewModal
+        isOpen={isFullscreenOpen}
+        onClose={() => setIsFullscreenOpen(false)}
+        clips={clips}
+        textClips={textClips}
+        soundClips={soundClips}
+        aspectRatio={selectedAspectRatio}
+        videoWidth={videoAspectRatio.width}
+        videoHeight={videoAspectRatio.height}
+      />
     </div>
   );
 }

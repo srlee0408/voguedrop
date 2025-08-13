@@ -5,24 +5,19 @@ export const ASPECT_RATIOS = {
     width: 360,
     height: 640,
     displayRatio: '9 / 16',
-    label: 'Mobile (9:16)',
-    description: 'Instagram Stories, TikTok'
-  },
+    label: 'Mobile (9:16)'  },
   SQUARE: {
     value: '1:1' as const,
     width: 640,
     height: 640,
     displayRatio: '1 / 1',
-    label: 'Square (1:1)',
-    description: 'Instagram Post'
-  },
+    label: 'Square (1:1)'  },
   WIDE: {
     value: '16:9' as const,
     width: 640,
     height: 360,
     displayRatio: '16 / 9',
-    label: 'Wide (16:9)',
-    description: 'YouTube, Web'
+    label: 'Wide (16:9)'
   }
 } as const;
 
