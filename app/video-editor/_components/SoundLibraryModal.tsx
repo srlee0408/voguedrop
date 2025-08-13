@@ -453,17 +453,22 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
                     {generatedSounds.map((audio) => (
                       <div 
                         key={audio.id}
-                        className="flex items-center gap-3 p-3 bg-gray-700/50 hover:bg-gray-700 rounded-lg group"
+                        onClick={() => handleToggleSelect(audio.id)}
+                        className="flex items-center gap-3 p-3 bg-gray-700/50 hover:bg-gray-700 rounded-lg group cursor-pointer"
                       >
                         <input 
                           type="checkbox"
                           checked={selectedAudioIds.has(audio.id)}
                           onChange={() => handleToggleSelect(audio.id)}
+                          onClick={(e) => e.stopPropagation()}
                           className="w-4 h-4 text-primary bg-gray-700 border-gray-600 rounded focus:ring-primary"
                         />
                         
                         <button 
-                          onClick={() => handlePlayPause(audio)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handlePlayPause(audio);
+                          }}
                           className="w-10 h-10 flex items-center justify-center bg-gray-900 rounded-full hover:bg-gray-800 transition-colors"
                         >
                           <i className={playingAudioId === audio.id ? 'ri-pause-fill' : 'ri-play-fill'}></i>
@@ -477,7 +482,8 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
                         </div>
                         
                         <button 
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setGeneratedSounds(prev => prev.filter(s => s.id !== audio.id));
                             setSelectedAudioIds(prev => {
                               const newSet = new Set(prev);
@@ -553,17 +559,22 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
                 {uploadedAudios.map((audio) => (
                   <div 
                     key={audio.id}
-                    className="flex items-center gap-3 p-3 bg-gray-700/50 hover:bg-gray-700 rounded-lg group"
+                    onClick={() => handleToggleSelect(audio.id)}
+                    className="flex items-center gap-3 p-3 bg-gray-700/50 hover:bg-gray-700 rounded-lg group cursor-pointer"
                   >
                     <input 
                       type="checkbox"
                       checked={selectedAudioIds.has(audio.id)}
                       onChange={() => handleToggleSelect(audio.id)}
+                      onClick={(e) => e.stopPropagation()}
                       className="w-4 h-4 text-primary bg-gray-700 border-gray-600 rounded focus:ring-primary"
                     />
                     
                     <button 
-                      onClick={() => handlePlayPause(audio)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handlePlayPause(audio);
+                      }}
                       className="w-10 h-10 flex items-center justify-center bg-gray-900 rounded-full hover:bg-gray-800 transition-colors"
                     >
                       <i className={playingAudioId === audio.id ? 'ri-pause-fill' : 'ri-play-fill'}></i>
@@ -577,7 +588,10 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
                     </div>
                     
                     <button 
-                      onClick={() => handleRemoveAudio(audio.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemoveAudio(audio.id);
+                      }}
                       className="w-8 h-8 flex items-center justify-center hover:bg-gray-600 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
                     >
                       <i className="ri-delete-bin-line text-red-400"></i>
