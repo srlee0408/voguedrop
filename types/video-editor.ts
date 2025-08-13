@@ -58,7 +58,20 @@ export type TextEffect =
   | 'wave' 
   | 'zoom'
   | 'shake'
-  | 'spin';
+  | 'spin'
+  | 'flip'
+  | 'elastic'
+  | 'rubberband'
+  | 'jello'
+  | 'flash'
+  | 'neon'
+  | 'glitch'
+  | 'shadow'
+  | 'outline'
+  | 'chrome'
+  | 'rainbow'
+  | 'fire'
+  | 'ice';
 
 export interface TimelineTrack {
   id: string;

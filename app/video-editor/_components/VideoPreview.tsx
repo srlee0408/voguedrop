@@ -188,6 +188,9 @@ export default function VideoPreview({
   // 화면 비율 옵션
   const [selectedAspectRatio, setSelectedAspectRatio] = useState<AspectRatioValue>('9:16');
   
+  // 배경 옵션
+  const [previewBackground, setPreviewBackground] = useState<'dark' | 'light' | 'checkerboard'>('checkerboard');
+  
   // 선택된 비율에 따른 실제 크기 계산
   const getAspectRatioDimensions = (ratio: AspectRatioValue) => {
     const ratioConfig = Object.values(ASPECT_RATIOS).find(r => r.value === ratio);
@@ -377,8 +380,46 @@ export default function VideoPreview({
         {/* 우측 50%: 편집 화면 - 모든 트랙 합성 */}
         <div className="w-1/2 bg-gray-900 rounded-lg overflow-visible relative flex flex-col">
           <div className="absolute top-2 left-2 right-2 z-20 flex justify-between items-center">
-            <div className="bg-black/50 px-2 py-1 rounded text-xs font-medium">
-              Editor
+            <div className="flex items-center gap-2">
+              <div className="bg-black/50 px-2 py-1 rounded text-xs font-medium">
+                Editor
+              </div>
+              {/* 배경 전환 버튼 */}
+              <div className="flex gap-1 bg-black/50 p-1 rounded">
+                <button
+                  onClick={() => setPreviewBackground('dark')}
+                  className={`p-1 rounded transition-colors ${
+                    previewBackground === 'dark' ? 'bg-gray-700' : 'hover:bg-gray-700/50'
+                  }`}
+                  title="Dark Background"
+                >
+                  <div className="w-3 h-3 bg-black rounded border border-gray-600" />
+                </button>
+                <button
+                  onClick={() => setPreviewBackground('light')}
+                  className={`p-1 rounded transition-colors ${
+                    previewBackground === 'light' ? 'bg-gray-700' : 'hover:bg-gray-700/50'
+                  }`}
+                  title="Light Background"
+                >
+                  <div className="w-3 h-3 bg-white rounded border border-gray-600" />
+                </button>
+                <button
+                  onClick={() => setPreviewBackground('checkerboard')}
+                  className={`p-1 rounded transition-colors ${
+                    previewBackground === 'checkerboard' ? 'bg-gray-700' : 'hover:bg-gray-700/50'
+                  }`}
+                  title="Checkerboard Background"
+                >
+                  <div className="w-3 h-3 rounded border border-gray-600 overflow-hidden">
+                    <div className="h-full w-full" style={{
+                      backgroundImage: 'linear-gradient(45deg, #808080 25%, transparent 25%), linear-gradient(-45deg, #808080 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #808080 75%), linear-gradient(-45deg, transparent 75%, #808080 75%)',
+                      backgroundSize: '2px 2px',
+                      backgroundPosition: '0 0, 0 1px, 1px -1px, -1px 0px'
+                    }} />
+                  </div>
+                </button>
+              </div>
             </div>
             {/* 비디오 컨트롤 버튼들 */}
             <div className="flex gap-2">
@@ -459,7 +500,22 @@ export default function VideoPreview({
               </div>
             </div>
           </div>
-          <div className="w-full h-full bg-black relative flex items-center justify-center p-8">
+          <div className={`w-full h-full relative flex items-center justify-center p-8 ${
+            previewBackground === 'dark' ? 'bg-black' :
+            previewBackground === 'light' ? 'bg-white' :
+            'bg-gray-500'
+          }`}>
+            {/* 체커보드 패턴 오버레이 */}
+            {previewBackground === 'checkerboard' && (
+              <div className="absolute inset-0">
+                <div className="h-full w-full" style={{
+                  backgroundImage: 'linear-gradient(45deg, #606060 25%, transparent 25%), linear-gradient(-45deg, #606060 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #606060 75%), linear-gradient(-45deg, transparent 75%, #606060 75%)',
+                  backgroundSize: '20px 20px',
+                  backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px',
+                  backgroundColor: '#505050'
+                }} />
+              </div>
+            )}
             {clips.length > 0 || textClips.length > 0 || soundClips.length > 0 ? (
               <div 
                 className="relative shadow-2xl"
@@ -484,8 +540,14 @@ export default function VideoPreview({
                 
                 {/* 콘텐츠 컨테이너 */}
                 <div 
-                  className="relative w-full h-full rounded-lg overflow-hidden"
-                  style={{ backgroundColor: STYLES.BACKGROUND_COLOR }}
+                  className={`relative w-full h-full rounded-lg overflow-hidden ${
+                    previewBackground === 'dark' ? 'bg-black' :
+                    previewBackground === 'light' ? 'bg-white' :
+                    ''
+                  }`}
+                  style={{ 
+                    backgroundColor: previewBackground === 'checkerboard' ? 'transparent' : undefined 
+                  }}
                 >
                   <Player
                   ref={playerRef}
@@ -494,7 +556,10 @@ export default function VideoPreview({
                     videoClips: clips,
                     textClips: [], // 편집 모드에서는 텍스트를 Player에서 렌더링하지 않음
                     soundClips: soundClips,
-                    pixelsPerSecond: 40
+                    pixelsPerSecond: 40,
+                    backgroundColor: previewBackground === 'dark' ? 'black' : 
+                                   previewBackground === 'light' ? 'white' : 
+                                   '#606060'
                   }}
                   durationInFrames={calculateTotalFrames}
                   compositionWidth={videoAspectRatio.width}
@@ -562,8 +627,14 @@ export default function VideoPreview({
                   
                   {/* 콘텐츠 */}
                   <div 
-                    className="relative w-full h-full rounded-lg flex items-center justify-center"
-                    style={{ backgroundColor: STYLES.BACKGROUND_COLOR }}
+                    className={`relative w-full h-full rounded-lg flex items-center justify-center ${
+                      previewBackground === 'dark' ? 'bg-black' :
+                      previewBackground === 'light' ? 'bg-white' :
+                      ''
+                    }`}
+                    style={{ 
+                      backgroundColor: previewBackground === 'checkerboard' ? 'transparent' : undefined 
+                    }}
                   >
                     <div className="text-gray-500 text-sm text-center">
                       <div className="mb-2">Add clips to see preview</div>

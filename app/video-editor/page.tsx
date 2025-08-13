@@ -30,10 +30,10 @@ interface HistoryState {
 export default function VideoEditorPage() {
   const searchParams = useSearchParams();
   const [projectTitle, setProjectTitle] = useState('Untitled Project');
-  const maxTimelineHeight = 220;
+  const maxTimelineHeight = 240; // 최대 높이
   
   // 타임라인 높이 관리 (픽셀 단위)
-  const [timelineHeight, setTimelineHeight] = useState(maxTimelineHeight); // 기본 220px
+  const [timelineHeight, setTimelineHeight] = useState(240); // 기본 240px (여유 공간 확보)
   const [isResizing, setIsResizing] = useState(false);
   const [dragStartY, setDragStartY] = useState(0);
   const [initialHeight, setInitialHeight] = useState(0);
@@ -312,7 +312,7 @@ export default function VideoEditorPage() {
 
   const handleDeleteTextClip = (id: string) => {
     // Simple deletion without ripple effect
-    setTextClips(textClips.filter(c => c.id !== id));
+    setTextClips(prev => prev.filter(c => c.id !== id));
     saveToHistory(); // 히스토리 저장
   };
 
@@ -343,7 +343,7 @@ export default function VideoEditorPage() {
 
   const handleDeleteSoundClip = (id: string) => {
     // Simple deletion without ripple effect
-    setSoundClips(soundClips.filter(c => c.id !== id));
+    setSoundClips(prev => prev.filter(c => c.id !== id));
     saveToHistory(); // 히스토리 저장
   };
 
@@ -361,7 +361,7 @@ export default function VideoEditorPage() {
 
   const handleDeleteVideoClip = (id: string) => {
     // Simple deletion without ripple effect
-    setTimelineClips(timelineClips.filter(c => c.id !== id));
+    setTimelineClips(prev => prev.filter(c => c.id !== id));
     saveToHistory(); // 히스토리 저장
   };
 
@@ -608,7 +608,7 @@ export default function VideoEditorPage() {
       const deltaY = dragStartY - e.clientY;
       const newHeight = initialHeight + deltaY;
       
-      // 최소 100px (가장 아래), 최대 150px (가장 위 - 기본값)
+      // 최소 100px, 최대 300px
       const minHeight = 100;
       const maxHeight = maxTimelineHeight;
       

@@ -4,6 +4,20 @@
 
 @layer base {
   :root {
+    /* Font Families for Text Editor */
+    --font-roboto: 'Roboto', sans-serif;
+    --font-open-sans: 'Open Sans', sans-serif;
+    --font-montserrat: 'Montserrat', sans-serif;
+    --font-poppins: 'Poppins', sans-serif;
+    --font-playfair: 'Playfair Display', serif;
+    --font-merriweather: 'Merriweather', serif;
+    --font-dancing-script: 'Dancing Script', cursive;
+    --font-pacifico: 'Pacifico', cursive;
+    --font-lobster: 'Lobster', cursive;
+    --font-bebas-neue: 'Bebas Neue', sans-serif;
+    --font-oswald: 'Oswald', sans-serif;
+    --font-noto-sans-kr: 'Noto Sans KR', sans-serif;
+    
     /* Border Radius */
     --radius: 0.5rem;
     --radius-sm: 0.125rem;

@@ -18,6 +18,23 @@ const fontFamilies = [
   { value: 'Times New Roman', label: 'Times New Roman' },
   { value: 'Georgia', label: 'Georgia' },
   { value: 'Courier New', label: 'Courier New' },
+  // Modern Sans-Serif
+  { value: 'Roboto', label: 'Roboto' },
+  { value: 'Open Sans', label: 'Open Sans' },
+  { value: 'Montserrat', label: 'Montserrat' },
+  { value: 'Poppins', label: 'Poppins' },
+  // Serif
+  { value: 'Playfair Display', label: 'Playfair Display' },
+  { value: 'Merriweather', label: 'Merriweather' },
+  // Script & Casual
+  { value: 'Dancing Script', label: 'Dancing Script' },
+  { value: 'Pacifico', label: 'Pacifico' },
+  { value: 'Lobster', label: 'Lobster' },
+  // Display & Impact
+  { value: 'Bebas Neue', label: 'Bebas Neue' },
+  { value: 'Oswald', label: 'Oswald' },
+  // Korean
+  { value: 'Noto Sans KR', label: 'Noto Sans KR' },
 ];
 
 const presetColors = [
@@ -34,6 +51,7 @@ const presetColors = [
 
 const textEffects: { value: TextEffect; label: string; className?: string }[] = [
   { value: 'none', label: 'None' },
+  // Original effects
   { value: 'pulse', label: 'Pulse', className: 'text-pulse' },
   { value: 'bounce', label: 'Bounce', className: 'text-bounce' },
   { value: 'gradient', label: 'Gradient', className: 'text-gradient' },
@@ -45,6 +63,23 @@ const textEffects: { value: TextEffect; label: string; className?: string }[] = 
   { value: 'glow', label: 'Glow', className: 'text-glow' },
   { value: 'wave', label: 'Wave', className: 'text-wave' },
   { value: 'zoom', label: 'Zoom', className: 'text-zoom' },
+  // New 3D effects
+  { value: 'flip', label: 'Flip', className: 'text-flip' },
+  // Elastic effects
+  { value: 'elastic', label: 'Elastic', className: 'text-elastic' },
+  { value: 'rubberband', label: 'Rubberband', className: 'text-rubberband' },
+  { value: 'jello', label: 'Jello', className: 'text-jello' },
+  // Digital effects
+  { value: 'flash', label: 'Flash', className: 'text-flash' },
+  { value: 'glitch', label: 'Glitch', className: 'text-glitch' },
+  // Style effects
+  { value: 'neon', label: 'Neon', className: 'text-neon' },
+  { value: 'shadow', label: 'Shadow', className: 'text-shadow' },
+  { value: 'outline', label: 'Outline', className: 'text-outline' },
+  { value: 'chrome', label: 'Chrome', className: 'text-chrome' },
+  { value: 'rainbow', label: 'Rainbow', className: 'text-rainbow' },
+  { value: 'fire', label: 'Fire', className: 'text-fire' },
+  { value: 'ice', label: 'Ice', className: 'text-ice' },
 ];
 
 export default function TextEditorModal({
@@ -69,6 +104,7 @@ export default function TextEditorModal({
   const [selectedEffect, setSelectedEffect] = useState<TextEffect>(
     editingClip?.effect || 'none'
   );
+  const [previewBackground, setPreviewBackground] = useState<'dark' | 'light' | 'checkerboard'>('checkerboard');
 
   if (!isOpen) return null;
 
@@ -87,20 +123,67 @@ export default function TextEditorModal({
     }
   };
 
-  const getEffectStyle = (effect: TextEffect) => {
+  const getEffectStyle = (effect: TextEffect): React.CSSProperties => {
     switch (effect) {
       case 'gradient':
         return {
-          background: 'linear-gradient(90deg, #38f47c, #3b82f6, #a855f7, #ec4899, #38f47c)',
+          backgroundImage: 'linear-gradient(90deg, #38f47c, #3b82f6, #a855f7, #ec4899, #38f47c)',
           backgroundSize: '200% auto',
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
           backgroundClip: 'text',
-        };
+        } as React.CSSProperties;
       case 'glow':
         return {
           textShadow: '0 0 20px rgba(255,255,255,0.9), 0 0 40px rgba(56,244,124,0.7)',
         };
+      case 'neon':
+        return {
+          textShadow: '0 0 10px currentColor, 0 0 20px currentColor, 0 0 30px currentColor, 0 0 40px currentColor',
+        };
+      case 'shadow':
+        return {
+          textShadow: '3px 3px 6px rgba(0,0,0,0.5)',
+        };
+      case 'outline':
+        return {
+          WebkitTextStroke: '2px currentColor',
+          WebkitTextFillColor: 'transparent',
+        } as React.CSSProperties;
+      case 'chrome':
+        return {
+          backgroundImage: 'linear-gradient(to bottom, #eee 0%, #999 50%, #777 51%, #555 100%)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          backgroundClip: 'text',
+          filter: 'drop-shadow(2px 2px 4px rgba(0,0,0,0.5))',
+        } as React.CSSProperties;
+      case 'rainbow':
+        return {
+          backgroundImage: 'linear-gradient(90deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #9400d3)',
+          backgroundSize: '200% auto',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          backgroundClip: 'text',
+        } as React.CSSProperties;
+      case 'fire':
+        return {
+          backgroundImage: 'linear-gradient(45deg, #ff0000, #ff4500, #ff8c00, #ffd700)',
+          backgroundSize: '200% 200%',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          backgroundClip: 'text',
+          filter: 'drop-shadow(0 0 3px #ff4500)',
+        } as React.CSSProperties;
+      case 'ice':
+        return {
+          backgroundImage: 'linear-gradient(45deg, #00ffff, #00bfff, #1e90ff, #4169e1)',
+          backgroundSize: '200% 200%',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          backgroundClip: 'text',
+          filter: 'drop-shadow(0 0 3px #00bfff)',
+        } as React.CSSProperties;
       case 'typing':
         return {
           overflow: 'hidden',
@@ -109,11 +192,26 @@ export default function TextEditorModal({
           display: 'inline-block',
           width: 'fit-content',
         };
+      case 'glitch':
+        return {
+          position: 'relative' as const,
+          display: 'inline-block',
+        };
+      case 'flip':
+        return {
+          display: 'inline-block',
+          transformStyle: 'preserve-3d' as const,
+          perspective: '1000px',
+        };
       case 'pulse':
       case 'bounce':
       case 'spin':
       case 'wave':
       case 'zoom':
+      case 'elastic':
+      case 'rubberband':
+      case 'jello':
+      case 'flash':
         return {
           display: 'inline-block',
           transformOrigin: 'center',
@@ -301,14 +399,70 @@ export default function TextEditorModal({
           {/* Right Panel - Preview (40%) */}
           <div className="w-2/5 p-6 bg-gray-900/50">
             <div className="h-full flex flex-col">
-              <label className="block text-sm font-medium mb-3 text-gray-300">
-                Live Preview
-              </label>
-              <div className="flex-1 bg-black rounded-lg p-6 flex items-center relative overflow-hidden">
-                {/* Grid Background */}
-                <div className="absolute inset-0 opacity-5">
+              <div className="flex items-center justify-between mb-3">
+                <label className="text-sm font-medium text-gray-300">
+                  Live Preview
+                </label>
+                {/* Background Toggle Buttons */}
+                <div className="flex gap-1 bg-gray-800 p-1 rounded-lg">
+                  <button
+                    onClick={() => setPreviewBackground('dark')}
+                    className={`p-1.5 rounded transition-colors ${
+                      previewBackground === 'dark' ? 'bg-gray-700' : 'hover:bg-gray-700/50'
+                    }`}
+                    title="Dark Background"
+                  >
+                    <div className="w-4 h-4 bg-black rounded border border-gray-600" />
+                  </button>
+                  <button
+                    onClick={() => setPreviewBackground('light')}
+                    className={`p-1.5 rounded transition-colors ${
+                      previewBackground === 'light' ? 'bg-gray-700' : 'hover:bg-gray-700/50'
+                    }`}
+                    title="Light Background"
+                  >
+                    <div className="w-4 h-4 bg-white rounded border border-gray-600" />
+                  </button>
+                  <button
+                    onClick={() => setPreviewBackground('checkerboard')}
+                    className={`p-1.5 rounded transition-colors ${
+                      previewBackground === 'checkerboard' ? 'bg-gray-700' : 'hover:bg-gray-700/50'
+                    }`}
+                    title="Checkerboard Background"
+                  >
+                    <div className="w-4 h-4 rounded border border-gray-600 overflow-hidden">
+                      <div className="h-full w-full" style={{
+                        backgroundImage: 'linear-gradient(45deg, #808080 25%, transparent 25%), linear-gradient(-45deg, #808080 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #808080 75%), linear-gradient(-45deg, transparent 75%, #808080 75%)',
+                        backgroundSize: '4px 4px',
+                        backgroundPosition: '0 0, 0 2px, 2px -2px, -2px 0px'
+                      }} />
+                    </div>
+                  </button>
+                </div>
+              </div>
+              <div className={`flex-1 rounded-lg p-6 flex items-center relative overflow-hidden ${
+                previewBackground === 'dark' ? 'bg-black' :
+                previewBackground === 'light' ? 'bg-white' :
+                'bg-gray-500'
+              }`}>
+                {/* Checkerboard Pattern for checkerboard mode */}
+                {previewBackground === 'checkerboard' && (
+                  <div className="absolute inset-0">
+                    <div className="h-full w-full" style={{
+                      backgroundImage: 'linear-gradient(45deg, #606060 25%, transparent 25%), linear-gradient(-45deg, #606060 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #606060 75%), linear-gradient(-45deg, transparent 75%, #606060 75%)',
+                      backgroundSize: '20px 20px',
+                      backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px',
+                      backgroundColor: '#505050'
+                    }} />
+                  </div>
+                )}
+                
+                {/* Grid overlay for better visibility */}
+                <div className="absolute inset-0 opacity-5 pointer-events-none">
                   <div className="h-full w-full" style={{
-                    backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)',
+                    backgroundImage: previewBackground === 'light' 
+                      ? 'linear-gradient(rgba(0,0,0,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.1) 1px, transparent 1px)'
+                      : 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)',
                     backgroundSize: '20px 20px'
                   }} />
                 </div>
@@ -323,8 +477,21 @@ export default function TextEditorModal({
                     className={`${getEffectClass(selectedEffect)} ${selectedEffect === 'typing' ? '' : 'w-full'}`}
                     style={{
                       fontSize: `${style.fontSize}px`,
-                      fontFamily: style.fontFamily === 'default' ? 'inherit' : style.fontFamily,
-                      color: selectedEffect === 'gradient' ? 'transparent' : style.color,
+                      fontFamily: style.fontFamily === 'default' ? 'inherit' : 
+                        style.fontFamily === 'Roboto' ? 'var(--font-roboto)' :
+                        style.fontFamily === 'Open Sans' ? 'var(--font-open-sans)' :
+                        style.fontFamily === 'Montserrat' ? 'var(--font-montserrat)' :
+                        style.fontFamily === 'Poppins' ? 'var(--font-poppins)' :
+                        style.fontFamily === 'Playfair Display' ? 'var(--font-playfair)' :
+                        style.fontFamily === 'Merriweather' ? 'var(--font-merriweather)' :
+                        style.fontFamily === 'Dancing Script' ? 'var(--font-dancing-script)' :
+                        style.fontFamily === 'Pacifico' ? 'var(--font-pacifico)' :
+                        style.fontFamily === 'Lobster' ? 'var(--font-lobster)' :
+                        style.fontFamily === 'Bebas Neue' ? 'var(--font-bebas-neue)' :
+                        style.fontFamily === 'Oswald' ? 'var(--font-oswald)' :
+                        style.fontFamily === 'Noto Sans KR' ? 'var(--font-noto-sans-kr)' :
+                        style.fontFamily,
+                      color: selectedEffect === 'gradient' || selectedEffect === 'rainbow' || selectedEffect === 'chrome' || selectedEffect === 'fire' || selectedEffect === 'ice' ? 'transparent' : style.color,
                       textAlign: style.alignment,
                       fontWeight: style.fontWeight,
                       ...getEffectStyle(selectedEffect),
@@ -487,6 +654,109 @@ export default function TextEditorModal({
             transform: scale(1.1); 
           }
         }
+        
+        @keyframes flip {
+          0% { transform: rotateY(0); }
+          50% { transform: rotateY(180deg); }
+          100% { transform: rotateY(360deg); }
+        }
+        
+        @keyframes elastic {
+          0%, 100% { transform: scale(1); }
+          30% { transform: scale(1.25); }
+          40% { transform: scale(0.75); }
+          50% { transform: scale(1.15); }
+          65% { transform: scale(0.95); }
+          75% { transform: scale(1.05); }
+        }
+        
+        @keyframes rubberband {
+          0% { transform: scale(1); }
+          30% { transform: scaleX(1.25) scaleY(0.75); }
+          40% { transform: scaleX(0.75) scaleY(1.25); }
+          60% { transform: scaleX(1.15) scaleY(0.85); }
+          100% { transform: scale(1); }
+        }
+        
+        @keyframes jello {
+          0%, 100% { transform: skewX(0deg) skewY(0deg); }
+          30% { transform: skewX(-12.5deg) skewY(-12.5deg); }
+          40% { transform: skewX(6.25deg) skewY(6.25deg); }
+          50% { transform: skewX(-3.125deg) skewY(-3.125deg); }
+          65% { transform: skewX(1.5625deg) skewY(1.5625deg); }
+        }
+        
+        @keyframes flash {
+          0%, 50%, 100% { opacity: 1; }
+          25%, 75% { opacity: 0; }
+        }
+        
+        @keyframes glitch {
+          0%, 100% { 
+            text-shadow: 2px 0 #ff00ff, -2px 0 #00ffff;
+            transform: translate(0);
+          }
+          20% {
+            text-shadow: 2px 0 #ff00ff, -2px 0 #00ffff;
+            transform: translate(-2px, 2px);
+          }
+          40% {
+            text-shadow: -2px 0 #ff00ff, 2px 0 #00ffff;
+            transform: translate(-2px, -2px);
+          }
+          60% {
+            text-shadow: 2px 0 #ff00ff, -2px 0 #00ffff;
+            transform: translate(2px, 2px);
+          }
+          80% {
+            text-shadow: -2px 0 #ff00ff, 2px 0 #00ffff;
+            transform: translate(2px, -2px);
+          }
+        }
+        
+        @keyframes neon {
+          0%, 100% {
+            text-shadow: 
+              0 0 10px currentColor,
+              0 0 20px currentColor,
+              0 0 30px currentColor,
+              0 0 40px currentColor;
+          }
+          50% {
+            text-shadow: 
+              0 0 5px currentColor,
+              0 0 10px currentColor,
+              0 0 15px currentColor,
+              0 0 20px currentColor;
+          }
+        }
+        
+        @keyframes rainbow {
+          0% { background-position: 0% center; }
+          100% { background-position: 200% center; }
+        }
+        
+        @keyframes fire {
+          0%, 100% { 
+            background-position: 0% 50%;
+            filter: drop-shadow(0 0 3px #ff4500) brightness(1);
+          }
+          50% { 
+            background-position: 100% 50%;
+            filter: drop-shadow(0 0 8px #ff6347) brightness(1.1);
+          }
+        }
+        
+        @keyframes ice {
+          0%, 100% { 
+            background-position: 0% 50%;
+            filter: drop-shadow(0 0 3px #00bfff) brightness(1);
+          }
+          50% { 
+            background-position: 100% 50%;
+            filter: drop-shadow(0 0 8px #87ceeb) brightness(1.1);
+          }
+        }
 
         .text-pulse {
           animation: pulse 1.5s ease-in-out infinite;
@@ -520,6 +790,50 @@ export default function TextEditorModal({
         }
         .text-zoom {
           animation: zoom 2s ease-in-out infinite;
+        }
+        .text-flip {
+          animation: flip 3s ease-in-out infinite;
+        }
+        .text-elastic {
+          animation: elastic 1.5s ease-in-out infinite;
+        }
+        .text-rubberband {
+          animation: rubberband 1s ease-in-out infinite;
+        }
+        .text-jello {
+          animation: jello 1s ease-in-out infinite;
+        }
+        .text-flash {
+          animation: flash 1s ease-in-out infinite;
+        }
+        .text-glitch {
+          animation: glitch 1s ease-in-out infinite;
+        }
+        .text-neon {
+          animation: neon 1.5s ease-in-out infinite;
+        }
+        .text-shadow {
+          text-shadow: 3px 3px 6px rgba(0,0,0,0.5);
+        }
+        .text-outline {
+          -webkit-text-stroke: 2px currentColor;
+          -webkit-text-fill-color: transparent;
+        }
+        .text-chrome {
+          background-image: linear-gradient(to bottom, #eee 0%, #999 50%, #777 51%, #555 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.5));
+        }
+        .text-rainbow {
+          animation: rainbow 3s linear infinite;
+        }
+        .text-fire {
+          animation: fire 2s ease-in-out infinite;
+        }
+        .text-ice {
+          animation: ice 2s ease-in-out infinite;
         }
       `}</style>
     </div>

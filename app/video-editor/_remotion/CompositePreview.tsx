@@ -17,13 +17,15 @@ interface CompositePreviewProps {
   textClips: TextClipType[];
   soundClips: SoundClipType[];
   pixelsPerSecond?: number;
+  backgroundColor?: string;
 }
 
 export const CompositePreview: React.FC<CompositePreviewProps> = ({ 
   videoClips, 
   textClips, 
   soundClips,
-  pixelsPerSecond = 40 
+  pixelsPerSecond = 40,
+  backgroundColor = 'black'
 }) => {
   // 픽셀을 프레임으로 변환 (40px = 1초 = 30프레임)
   const pxToFrames = (px: number): number => {
@@ -52,7 +54,7 @@ export const CompositePreview: React.FC<CompositePreviewProps> = ({
     });
   
   return (
-    <AbsoluteFill style={{ backgroundColor: 'black' }}>
+    <AbsoluteFill style={{ backgroundColor }}>
       {/* 1. 비디오 레이어 - 순차 재생 */}
       {videoSequences.map(video => (
         <Sequence
