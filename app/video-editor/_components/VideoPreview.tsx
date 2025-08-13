@@ -382,18 +382,6 @@ export default function VideoPreview({
             </div>
             {/* 비디오 컨트롤 버튼들 */}
             <div className="flex gap-2">
-              {/* Final Video 버튼 */}
-              <div className="relative group">
-                <button 
-                  className="p-2 bg-black/50 rounded hover:bg-black/70 transition-colors"
-                >
-                  <i className="ri-movie-line text-primary"></i>
-                </button>
-                <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
-                  Export Final Video
-                </div>
-              </div>
-              
               {/* Preview 버튼 */}
               <div className="relative group">
                 <button 
@@ -402,11 +390,11 @@ export default function VideoPreview({
                   <i className="ri-play-circle-line text-primary"></i>
                 </button>
                 <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
-                  Preview Full Screen
+                  Preview
                 </div>
               </div>
               
-              {/* Save 버튼 */}
+              {/* Save File 버튼 */}
               <div className="relative group">
                 <button 
                   className="p-2 bg-black/50 rounded hover:bg-black/70 transition-colors"
@@ -414,7 +402,19 @@ export default function VideoPreview({
                   <i className="ri-save-line text-primary"></i>
                 </button>
                 <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
-                  Save Project
+                  Save File
+                </div>
+              </div>
+              
+              {/* Download 버튼 */}
+              <div className="relative group">
+                <button 
+                  className="p-2 bg-black/50 rounded hover:bg-black/70 transition-colors"
+                >
+                  <i className="ri-download-line text-primary"></i>
+                </button>
+                <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                  Download
                 </div>
               </div>
               
