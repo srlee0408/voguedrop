@@ -357,23 +357,31 @@ export const magneticPositioning = <T extends BaseClip>(
           adjustedClips: otherClips
         };
       } else {
-        // 공간이 부족하면 오른쪽 클립들만 밀어냄
-        // 정확한 밀기 양: 왼쪽 클립 끝 + 드래그 클립 길이 - 오른쪽 클립 시작
-        const pushAmount = (leftEnd + duration) - rightStart;
-        console.log('공간 부족 - 오른쪽 클립 밀기:', pushAmount);
+        // 공간이 부족하면 오른쪽 클립들을 밀어내되, 연속적으로 재배치
+        const insertPosition = leftEnd; // 삽입 위치는 왼쪽 클립 끝
+        const pushAmount = duration; // 삽입할 클립의 길이만큼 공간 필요
         
+        console.log('공간 부족 - 오른쪽 클립들 연속 재배치:', {
+          삽입위치: insertPosition,
+          필요공간: pushAmount
+        });
+        
+        // 오른쪽 클립들을 연속적으로 재배치
+        let currentPosition = insertPosition + duration; // 삽입될 클립 다음 위치
         const adjustedClips = sortedClips.map((clip, idx) => {
           if (idx <= i) {
             // 왼쪽 클립들은 그대로
             return clip;
           } else {
-            // 오른쪽 클립들을 밀어냄
-            return { ...clip, position: clip.position + pushAmount } as T;
+            // 오른쪽 클립들을 연속적으로 배치 (빈 공간 없이)
+            const newClip = { ...clip, position: currentPosition } as T;
+            currentPosition = currentPosition + clip.duration; // 다음 클립 위치 업데이트
+            return newClip;
           }
         });
         
         return {
-          targetPosition: leftEnd, // 공간이 부족할 때만 왼쪽 클립에 붙임
+          targetPosition: insertPosition,
           adjustedClips
         };
       }
@@ -460,6 +468,86 @@ export const magneticPositioning = <T extends BaseClip>(
     targetPosition: Math.max(0, requestedPosition),
     adjustedClips: otherClips
   };
+};
+
+/**
+ * Free positioning for text and sound clips - allows free placement without pushing other clips
+ * @param clips Array of all clips (including the one being dragged)
+ * @param draggedClipId ID of the clip being dragged
+ * @param requestedPosition Position where the clip is being placed
+ * @param duration Duration of the clip being placed
+ * @returns Target position (adjusted to avoid overlaps)
+ */
+export const freePositioning = <T extends BaseClip>(
+  clips: T[],
+  draggedClipId: string,
+  requestedPosition: number,
+  duration: number
+): number => {
+  // 드래그된 클립 제외한 클립들
+  const otherClips = clips.filter(c => c.id !== draggedClipId);
+  
+  // 요청된 위치에서 겹침 확인
+  const hasOverlap = otherClips.some(clip => {
+    const clipStart = clip.position;
+    const clipEnd = clip.position + clip.duration;
+    const draggedStart = requestedPosition;
+    const draggedEnd = requestedPosition + duration;
+    
+    return draggedStart < clipEnd && draggedEnd > clipStart;
+  });
+  
+  // 겹침이 없으면 요청된 위치 사용
+  if (!hasOverlap) {
+    return Math.max(0, requestedPosition);
+  }
+  
+  // 겹침이 있으면 가장 가까운 빈 공간 찾기
+  const sortedClips = [...otherClips].sort((a, b) => a.position - b.position);
+  
+  // 요청 위치 앞쪽의 빈 공간 찾기
+  let bestPosition = requestedPosition;
+  let minDistance = Infinity;
+  
+  // 맨 앞 확인
+  if (sortedClips.length === 0 || sortedClips[0].position >= duration) {
+    const frontPosition = 0;
+    const distance = Math.abs(requestedPosition - frontPosition);
+    if (distance < minDistance) {
+      bestPosition = frontPosition;
+      minDistance = distance;
+    }
+  }
+  
+  // 클립들 사이 공간 확인
+  for (let i = 0; i < sortedClips.length - 1; i++) {
+    const leftEnd = sortedClips[i].position + sortedClips[i].duration;
+    const rightStart = sortedClips[i + 1].position;
+    const gap = rightStart - leftEnd;
+    
+    if (gap >= duration) {
+      // 이 공간에 들어갈 수 있음
+      const candidatePosition = leftEnd;
+      const distance = Math.abs(requestedPosition - candidatePosition);
+      if (distance < minDistance) {
+        bestPosition = candidatePosition;
+        minDistance = distance;
+      }
+    }
+  }
+  
+  // 마지막 클립 뒤 확인
+  if (sortedClips.length > 0) {
+    const lastClip = sortedClips[sortedClips.length - 1];
+    const afterLastPosition = lastClip.position + lastClip.duration;
+    const distance = Math.abs(requestedPosition - afterLastPosition);
+    if (distance < minDistance) {
+      bestPosition = afterLastPosition;
+      minDistance = distance;
+    }
+  }
+  
+  return Math.max(0, bestPosition);
 };
 
 /**

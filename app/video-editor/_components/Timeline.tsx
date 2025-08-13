@@ -125,7 +125,6 @@ export default function Timeline({
   const [selectionInitialEndX, setSelectionInitialEndX] = useState(0);
   const [selectionInitialStartY, setSelectionInitialStartY] = useState(0);
   const [selectionInitialEndY, setSelectionInitialEndY] = useState(0);
-  const [isShiftPressed, setIsShiftPressed] = useState(false);
 
   // 활성 선택 박스 이동 상태
   const [isMovingSelection, setIsMovingSelection] = useState(false);
@@ -183,7 +182,7 @@ export default function Timeline({
 
   // 클립 클릭으로 선택 처리 (멀티 선택이 있으면 해제하고 단일 선택으로 전환)
   const handleClipClick = (clipId: string, clipType: 'video' | 'text' | 'sound') => {
-    if (!isShiftPressed && rectSelectedClips.length > 0) {
+    if (rectSelectedClips.length > 0) {
       setRectSelectedClips([]);
     }
     setSelectedClip(clipId);
@@ -435,14 +434,14 @@ export default function Timeline({
           const delta = parseFloat(clipElement.style.transform.replace(/translateX\(|px\)/g, '')) || 0;
           
           // Import helper functions for timeline positioning
-          import('../_utils/timeline-utils').then(({ magneticPositioning }) => {
+          import('../_utils/timeline-utils').then(({ magneticPositioning, freePositioning }) => {
             // Handle position update for all clip types
             if (activeClipType === 'video' && onUpdateAllVideoClips) {
               const currentClip = clips.find(c => c.id === activeClip);
               if (currentClip) {
                 const newPosition = Math.max(0, currentClip.position + delta);
                 
-                // Use magnetic positioning to prevent overlaps and push clips
+                // Use magnetic positioning for video clips (always stay together)
                 const { targetPosition, adjustedClips } = magneticPositioning(
                   clips,
                   activeClip,
@@ -459,49 +458,37 @@ export default function Timeline({
                 
                 onUpdateAllVideoClips(updatedClips);
               }
-            } else if (activeClipType === 'text' && onUpdateAllTextClips) {
+            } else if (activeClipType === 'text' && onUpdateTextClipPosition) {
               const currentClip = textClips.find(c => c.id === activeClip);
               if (currentClip) {
                 const newPosition = Math.max(0, currentClip.position + delta);
                 
-                // Use magnetic positioning to prevent overlaps and push clips
-                const { targetPosition, adjustedClips } = magneticPositioning(
+                // Use free positioning for text clips (no pushing)
+                const targetPosition = freePositioning(
                   textClips,
                   activeClip,
                   newPosition,
                   currentClip.duration
                 );
                 
-                
-                // Update all clips including the dragged one
-                const updatedClips = [
-                  ...adjustedClips,
-                  { ...currentClip, position: targetPosition }
-                ].sort((a, b) => a.position - b.position);
-                
-                onUpdateAllTextClips(updatedClips);
+                // Only update the dragged clip
+                onUpdateTextClipPosition(activeClip, targetPosition);
               }
-            } else if (activeClipType === 'sound' && onUpdateAllSoundClips) {
+            } else if (activeClipType === 'sound' && onUpdateSoundClipPosition) {
               const currentClip = soundClips.find(c => c.id === activeClip);
               if (currentClip) {
                 const newPosition = Math.max(0, currentClip.position + delta);
                 
-                // Use magnetic positioning to prevent overlaps and push clips
-                const { targetPosition, adjustedClips } = magneticPositioning(
+                // Use free positioning for sound clips (no pushing)
+                const targetPosition = freePositioning(
                   soundClips,
                   activeClip,
                   newPosition,
                   currentClip.duration
                 );
                 
-                
-                // Update all clips including the dragged one
-                const updatedClips = [
-                  ...adjustedClips,
-                  { ...currentClip, position: targetPosition }
-                ].sort((a, b) => a.position - b.position);
-                
-                onUpdateAllSoundClips(updatedClips);
+                // Only update the dragged clip
+                onUpdateSoundClipPosition(activeClip, targetPosition);
               }
             }
           });
