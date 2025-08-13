@@ -10,6 +10,9 @@ interface FalWebhookPayload {
     video?: {
       url: string;
     };
+    audio?: {
+      url: string;
+    };
     seed?: number;
   };
   error?: string;
@@ -19,9 +22,10 @@ export async function POST(request: NextRequest) {
   // Webhook received
   
   try {
-    // 1. Job ID 추출
+    // 1. Job ID와 타입 추출
     const { searchParams } = new URL(request.url);
     const jobId = searchParams.get('jobId');
+    const type = searchParams.get('type') || 'video'; // 기본값은 video
     
     if (!jobId) {
       return NextResponse.json(
@@ -73,58 +77,109 @@ export async function POST(request: NextRequest) {
     const { createServiceClient } = await import('@/lib/supabase/service');
     const supabase = createServiceClient();
     
-    if (body.status === 'OK' && body.payload?.video?.url) {
-      // 성공 케이스
-      // Updating job with video URL
-      
-      const { error } = await supabase
-        .from('video_generations')
-        .update({
-          status: 'completed',
-          output_video_url: body.payload.video.url,
-          webhook_status: 'delivered',
-          webhook_delivered_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .eq('job_id', jobId)
-        .select('id, job_id')
-        .single();
-      
-      if (error) {
-        // Error updating successful generation
-        return NextResponse.json(
-          { error: 'Database update failed', details: error },
-          { status: 500 }
-        );
+    // 타입에 따라 다른 테이블 업데이트
+    if (type === 'sound') {
+      // 사운드 생성 처리
+      if (body.status === 'OK' && body.payload?.audio?.url) {
+        // 성공 케이스
+        const { error } = await supabase
+          .from('sound_generations')
+          .update({
+            status: 'completed',
+            output_audio_url: body.payload.audio.url,
+            webhook_status: 'delivered',
+            webhook_delivered_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .eq('job_id', jobId)
+          .select('id, job_id')
+          .single();
+        
+        if (error) {
+          return NextResponse.json(
+            { error: 'Database update failed', details: error },
+            { status: 500 }
+          );
+        }
+      } else {
+        // 실패 케이스
+        const errorMessage = body.error || 
+                            body.payload?.toString() || 
+                            'Unknown error';
+        
+        const { error } = await supabase
+          .from('sound_generations')
+          .update({
+            status: 'failed',
+            error_message: errorMessage,
+            webhook_status: 'delivered',
+            webhook_delivered_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .eq('job_id', jobId);
+        
+        if (error) {
+          return NextResponse.json(
+            { error: 'Database update failed' },
+            { status: 500 }
+          );
+        }
       }
-      
-      // Job completed successfully
     } else {
-      // 실패 케이스
-      const errorMessage = body.error || 
-                          body.payload?.toString() || 
-                          'Unknown error';
-      
-      const { error } = await supabase
-        .from('video_generations')
-        .update({
-          status: 'failed',
-          error_message: errorMessage,
-          webhook_status: 'delivered',
-          webhook_delivered_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .eq('job_id', jobId);
-      
-      if (error) {
-        // Error updating failed generation
-        return NextResponse.json(
-          { error: 'Database update failed' },
-          { status: 500 }
-        );
+      // 비디오 생성 처리 (기존 코드)
+      if (body.status === 'OK' && body.payload?.video?.url) {
+        // 성공 케이스
+        // Updating job with video URL
+        
+        const { error } = await supabase
+          .from('video_generations')
+          .update({
+            status: 'completed',
+            output_video_url: body.payload.video.url,
+            webhook_status: 'delivered',
+            webhook_delivered_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .eq('job_id', jobId)
+          .select('id, job_id')
+          .single();
+        
+        if (error) {
+          // Error updating successful generation
+          return NextResponse.json(
+            { error: 'Database update failed', details: error },
+            { status: 500 }
+          );
+        }
+        
+        // Job completed successfully
+      } else {
+        // 실패 케이스
+        const errorMessage = body.error || 
+                            body.payload?.toString() || 
+                            'Unknown error';
+        
+        const { error } = await supabase
+          .from('video_generations')
+          .update({
+            status: 'failed',
+            error_message: errorMessage,
+            webhook_status: 'delivered',
+            webhook_delivered_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .eq('job_id', jobId);
+        
+        if (error) {
+          // Error updating failed generation
+          return NextResponse.json(
+            { error: 'Database update failed' },
+            { status: 500 }
+          );
+        }
+        
+        // Job failed
       }
-      
-      // Job failed
     }
 
     // 7. 성공 응답 반환

@@ -152,3 +152,74 @@ export function combineEffectPrompts(
   // 마침표로 구분하여 결합
   return prompts.join('. ');
 }
+
+export interface SoundGenerationParams {
+  text: string;
+  duration_seconds?: number;
+  prompt_influence?: number;
+}
+
+export interface SoundGenerationResult {
+  audioUrl: string;
+  requestId?: string;
+}
+
+/**
+ * fal.ai ElevenLabs를 사용하여 AI 사운드를 생성합니다.
+ */
+export async function generateSound({
+  text,
+  duration_seconds,
+  prompt_influence = 0.3
+}: SoundGenerationParams): Promise<SoundGenerationResult> {
+  const endpoint = "fal-ai/elevenlabs/sound-effects";
+  
+  try {
+    // fal.ai API 호출 (subscribe 방식)
+    const result = await fal.subscribe(endpoint, {
+      input: {
+        text,
+        duration_seconds,
+        prompt_influence
+      },
+      logs: true,
+      onQueueUpdate: (update) => {
+        // Status update handling
+        if (update.status === "IN_PROGRESS" || update.status === "IN_QUEUE") {
+          // Silent processing
+        }
+      }
+    }) as { audio?: { url?: string }; requestId?: string };
+
+    // 응답 구조 확인
+    const audioUrl = result?.audio?.url;
+    
+    if (!audioUrl) {
+      console.error('Sound generation result structure:', {
+        hasAudio: !!result?.audio,
+        keys: Object.keys(result || {}),
+        result: result
+      });
+      throw new Error('오디오 URL을 찾을 수 없습니다.');
+    }
+
+    return {
+      audioUrl,
+      requestId: result?.requestId || Date.now().toString()
+    };
+  } catch (error) {
+    console.error('Sound generation error:', error);
+    
+    // 401 에러의 경우 더 명확한 메시지
+    const errorWithStatus = error as { status?: number };
+    if (errorWithStatus?.status === 401) {
+      throw new Error('fal.ai API 인증 실패. API 키를 확인해주세요.');
+    }
+    
+    throw new Error(
+      error instanceof Error 
+        ? error.message 
+        : '사운드 생성 중 오류가 발생했습니다.'
+    );
+  }
+}

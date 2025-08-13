@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
+import SoundGenerationModal from './SoundGenerationModal';
 
 interface SoundLibraryModalProps {
   onClose: () => void;
@@ -19,12 +20,14 @@ interface UploadedAudio {
 
 export default function SoundLibraryModal({ onClose, onSelectSounds, onCreateVideo }: SoundLibraryModalProps) {
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState<'preset' | 'upload'>('preset');
+  const [activeTab, setActiveTab] = useState<'preset' | 'upload' | 'generate'>('preset');
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
   const [uploadedAudios, setUploadedAudios] = useState<UploadedAudio[]>([]);
   const [selectedAudioIds, setSelectedAudioIds] = useState<Set<string>>(new Set());
   const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isSoundGenerationModalOpen, setIsSoundGenerationModalOpen] = useState(false);
+  const [generatedSounds, setGeneratedSounds] = useState<UploadedAudio[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   
@@ -194,7 +197,38 @@ export default function SoundLibraryModal({ onClose, onSelectSounds, onCreateVid
         onSelectSounds(selectedAudios);
         onClose();
       }
+    } else if (activeTab === 'generate') {
+      const selectedAudios = generatedSounds
+        .filter(audio => selectedAudioIds.has(audio.id))
+        .map(audio => ({
+          name: audio.name,
+          url: audio.url,
+          duration: audio.duration,
+        }));
+      
+      if (selectedAudios.length > 0) {
+        onSelectSounds(selectedAudios);
+        onClose();
+      }
     }
+  };
+
+  const handleSoundGenerated = (sound: { url: string; title?: string; duration: number }) => {
+    const newSound: UploadedAudio = {
+      id: `sound-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      name: sound.title || `AI Sound ${generatedSounds.length + 1}`,
+      url: sound.url,
+      duration: sound.duration,
+      size: 0, // AI 생성 사운드는 size 정보 없음
+    };
+    
+    setGeneratedSounds(prev => [newSound, ...prev]);
+    setSelectedAudioIds(prev => {
+      const newSet = new Set(prev);
+      newSet.add(newSound.id);
+      return newSet;
+    });
+    setActiveTab('generate');
   };
 
   const handleRemoveAudio = (audioId: string) => {
@@ -266,16 +300,16 @@ export default function SoundLibraryModal({ onClose, onSelectSounds, onCreateVid
             >
               Upload Audio
             </button>
-
-              {onCreateVideo && (
-                <button
-                  onClick={onCreateVideo}
-                  className="px-6 py-2 bg-primary rounded-button hover:bg-primary/90 text-black flex items-center gap-2"
-                >
-                  <i className="ri-arrow-up-line text-xl"></i>
-                  {t('videoEditor.controls.create')}
-                </button>
-              )}
+            <button
+              onClick={() => setActiveTab('generate')}
+              className={`px-4 py-2 rounded-lg transition-colors ${
+                activeTab === 'generate' 
+                  ? 'bg-primary text-black' 
+                  : 'bg-gray-700 hover:bg-gray-600'
+              }`}
+            >
+              Create Sound
+            </button>
           </div>
           
           {activeTab === 'preset' ? (
@@ -306,6 +340,98 @@ export default function SoundLibraryModal({ onClose, onSelectSounds, onCreateVid
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+          ) : activeTab === 'generate' ? (
+            /* AI 생성 섹션 */
+            <div>
+              <div className="mb-6">
+                <h3 className="font-medium mb-4">AI Sound Generation</h3>
+                <button
+                  onClick={() => setIsSoundGenerationModalOpen(true)}
+                  className="w-full p-6 bg-gradient-to-r from-purple-600/20 to-blue-600/20 border border-purple-500/30 rounded-lg hover:from-purple-600/30 hover:to-blue-600/30 transition-all group"
+                >
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center group-hover:bg-primary/30 transition-colors">
+                      <i className="ri-magic-line text-3xl text-primary"></i>
+                    </div>
+                    <div>
+                      <div className="font-medium text-lg mb-1">Generate Sound with AI</div>
+                      <div className="text-sm text-gray-400">
+                        Create custom sound effects from text descriptions
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-medium">Generated Sounds ({generatedSounds.length})</h3>
+                  {generatedSounds.length > 0 && (
+                    <button 
+                      onClick={() => {
+                        if (selectedAudioIds.size === generatedSounds.length) {
+                          setSelectedAudioIds(new Set());
+                        } else {
+                          setSelectedAudioIds(new Set(generatedSounds.map(s => s.id)));
+                        }
+                      }}
+                      className="text-sm text-primary hover:text-primary/80"
+                    >
+                      {selectedAudioIds.size === generatedSounds.length ? 'Deselect All' : 'Select All'}
+                    </button>
+                  )}
+                </div>
+                {generatedSounds.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    No generated sounds yet.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {generatedSounds.map((audio) => (
+                      <div 
+                        key={audio.id}
+                        className="flex items-center gap-3 p-3 bg-gray-700/50 hover:bg-gray-700 rounded-lg group"
+                      >
+                        <input 
+                          type="checkbox"
+                          checked={selectedAudioIds.has(audio.id)}
+                          onChange={() => handleToggleSelect(audio.id)}
+                          className="w-4 h-4 text-primary bg-gray-700 border-gray-600 rounded focus:ring-primary"
+                        />
+                        
+                        <button 
+                          onClick={() => handlePlayPause(audio)}
+                          className="w-10 h-10 flex items-center justify-center bg-gray-900 rounded-full hover:bg-gray-800 transition-colors"
+                        >
+                          <i className={playingAudioId === audio.id ? 'ri-pause-fill' : 'ri-play-fill'}></i>
+                        </button>
+                        
+                        <div className="flex-1">
+                          <div className="font-medium text-sm">{audio.name}</div>
+                          <div className="text-xs text-gray-400 mt-1">
+                            {formatDuration(audio.duration)}
+                          </div>
+                        </div>
+                        
+                        <button 
+                          onClick={() => {
+                            setGeneratedSounds(prev => prev.filter(s => s.id !== audio.id));
+                            setSelectedAudioIds(prev => {
+                              const newSet = new Set(prev);
+                              newSet.delete(audio.id);
+                              return newSet;
+                            });
+                          }}
+                          className="w-8 h-8 flex items-center justify-center hover:bg-gray-600 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <i className="ri-delete-bin-line text-red-400"></i>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           ) : (
@@ -423,12 +549,16 @@ export default function SoundLibraryModal({ onClose, onSelectSounds, onCreateVid
                 disabled={
                   activeTab === 'preset' 
                     ? !selectedPreset 
+                    : activeTab === 'generate'
+                    ? selectedAudioIds.size === 0 || generatedSounds.filter(s => selectedAudioIds.has(s.id)).length === 0
                     : selectedAudioIds.size === 0
                 }
                 className="px-6 py-2 bg-primary rounded-button hover:bg-primary/90 text-black disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {activeTab === 'preset' 
                   ? `Add Preset Music` 
+                  : activeTab === 'generate'
+                  ? `Add Generated to Timeline (${generatedSounds.filter(s => selectedAudioIds.has(s.id)).length})`
                   : `Add Selected to Timeline (${selectedAudioIds.size})`
                 }
               </button>
@@ -436,6 +566,13 @@ export default function SoundLibraryModal({ onClose, onSelectSounds, onCreateVid
           </div>
         </div>
       </div>
+      
+      {/* Sound Generation Modal */}
+      <SoundGenerationModal
+        isOpen={isSoundGenerationModalOpen}
+        onClose={() => setIsSoundGenerationModalOpen(false)}
+        onSoundGenerated={handleSoundGenerated}
+      />
     </div>
   );
 }
