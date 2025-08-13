@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
 import SoundGenerationModal from './SoundGenerationModal';
 
@@ -18,7 +18,7 @@ interface UploadedAudio {
   size: number;
 }
 
-export default function SoundLibraryModal({ onClose, onSelectSounds, onCreateVideo }: SoundLibraryModalProps) {
+export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibraryModalProps) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'preset' | 'upload' | 'generate'>('preset');
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
@@ -28,8 +28,14 @@ export default function SoundLibraryModal({ onClose, onSelectSounds, onCreateVid
   const [isUploading, setIsUploading] = useState(false);
   const [isSoundGenerationModalOpen, setIsSoundGenerationModalOpen] = useState(false);
   const [generatedSounds, setGeneratedSounds] = useState<UploadedAudio[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  
+  // 캐싱 관련 ref
+  const soundCacheRef = useRef<UploadedAudio[]>([]);
+  const cacheTimestampRef = useRef<number>(0);
+  const CACHE_DURATION = 60000; // 1분 캐시
   
   // 프리셋 음악 옵션들
   const presetSounds = [
@@ -38,6 +44,56 @@ export default function SoundLibraryModal({ onClose, onSelectSounds, onCreateVid
     { key: 'ambient', label: t('videoEditor.controls.soundOptions.ambient'), duration: 240 },
     { key: 'sfx', label: t('videoEditor.controls.soundOptions.sfx'), duration: 60 },
   ];
+
+  // Generate 탭으로 전환 시 과거 생성 기록 불러오기
+  useEffect(() => {
+    if (activeTab === 'generate' && !isLoadingHistory) {
+      loadSoundHistory(); // 캐시가 있으면 사용, 없으면 로드
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]); // isLoadingHistory와 loadSoundHistory는 의도적으로 제외
+
+  const loadSoundHistory = async (forceRefresh = false) => {
+    // 캐시 유효성 검사
+    const now = Date.now();
+    if (!forceRefresh && 
+        soundCacheRef.current.length > 0 && 
+        (now - cacheTimestampRef.current) < CACHE_DURATION) {
+      // 캐시된 데이터 사용
+      setGeneratedSounds(soundCacheRef.current);
+      return;
+    }
+
+    if (isLoadingHistory) return; // 중복 호출 방지
+    
+    setIsLoadingHistory(true);
+    try {
+      const response = await fetch('/api/sound/history');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.sounds) {
+          // 과거 기록을 UploadedAudio 형식으로 변환
+          const historySounds: UploadedAudio[] = data.sounds.map((sound: { id: string; name: string; url: string; duration: number }) => ({
+            id: sound.id,
+            name: sound.name,
+            url: sound.url,
+            duration: sound.duration,
+            size: 0, // 과거 기록은 size 정보 없음
+          }));
+          
+          // 캐시 업데이트
+          soundCacheRef.current = historySounds;
+          cacheTimestampRef.current = now;
+          
+          setGeneratedSounds(historySounds);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load sound history:', error);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
 
   const getAudioDuration = (file: File): Promise<number> => {
     return new Promise((resolve, reject) => {
@@ -213,22 +269,22 @@ export default function SoundLibraryModal({ onClose, onSelectSounds, onCreateVid
     }
   };
 
-  const handleSoundGenerated = (sound: { url: string; title?: string; duration: number }) => {
-    const newSound: UploadedAudio = {
-      id: `sound-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      name: sound.title || `AI Sound ${generatedSounds.length + 1}`,
-      url: sound.url,
-      duration: sound.duration,
-      size: 0, // AI 생성 사운드는 size 정보 없음
-    };
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const handleSoundGenerated = async (sound: { url: string; title?: string; duration: number }) => {
+    // 생성 완료 시 캐시 무효화 후 DB 새로고침
+    await loadSoundHistory(true); // 강제 새로고침
     
-    setGeneratedSounds(prev => [newSound, ...prev]);
-    setSelectedAudioIds(prev => {
-      const newSet = new Set(prev);
-      newSet.add(newSound.id);
-      return newSet;
+    // 새로 생성된 사운드 자동 선택 (첫 번째 항목이 가장 최신)
+    setGeneratedSounds(prev => {
+      if (prev.length > 0) {
+        setSelectedAudioIds(ids => {
+          const newSet = new Set(ids);
+          newSet.add(prev[0].id); // 가장 최신 사운드 선택
+          return newSet;
+        });
+      }
+      return prev;
     });
-    setActiveTab('generate');
   };
 
   const handleRemoveAudio = (audioId: string) => {
@@ -383,7 +439,12 @@ export default function SoundLibraryModal({ onClose, onSelectSounds, onCreateVid
                     </button>
                   )}
                 </div>
-                {generatedSounds.length === 0 ? (
+                {isLoadingHistory ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <i className="ri-loader-4-line animate-spin text-2xl mb-2"></i>
+                    <div>Loading sound history...</div>
+                  </div>
+                ) : generatedSounds.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
                     No generated sounds yet.
                   </div>

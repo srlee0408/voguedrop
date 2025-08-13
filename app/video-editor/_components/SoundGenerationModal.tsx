@@ -168,7 +168,14 @@ export default function SoundGenerationModal({ isOpen, onClose, onSoundGenerated
                     title: status.result.title,
                     duration: status.result.duration
                   });
-                  onClose(); // handleClose 대신 onClose 직접 호출
+                  // 모달을 닫지 않고 상태만 초기화하여 추가 생성 가능하게 함
+                  setPrompt('');
+                  setTitle('');
+                  setDuration(5);
+                  setError(null);
+                  setProgress(0);
+                  setCurrentJobId(null);
+                  setIsGenerating(false);
                 }, 500);
               }
             };

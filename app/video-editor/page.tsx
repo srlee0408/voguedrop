@@ -322,6 +322,7 @@ export default function VideoEditorPage() {
     ));
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleAddSoundClip = (soundData: Partial<SoundClip>) => {
     const newSoundClip: SoundClip = {
       id: `sound-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -744,22 +745,29 @@ export default function VideoEditorPage() {
             // Get the end position of existing clips
             let currentPosition = getTimelineEnd(soundClips);
             
-            // Add sounds sequentially
-            sounds.forEach((sound) => {
+            // 여러 사운드를 한 번에 처리 (handleAddToTimeline과 동일한 패턴)
+            const newSoundClips = sounds.map((sound, index) => {
               const durationInPixels = Math.round(sound.duration * PIXELS_PER_SECOND);
               
-              handleAddSoundClip({ 
-                name: sound.name, 
+              const newClip: SoundClip = {
+                id: `sound-${Date.now()}-${index}-${Math.random().toString(36).substr(2, 9)}`,
+                name: sound.name,
                 url: sound.url,
                 duration: durationInPixels,
                 maxDuration: durationInPixels, // Set max duration to actual audio length
                 position: currentPosition,
-                volume: 100 
-              });
+                volume: 100
+              };
               
-              // Update position for next sound
+              // Update position for next clip
               currentPosition += durationInPixels;
+              
+              return newClip;
             });
+            
+            // Add all clips at once
+            setSoundClips([...soundClips, ...newSoundClips]);
+            saveToHistory();
             
             setShowSoundLibrary(false);
           }}
