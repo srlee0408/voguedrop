@@ -1,20 +1,27 @@
-import { Plus } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import Image from "next/image";
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { ERROR_MESSAGES } from "@/lib/constants/errors";
 
 interface ImageSectionProps {
+  uploadedImage?: string | null;
   onImageUpload?: (imageUrl: string) => void;
-  isGenerating?: boolean;
+  onImageRemove?: () => void;
 }
 
 export function ImageSection({ 
+  uploadedImage = null,
   onImageUpload,
-  isGenerating = false
+  onImageRemove
 }: ImageSectionProps) {
-  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [localImage, setLocalImage] = useState<string | null>(uploadedImage);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // 외부에서 uploadedImage prop이 변경되면 localImage 업데이트
+  useEffect(() => {
+    setLocalImage(uploadedImage);
+  }, [uploadedImage]);
 
   const validateFile = (file: File): string | null => {
     // 파일 타입 검증
@@ -45,7 +52,7 @@ export function ImageSection({
       
       reader.onload = (e) => {
         const base64Url = e.target?.result as string;
-        setUploadedImage(base64Url);
+        setLocalImage(base64Url);
         onImageUpload?.(base64Url);
       };
       
@@ -70,9 +77,12 @@ export function ImageSection({
 
 
   const handleClick = () => {
-    if (!isGenerating) {
-      fileInputRef.current?.click();
-    }
+    fileInputRef.current?.click();
+  };
+
+  const handleRemoveImage = () => {
+    setLocalImage(null);
+    onImageRemove?.();
   };
 
   return (
@@ -81,30 +91,32 @@ export function ImageSection({
       <div className="flex gap-1.5">
         {/* Upload button - always visible */}
         <button
-          className={`w-16 h-16 rounded-md flex items-center justify-center border transition-all ${
-            isGenerating 
-              ? "bg-primary/50 border-primary/50 cursor-not-allowed opacity-50" 
-              : "bg-primary border-primary hover:bg-primary/90 cursor-pointer group"
-          }`}
+          className="w-16 h-16 rounded-md flex items-center justify-center border transition-all bg-primary border-primary hover:bg-primary/90 cursor-pointer group"
           onClick={handleClick}
-          aria-label={isGenerating ? "Image upload disabled during generation" : "Add image"}
-          disabled={isGenerating}
-          title={isGenerating ? "영상 생성 중에는 이미지를 업로드할 수 없습니다" : "이미지 업로드"}
+          aria-label="Add image"
+          title="이미지 업로드"
         >
           <Plus className="w-5 h-5 text-primary-foreground" />
         </button>
         
         {/* Uploaded image slot */}
-        {uploadedImage && (
+        {localImage && (
           <div className="w-16 h-16 bg-surface rounded-md overflow-hidden relative group">
             <Image
-              src={uploadedImage}
+              src={localImage}
               alt="Uploaded image"
               className="w-full h-full object-cover"
               fill
               sizes="64px"
             />
-            
+            {/* 삭제 버튼 - hover 시 표시 */}
+            <button
+              onClick={handleRemoveImage}
+              className="absolute top-0.5 right-0.5 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+              aria-label="Remove image"
+            >
+              <X className="w-3 h-3 text-white" />
+            </button>
           </div>
         )}
       </div>
@@ -116,7 +128,6 @@ export function ImageSection({
         accept="image/jpeg,image/png"
         onChange={handleFileSelect}
         className="hidden"
-        disabled={isGenerating}
       />
       
       {/* 에러 메시지 표시 */}

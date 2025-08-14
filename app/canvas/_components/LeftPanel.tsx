@@ -9,8 +9,9 @@ interface LeftPanelProps {
   onPrompterToggle: () => void;
   promptText: string;
   onPromptChange: (text: string) => void;
+  uploadedImage?: string | null;
   onImageUpload?: (imageUrl: string) => void;
-  isGenerating?: boolean;
+  onImageRemove?: () => void;
   generationError?: string | null;
   onEffectModalOpen?: () => void;
   selectedEffects?: EffectTemplateWithMedia[];
@@ -22,8 +23,9 @@ export function LeftPanel({
   onPrompterToggle,
   promptText,
   onPromptChange,
+  uploadedImage,
   onImageUpload,
-  isGenerating,
+  onImageRemove,
   generationError,
   onEffectModalOpen,
   selectedEffects,
@@ -32,8 +34,9 @@ export function LeftPanel({
   return (
     <div className="w-64 bg-background p-6 border-r border-border">
       <ImageSection 
+        uploadedImage={uploadedImage}
         onImageUpload={onImageUpload}
-        isGenerating={isGenerating}
+        onImageRemove={onImageRemove}
       />
 
       <EffectsSection 

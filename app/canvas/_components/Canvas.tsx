@@ -12,6 +12,7 @@ interface CanvasProps {
   onPromptModalOpen?: () => void;
   showControls?: boolean;
   slotContents?: Array<{type: 'image' | 'video', data: string | GeneratedVideo} | null>;
+  slotStates?: Array<'empty' | 'generating' | 'completed'>;
   onVideoSelect?: (video: GeneratedVideo) => void;
   onGenerateClick?: () => void;
   isGenerating?: boolean;
@@ -36,6 +37,7 @@ export function Canvas({
   onPromptModalOpen,
   showControls = false,
   slotContents = [null, null, null, null],
+  slotStates = ['empty', 'empty', 'empty', 'empty'],
   onVideoSelect,
   onGenerateClick,
   isGenerating = false,
@@ -79,12 +81,13 @@ export function Canvas({
             
             // 현재 슬롯의 생성 진행률 찾기
             const progress = generatingProgress.get(index.toString()) || 0;
-            const isGeneratingThisSlot = isGenerating && generatingProgress.has(index.toString()) && progress < 100;
+            const isGeneratingThisSlot = slotStates[index] === 'generating' || 
+              (isGenerating && generatingProgress.has(index.toString()) && progress < 100);
             
             return (
               <div
                 key={image.id}
-                className={`relative bg-surface rounded-lg overflow-hidden h-full cursor-pointer transition-all ${
+                className={`relative bg-surface rounded-lg overflow-hidden h-full cursor-pointer transition-all group ${
                   selectedSlotIndex === index ? 'ring-2 ring-primary' : ''
                 }`}
                 onClick={() => {
@@ -98,7 +101,7 @@ export function Canvas({
               {/* Pin button - 비디오가 있는 슬롯에만 표시 */}
               {displayContent.type === 'video' && displayContent.data && (
                 <button
-                  className="absolute top-4 right-4 w-10 h-10 bg-surface/90 backdrop-blur rounded-full flex items-center justify-center z-20 hover:bg-surface transition-colors"
+                  className="absolute top-4 left-4 w-10 h-10 bg-surface/90 backdrop-blur rounded-full flex items-center justify-center z-20 hover:bg-surface transition-colors"
                   onClick={(e) => {
                     e.stopPropagation();
                     onToggleFavorite?.((displayContent.data as GeneratedVideo).id);
@@ -124,7 +127,7 @@ export function Canvas({
               {/* X button for removing content */}
               {displayContent.type !== 'empty' && onRemoveContent && (
                 <button
-                  className="absolute top-4 right-16 w-10 h-10 bg-black/60 backdrop-blur rounded-full flex items-center justify-center z-20 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/80"
+                  className="absolute top-4 right-4 w-10 h-10 bg-black/60 backdrop-blur rounded-full flex items-center justify-center z-20 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/80"
                   onClick={(e) => {
                     e.stopPropagation();
                     if (displayContent.type === 'video' && displayContent.data) {
@@ -150,14 +153,24 @@ export function Canvas({
                   playsInline
                 />
               ) : displayContent.type === 'image' && displayContent.data ? (
-                <Image
-                  src={displayContent.data as string}
-                  alt={`Canvas image ${index + 1}`}
-                  className="absolute inset-0 w-full h-full object-cover"
-                  fill
-                  sizes="(max-width: 1024px) 25vw, 25vw"
-                  priority={index === 0}
-                />
+                <>
+                  <Image
+                    src={displayContent.data as string}
+                    alt={`Canvas image ${index + 1}`}
+                    className="absolute inset-0 w-full h-full object-cover"
+                    fill
+                    sizes="(max-width: 1024px) 25vw, 25vw"
+                    priority={index === 0}
+                  />
+                  {/* Ready to Generate 오버레이 - generating이 아닌 이미지에만 표시 */}
+                  {!isGeneratingThisSlot && (
+                    <div className="absolute inset-0 bg-black/20 flex items-center justify-center pointer-events-none">
+                      <div className="bg-black/70 px-3 py-1.5 rounded-md text-white text-sm font-medium">
+                        Ready to Generate
+                      </div>
+                    </div>
+                  )}
+                </>
               ) : null}
               
               {/* 프로그레스 오버레이 */}

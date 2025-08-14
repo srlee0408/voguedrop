@@ -66,7 +66,7 @@ export function CanvasHistoryPanel({
     }
 
     fetchVideoHistory();
-  }, [user]); // Re-fetch only when user changes
+  }, [user, JSON.stringify(slotContents)]); // 슬롯 변화에도 재조회하여 실시간 반영
   return (
     <div className="w-24 flex flex-col items-center space-y-2 ml-4">
       {/* History Title */}
@@ -85,7 +85,7 @@ export function CanvasHistoryPanel({
           <p className="text-xs text-muted-foreground">No videos yet</p>
         </div>
       ) : (
-        dbVideos.slice(0,4).map((video) => {
+        dbVideos.slice(0, 6).map((video) => {
           const slotNumber = getSlotNumber(video.id);
           return (
             <button

@@ -7,7 +7,6 @@ interface CanvasControlsProps {
   selectedSize: string
   onPromptModalOpen?: () => void
   onGenerateClick?: () => void
-  isGenerating?: boolean
   canGenerate?: boolean
   selectedDuration?: string
   onDurationChange?: (duration: string) => void
@@ -21,7 +20,6 @@ export function CanvasControls({
   selectedSize,
   onPromptModalOpen,
   onGenerateClick,
-  isGenerating = false,
   canGenerate = false,
   selectedDuration = "6",
   onDurationChange,
@@ -34,10 +32,10 @@ export function CanvasControls({
       <Button
         className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-button hover:bg-primary/90 disabled:bg-primary/50 disabled:cursor-not-allowed transition-colors"
         onClick={onGenerateClick || onPromptModalOpen}
-        disabled={!canGenerate || isGenerating}
+        disabled={!canGenerate}
       >
         <Wand2 className="w-4 h-4" />
-        <span>{isGenerating ? 'Generating...' : 'Generate'}</span>
+        <span>Generate</span>
       </Button>
 
       <div className="relative">
