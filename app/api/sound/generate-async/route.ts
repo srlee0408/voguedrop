@@ -55,94 +55,115 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // 2. Job ID 생성
-    const jobId = `job_${nanoid()}`;
+    // 2. Group ID 생성 (4개의 variation을 그룹화)
+    const groupId = `group_${nanoid()}`;
+    const jobIds: string[] = [];
     
-    // 3. DB에 초기 레코드 생성
-    const { error: dbError } = await supabase
-      .from('sound_generations')
-      .insert({
-        job_id: jobId,
-        user_id: userId,
-        prompt: prompt.trim(),
-        title: title?.trim() || null,
-        duration_seconds: finalDuration,
-        status: 'pending',
-        webhook_status: 'pending'
-      })
-      .select('id, job_id, status')
-      .single();
+    // 3. 4개의 variation에 대한 DB 레코드 생성
+    const insertPromises = [];
+    for (let i = 1; i <= 4; i++) {
+      const jobId = `job_${nanoid()}`;
+      jobIds.push(jobId);
+      
+      insertPromises.push(
+        supabase
+          .from('sound_generations')
+          .insert({
+            job_id: jobId,
+            user_id: userId,
+            prompt: prompt.trim(),
+            title: title?.trim() || null,
+            duration_seconds: finalDuration,
+            status: 'pending',
+            webhook_status: 'pending',
+            generation_group_id: groupId,
+            variation_number: i
+          })
+          .select('id, job_id, status')
+          .single()
+      );
+    }
     
-    if (dbError) {
-      console.error('Failed to create sound generation record:', dbError);
+    const insertResults = await Promise.all(insertPromises);
+    
+    // 에러 체크
+    const failedInserts = insertResults.filter(result => result.error);
+    if (failedInserts.length > 0) {
+      console.error('Failed to create sound generation records:', failedInserts);
       return NextResponse.json(
         { error: '사운드 생성 요청을 저장하는데 실패했습니다.' },
         { status: 500 }
       );
     }
     
-    // 4. fal.ai에 비동기 요청 전송 (webhook URL 포함)
+    // 4. fal.ai에 비동기 요청 전송 (4개의 variation)
     const webhookBaseUrl = process.env.NEXT_PUBLIC_SITE_URL || 
                           `https://${request.headers.get('host')}`;
-    const webhookUrl = `${webhookBaseUrl}/api/webhooks/fal-ai?jobId=${jobId}&type=sound`;
     
     // Mock 모드에서는 fal.ai API 호출을 건너뛰고 5초 후 자동 완료
     if (isMockMode) {
-      console.log('Mock mode enabled - skipping fal.ai API call for sound generation');
+      console.log('Mock mode enabled - generating 4 sound variations');
       
-      // 상태를 processing으로 업데이트
       const { createServiceClient } = await import('@/lib/supabase/service');
       const serviceSupabase = createServiceClient();
       
-      await serviceSupabase
-        .from('sound_generations')
-        .update({
-          status: 'processing',
-          fal_request_id: `mock_${jobId}`,
-          updated_at: new Date().toISOString()
-        })
-        .eq('job_id', jobId);
+      // 모든 job을 processing으로 업데이트
+      for (const jobId of jobIds) {
+        await serviceSupabase
+          .from('sound_generations')
+          .update({
+            status: 'processing',
+            fal_request_id: `mock_${jobId}`,
+            updated_at: new Date().toISOString()
+          })
+          .eq('job_id', jobId);
+      }
       
-      // 5초 후 webhook 시뮬레이션
-      setTimeout(async () => {
-        try {
-          const mockResponse = await fetch(webhookUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Webhook-Secret': process.env.WEBHOOK_SECRET || 'test-secret'
-            },
-            body: JSON.stringify({
-              request_id: `mock_${jobId}`,
-              gateway_request_id: 'mock-gateway-id',
-              status: 'OK',
-              payload: {
-                audio: {
-                  url: 'https://v3.fal.media/files/example/mock_sound_effect.mp3'
+      // 각 job에 대해 webhook 시뮬레이션 (약간의 딜레이를 두고)
+      jobIds.forEach((jobId, index) => {
+        setTimeout(async () => {
+          try {
+            const webhookUrl = `${webhookBaseUrl}/api/webhooks/fal-ai?jobId=${jobId}&type=sound`;
+            const mockResponse = await fetch(webhookUrl, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-Webhook-Secret': process.env.WEBHOOK_SECRET || 'test-secret'
+              },
+              body: JSON.stringify({
+                request_id: `mock_${jobId}`,
+                gateway_request_id: 'mock-gateway-id',
+                status: 'OK',
+                payload: {
+                  audio: {
+                    url: `https://v3.fal.media/files/example/mock_sound_effect_v${index + 1}.mp3`
+                  }
                 }
-              }
-            })
-          });
-          
-          if (!mockResponse.ok) {
-            console.error('Mock webhook call failed');
+              })
+            });
+            
+            if (!mockResponse.ok) {
+              console.error(`Mock webhook call failed for job ${jobId}`);
+            }
+          } catch (error) {
+            console.error(`Mock webhook error for job ${jobId}:`, error);
           }
-        } catch (error) {
-          console.error('Mock webhook error:', error);
-        }
-      }, 5000);
+        }, 3000 + (index * 1000)); // 3초부터 시작해서 1초씩 간격
+      });
       
       return NextResponse.json({
         success: true,
-        jobId,
+        groupId,
+        jobIds,
         status: 'processing',
-        message: '사운드 생성이 시작되었습니다. 잠시 후 결과를 확인해주세요.'
+        message: '4개의 사운드 variation 생성이 시작되었습니다.'
       });
     }
     
-    // 실제 fal.ai API 호출
+    // 실제 fal.ai API 호출 (4개의 variation 동시 생성)
     const endpoint = "fal-ai/elevenlabs/sound-effects";
-    const queueUrl = `https://queue.fal.run/${endpoint}?fal_webhook=${encodeURIComponent(webhookUrl)}`;
+    const { createServiceClient } = await import('@/lib/supabase/service');
+    const serviceSupabase = createServiceClient();
     
     const requestPayload = {
       text: prompt.trim(),
@@ -150,59 +171,87 @@ export async function POST(request: NextRequest) {
       prompt_influence: 0.3
     };
     
-    const response = await fetch(queueUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Key ${process.env.FAL_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(requestPayload)
+    // 4개의 API 호출을 병렬로 실행
+    const apiPromises = jobIds.map(async (jobId) => {
+      const webhookUrl = `${webhookBaseUrl}/api/webhooks/fal-ai?jobId=${jobId}&type=sound`;
+      const queueUrl = `https://queue.fal.run/${endpoint}?fal_webhook=${encodeURIComponent(webhookUrl)}`;
+      
+      try {
+        const response = await fetch(queueUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Key ${process.env.FAL_API_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(requestPayload)
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error(`fal.ai API error for job ${jobId}:`, errorData);
+          
+          // 실패 시 DB 업데이트
+          await serviceSupabase
+            .from('sound_generations')
+            .update({
+              status: 'failed',
+              error_message: errorData.detail || 'fal.ai API 호출 실패',
+              updated_at: new Date().toISOString()
+            })
+            .eq('job_id', jobId);
+          
+          return { success: false, jobId, error: errorData.detail || 'fal.ai API 호출 실패' };
+        }
+        
+        const result = await response.json();
+        
+        // fal request ID 저장 및 상태 업데이트
+        await serviceSupabase
+          .from('sound_generations')
+          .update({
+            fal_request_id: result.request_id,
+            status: 'processing',
+            updated_at: new Date().toISOString()
+          })
+          .eq('job_id', jobId);
+        
+        return { success: true, jobId, requestId: result.request_id };
+      } catch (error) {
+        console.error(`Error calling fal.ai for job ${jobId}:`, error);
+        
+        await serviceSupabase
+          .from('sound_generations')
+          .update({
+            status: 'failed',
+            error_message: 'API 호출 중 오류 발생',
+            updated_at: new Date().toISOString()
+          })
+          .eq('job_id', jobId);
+        
+        return { success: false, jobId, error: 'API 호출 중 오류 발생' };
+      }
     });
     
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error('fal.ai API error:', errorData);
-      
-      // 실패 시 DB 업데이트
-      const { createServiceClient } = await import('@/lib/supabase/service');
-      const serviceSupabase = createServiceClient();
-      
-      await serviceSupabase
-        .from('sound_generations')
-        .update({
-          status: 'failed',
-          error_message: errorData.detail || 'fal.ai API 호출 실패',
-          updated_at: new Date().toISOString()
-        })
-        .eq('job_id', jobId);
-      
+    const apiResults = await Promise.all(apiPromises);
+    
+    // 성공한 job 확인
+    const successfulJobs = apiResults.filter(r => r.success);
+    
+    if (successfulJobs.length === 0) {
       return NextResponse.json(
-        { error: errorData.detail || 'fal.ai API 호출 실패' },
+        { error: '모든 사운드 생성 요청이 실패했습니다.' },
         { status: 500 }
       );
     }
     
-    const result = await response.json();
-    
-    // fal request ID 저장 및 상태 업데이트 (Service Role 사용)
-    const { createServiceClient } = await import('@/lib/supabase/service');
-    const serviceSupabase = createServiceClient();
-    
-    await serviceSupabase
-      .from('sound_generations')
-      .update({
-        fal_request_id: result.request_id,
-        status: 'processing',
-        updated_at: new Date().toISOString()
-      })
-      .eq('job_id', jobId);
-    
     // 5. 클라이언트에 즉시 응답 반환
     return NextResponse.json({
       success: true,
-      jobId,
+      groupId,
+      jobIds,
+      successfulJobIds: successfulJobs.map(j => j.jobId),
       status: 'processing',
-      message: '사운드 생성이 시작되었습니다. 잠시 후 결과를 확인해주세요.'
+      message: `${successfulJobs.length}개의 사운드 variation 생성이 시작되었습니다.`
     });
     
   } catch (error) {

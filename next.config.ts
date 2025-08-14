@@ -52,13 +52,11 @@ const nextConfig: NextConfig = {
   },
   
   // 서버 컴포넌트에서 외부 패키지 처리
-  experimental: {
-    serverComponentsExternalPackages: [
-      '@remotion/lambda',
-      '@remotion/bundler',
-      '@remotion/renderer',
-    ],
-  },
+  serverExternalPackages: [
+    '@remotion/lambda',
+    '@remotion/bundler',
+    '@remotion/renderer',
+  ],
 };
 
 export default nextConfig;

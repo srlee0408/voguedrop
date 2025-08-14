@@ -10,6 +10,7 @@ interface RenderRequest {
   aspectRatio: '9:16' | '1:1' | '16:9';
   durationInFrames: number;
   projectName?: string;
+  contentHash?: string; // content hash 추가
 }
 
 // 화면 비율에 따른 컴포지션 ID 매핑
@@ -41,7 +42,7 @@ export async function POST(request: NextRequest) {
 
     // 요청 데이터 파싱
     const body: RenderRequest = await request.json();
-    const { videoClips, textClips, soundClips, aspectRatio, durationInFrames, projectName } = body;
+    const { videoClips, textClips, soundClips, aspectRatio, durationInFrames, projectName, contentHash } = body;
 
     // 유효성 검사
     if (!videoClips || videoClips.length === 0) {
@@ -123,7 +124,7 @@ export async function POST(request: NextRequest) {
       bucketName: result.bucketName,
     });
 
-    // 렌더링 기록 저장
+    // 렌더링 기록 저장 (content_hash 포함)
     const { error: dbError } = await supabase
       .from('video_renders')
       .insert({
@@ -134,6 +135,7 @@ export async function POST(request: NextRequest) {
         aspect_ratio: aspectRatio,
         duration_frames: durationInFrames,
         output_url: null,
+        content_hash: contentHash || null, // content hash 저장
         video_clips: videoClips,
         text_clips: textClips,
         sound_clips: soundClips,

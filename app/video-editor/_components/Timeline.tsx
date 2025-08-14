@@ -1513,7 +1513,7 @@ export default function Timeline({
                 top: '0', // 타임라인 눈금부터 시작
                 bottom: '0',
                 left: `${playheadPosition}px`,
-                zIndex: 50,
+                zIndex: 40,
                 width: '13px', // 드래그 가능한 영역 너빔
                 cursor: 'ew-resize'
               }}

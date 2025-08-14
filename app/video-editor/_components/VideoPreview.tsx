@@ -6,6 +6,7 @@ import { CompositePreview } from '../_remotion/CompositePreview';
 import { TextClip as TextClipType, SoundClip as SoundClipType } from '@/types/video-editor';
 import TextOverlayEditor from './TextOverlayEditor';
 import FullscreenPreviewModal from './FullscreenPreviewModal';
+import RenderingModal from './RenderingModal';
 import { ASPECT_RATIOS, CAROUSEL_CONFIG, STYLES, AspectRatioValue } from '../_constants';
 // import { useVideoPreloader } from '../_hooks/useVideoPreloader';
 
@@ -70,6 +71,9 @@ export default function VideoPreview({
   const [renderProgress, setRenderProgress] = useState(0);
   const [renderComplete, setRenderComplete] = useState(false);
   const [renderOutputUrl, setRenderOutputUrl] = useState<string | null>(null);
+  const [isRenderModalOpen, setIsRenderModalOpen] = useState(false);
+  
+  // Export 관련 상태 (저장 상태 제거)
   
   const containerRef = useRef<HTMLDivElement>(null);
   const { ITEM_WIDTH, ITEM_HEIGHT, ITEM_GAP } = CAROUSEL_CONFIG;
@@ -259,8 +263,57 @@ export default function VideoPreview({
     height: aspectRatioDimensions.height
   };
 
-  // 다운로드 핸들러
-  const handleDownload = async () => {
+  // content hash 생성 함수 (SHA256 사용)
+  const generateContentHash = async (data: {
+    videoClips: unknown[];
+    textClips: unknown[];
+    soundClips: unknown[];
+    aspectRatio: string;
+  }): Promise<string> => {
+    const essentialData = {
+      aspectRatio: data.aspectRatio,
+      videoClips: (data.videoClips as unknown[]).map((clip: unknown) => {
+        const c = clip as Record<string, unknown>;
+        return {
+          url: c.url,
+          position: c.position,
+          duration: c.duration,
+          startTime: c.startTime || 0,
+          endTime: c.endTime
+        };
+      }).sort((a, b) => (a.position as number) - (b.position as number)),
+      textClips: (data.textClips as unknown[]).map((text: unknown) => {
+        const t = text as Record<string, unknown>;
+        return {
+          content: t.content,
+          position: t.position,
+          duration: t.duration,
+          style: t.style,
+          effect: t.effect
+        };
+      }).sort((a, b) => (a.position as number) - (b.position as number)),
+      soundClips: (data.soundClips as unknown[]).map((sound: unknown) => {
+        const s = sound as Record<string, unknown>;
+        return {
+          url: s.url,
+          position: s.position,
+          duration: s.duration,
+          volume: s.volume,
+          startTime: s.startTime || 0
+        };
+      }).sort((a, b) => (a.position as number) - (b.position as number))
+    };
+    
+    // 브라우저에서 Web Crypto API 사용
+    const msgUint8 = new TextEncoder().encode(JSON.stringify(essentialData));
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return hashHex;
+  };
+
+  // Export Video 핸들러 (Save + Download 통합)
+  const handleExportVideo = async () => {
     if (clips.length === 0) {
       alert('Please add video clips first.');
       return;
@@ -268,9 +321,47 @@ export default function VideoPreview({
 
     setIsRendering(true);
     setRenderProgress(0);
+    setIsRenderModalOpen(true);
 
     try {
-      // API 호출하여 렌더링 시작
+      // 1. content hash 생성
+      const contentHash = await generateContentHash({
+        videoClips: clips,
+        textClips: textClips,
+        soundClips: soundClips,
+        aspectRatio: selectedAspectRatio
+      });
+      
+      // 2. 기존 렌더링 확인
+      const checkResponse = await fetch(`/api/video/check-render?hash=${encodeURIComponent(contentHash)}`);
+      
+      if (!checkResponse.ok) {
+        console.error('Failed to check existing render');
+        // 체크 실패해도 계속 진행 (새 렌더링)
+      } else {
+        const checkResult = await checkResponse.json();
+        
+        // 3. 기존 렌더링이 있으면 바로 다운로드
+        if (checkResult.exists && checkResult.outputUrl) {
+          setRenderOutputUrl(checkResult.outputUrl);
+          setIsRendering(false);
+          setIsRenderModalOpen(false);
+          
+          // 바로 다운로드 실행
+          const link = document.createElement('a');
+          link.href = checkResult.outputUrl;
+          link.download = `${projectTitle || 'video'}-${Date.now()}.mp4`;
+          link.target = '_blank';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          
+          console.log('Using existing render:', checkResult.renderId);
+          return; // 렌더링 불필요
+        }
+      }
+
+      // 4. 기존 렌더링이 없으면 새로 렌더링
       const response = await fetch('/api/video/render', {
         method: 'POST',
         headers: {
@@ -282,7 +373,8 @@ export default function VideoPreview({
           soundClips: soundClips,
           aspectRatio: selectedAspectRatio,
           durationInFrames: calculateTotalFrames,
-          projectName: projectTitle, // prop으로 받은 프로젝트 이름 사용
+          projectName: projectTitle,
+          contentHash: contentHash, // content hash 추가
         }),
       });
 
@@ -314,29 +406,43 @@ export default function VideoPreview({
             const status = await statusResponse.json();
             
             if (status.done && status.outputFile) {
-              // 렌더링 완료 - 상태 업데이트
-              setRenderOutputUrl(status.outputFile);
-              setRenderComplete(true);
-              setIsRendering(false);
-              setRenderProgress(100);
-              
-              // 3초 후 자동 다운로드
-              setTimeout(() => {
-                const link = document.createElement('a');
-                link.href = status.outputFile;
-                link.download = `video-${Date.now()}.mp4`;
-                link.target = '_blank';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
+              // 렌더링 완료 - Save API 호출하여 Supabase에 저장
+              const finalSaveResponse = await fetch('/api/video/save', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  projectName: projectTitle,
+                  videoClips: clips,
+                  textClips: textClips,
+                  soundClips: soundClips,
+                  aspectRatio: selectedAspectRatio,
+                  durationInFrames: calculateTotalFrames,
+                  renderId: result.renderId,
+                  renderOutputUrl: status.outputFile,
+                }),
+              });
+
+              if (finalSaveResponse.ok) {
+                const finalSaveResult = await finalSaveResponse.json();
                 
-                // 5초 후 완료 상태 초기화
-                setTimeout(() => {
-                  setRenderComplete(false);
-                  setRenderProgress(0);
-                  setRenderOutputUrl(null);
-                }, 5000);
-              }, 3000);
+                // Supabase URL이 있으면 사용, 없으면 S3 URL 사용
+                const videoUrl = finalSaveResult.videoUrl || status.outputFile;
+                setRenderOutputUrl(videoUrl);
+                setRenderComplete(true);
+                setIsRendering(false);
+                setRenderProgress(100);
+                
+                console.log('Video saved to:', finalSaveResult.storageLocation, videoUrl);
+                
+              } else {
+                // Save 실패해도 S3 URL은 사용 가능
+                setRenderOutputUrl(status.outputFile);
+                setRenderComplete(true);
+                setIsRendering(false);
+                setRenderProgress(100);
+              }
             } else if (attempts < maxAttempts) {
               // 진행률 업데이트
               setRenderProgress(Math.round((status.overallProgress || 0) * 100));
@@ -365,8 +471,11 @@ export default function VideoPreview({
       alert(`Download failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
       setIsRendering(false);
       setRenderProgress(0);
+      setIsRenderModalOpen(false);
     }
   };
+
+  // handleSaveFile 제거 - Export Video로 통합됨
 
   if (!is_mounted) return null;
 
@@ -608,33 +717,21 @@ export default function VideoPreview({
                 </div>
               </div>
               
-              {/* Save File 버튼 */}
+              {/* Export Video 버튼 (Save + Download 통합) */}
               <div className="relative group">
                 <button 
                   className="p-2 bg-black/50 rounded hover:bg-black/70 transition-colors"
-                >
-                  <i className="ri-save-line text-primary"></i>
-                </button>
-                <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
-                  Save File
-                </div>
-              </div>
-              
-              {/* Download 버튼 */}
-              <div className="relative group">
-                <button 
-                  className="p-2 bg-black/50 rounded hover:bg-black/70 transition-colors"
-                  onClick={handleDownload}
+                  onClick={handleExportVideo}
                   disabled={isRendering}
                 >
                   {isRendering ? (
                     <div className="w-4 h-4 border-2 border-gray-500 border-t-primary rounded-full animate-spin" />
                   ) : (
-                    <i className="ri-download-line text-primary"></i>
+                    <i className="ri-video-download-line text-primary"></i>
                   )}
                 </button>
                 <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
-                  {isRendering ? `Rendering... ${renderProgress}%` : 'Download'}
+                  {isRendering ? `Rendering... ${renderProgress}%` : 'Export Video'}
                 </div>
               </div>
               
@@ -776,90 +873,6 @@ export default function VideoPreview({
                     </div>
                   )}
                   
-                  {/* 렌더링 진행 오버레이 */}
-                  {(isRendering || renderComplete) && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-lg z-50">
-                      <div className="flex flex-col items-center gap-4 p-6 bg-gray-900/90 rounded-xl backdrop-blur-sm border border-gray-700">
-                        {renderComplete ? (
-                          <>
-                            {/* 완료 아이콘 */}
-                            <div className="relative">
-                              <div className="w-16 h-16 bg-gradient-to-r from-[#38f47cf9] to-[#4affb0] rounded-full flex items-center justify-center">
-                                <i className="ri-check-line text-3xl text-white"></i>
-                              </div>
-                            </div>
-                            
-                            {/* 완료 텍스트 */}
-                            <div className="text-center">
-                              <p className="text-white text-lg font-medium mb-1">Rendering Complete!</p>
-                              <p className="text-gray-400 text-sm">Your video is ready</p>
-                            </div>
-                            
-                            {/* 다운로드 안내 */}
-                            <div className="text-center">
-                              <p className="text-[#38f47cf9] text-sm mb-2">
-                                <i className="ri-download-line mr-1"></i>
-                                Download will start automatically...
-                              </p>
-                              <button
-                                onClick={() => {
-                                  if (renderOutputUrl) {
-                                    const link = document.createElement('a');
-                                    link.href = renderOutputUrl;
-                                    link.download = `video-${Date.now()}.mp4`;
-                                    link.target = '_blank';
-                                    document.body.appendChild(link);
-                                    link.click();
-                                    document.body.removeChild(link);
-                                  }
-                                }}
-                                className="px-4 py-2 bg-[#38f47cf9] text-black rounded-lg hover:bg-[#4affb0] transition-colors text-sm font-medium"
-                              >
-                                Download Now
-                              </button>
-                            </div>
-                          </>
-                        ) : (
-                          <>
-                            {/* 렌더링 아이콘 */}
-                            <div className="relative">
-                              <div className="w-16 h-16 border-4 border-gray-600 border-t-[#38f47cf9] rounded-full animate-spin"></div>
-                              <i className="ri-vidicon-line text-2xl text-[#38f47cf9] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"></i>
-                            </div>
-                            
-                            {/* 상태 텍스트 */}
-                            <div className="text-center">
-                              <p className="text-white text-lg font-medium mb-1">Rendering Video...</p>
-                              <p className="text-gray-400 text-sm">Please wait a moment</p>
-                            </div>
-                            
-                            {/* 진행률 바 */}
-                            <div className="w-64">
-                              <div className="flex justify-between text-xs text-gray-400 mb-2">
-                                <span>Progress</span>
-                                <span>{renderProgress}%</span>
-                              </div>
-                              <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-                                <div 
-                                  className="h-full bg-gradient-to-r from-[#38f47cf9] to-[#4affb0] transition-all duration-300 ease-out"
-                                  style={{ width: `${renderProgress}%` }}
-                                />
-                              </div>
-                            </div>
-                            
-                            {/* 예상 시간 */}
-                            <p className="text-xs text-gray-500">
-                              {renderProgress < 30 
-                                ? 'Preparing render...' 
-                                : renderProgress < 70 
-                                  ? 'Processing video...' 
-                                  : 'Finalizing...'}
-                            </p>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  )}
                   
                   {/* 텍스트 편집 오버레이 - Player와 같은 컨테이너 내에 위치 */}
                   <TextOverlayEditor
@@ -947,6 +960,19 @@ export default function VideoPreview({
         aspectRatio={selectedAspectRatio}
         videoWidth={videoAspectRatio.width}
         videoHeight={videoAspectRatio.height}
+      />
+      
+      {/* 렌더링 모달 */}
+      <RenderingModal
+        isOpen={isRenderModalOpen}
+        onClose={() => {
+          setIsRenderModalOpen(false);
+          setRenderComplete(false);
+          setRenderProgress(0);
+        }}
+        renderProgress={renderProgress}
+        renderComplete={renderComplete}
+        renderOutputUrl={renderOutputUrl}
       />
     </div>
   );
