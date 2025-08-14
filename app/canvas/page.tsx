@@ -103,10 +103,11 @@ export default function CanvasPage() {
   const [selectedEffects, setSelectedEffects] = useState<EffectTemplateWithMedia[]>([])
   const [generationError, setGenerationError] = useState<string | null>(null)
   const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null)
-  const [selectedHistoryVideos, setSelectedHistoryVideos] = useState<GeneratedVideo[]>([])
   const [selectedDuration, setSelectedDuration] = useState<string>("6")
   const [generatingProgress, setGeneratingProgress] = useState<Map<string, number>>(new Map())
   const [generatingJobIds, setGeneratingJobIds] = useState<Map<string, string>>(new Map())
+  const [generatingSlots, setGeneratingSlots] = useState<Set<number>>(new Set())
+  const [slotStates, setSlotStates] = useState<Array<'empty' | 'generating' | 'completed'>>(['empty', 'empty', 'empty', 'empty'])
   const [selectedSlotIndex, setSelectedSlotIndex] = useState<number | null>(null)
   const [activeVideo, setActiveVideo] = useState<GeneratedVideo | null>(null)
   const [isDownloading, setIsDownloading] = useState(false)
@@ -172,17 +173,44 @@ export default function CanvasPage() {
   };
 
   const handleVideoSelect = (video: GeneratedVideo) => {
+    // 이미 슬롯에 있는 비디오인지 확인
+    const slotIndex = slotContents.findIndex(slot => 
+      slot?.type === 'video' && (slot.data as GeneratedVideo).id === video.id
+    );
+    
+    // 이미 슬롯에 있으면 제거
+    if (slotIndex !== -1) {
+      setSlotContents(prev => {
+        const newSlots = [...prev];
+        // 해당 슬롯을 null로 설정
+        newSlots[slotIndex] = null;
+        
+        // 빈 슬롯 제거하고 재정렬 (FIFO 유지)
+        const nonNullSlots = newSlots.filter(slot => slot !== null);
+        const result: Array<{type: 'image' | 'video', data: string | GeneratedVideo} | null> = [...nonNullSlots];
+        
+        // null로 채우기
+        while (result.length < 4) {
+          result.push(null);
+        }
+        
+        return result;
+      });
+      
+      // 선택된 비디오가 제거된 경우 선택 해제
+      if (video.id === selectedVideoId) {
+        setSelectedVideoId(null);
+        setActiveVideo(null);
+        setSelectedSlotIndex(null);
+      }
+      
+      return;
+    }
+    
     setSelectedVideoId(video.id);
     
-    // 이미 선택된 비디오인지 확인
-    const isAlreadySelected = selectedHistoryVideos.some(v => v.id === video.id);
-    
-    if (isAlreadySelected) {
-      // 이미 선택된 경우 제거
-      setSelectedHistoryVideos(prev => prev.filter(v => v.id !== video.id));
-    } else {
-      // 새로 선택하는 경우
-      setSlotContents(prev => {
+    // 새로 선택하는 경우
+    setSlotContents(prev => {
         // 첫 번째 슬롯이 이미지인 경우 두 번째 슬롯부터 추가
         if (prev[0]?.type === 'image') {
           const newSlots = [...prev];
@@ -215,12 +243,13 @@ export default function CanvasPage() {
           return newSlots;
         }
       });
-      setSelectedHistoryVideos(prev => [...prev, video]);
-    }
   };
 
   // Generate 버튼 활성화 조건 계산
-  const canGenerate = !!currentGeneratingImage && (selectedEffects.length > 0 || promptText.trim().length > 0);
+  // 이미지가 있고, 효과나 프롬프트가 있으며, 3개 미만이 생성 중일 때
+  const canGenerate = !!currentGeneratingImage && 
+    (selectedEffects.length > 0 || promptText.trim().length > 0) &&
+    generatingSlots.size < 3;
 
   // 콘텐츠 제거 핸들러
   const handleRemoveContent = (index: number, type: 'image' | 'video') => {
@@ -240,6 +269,13 @@ export default function CanvasPage() {
       return result;
     });
     
+    // 해당 슬롯의 상태를 'empty'로 변경
+    setSlotStates(prev => {
+      const newStates = [...prev];
+      newStates[index] = 'empty';
+      return newStates;
+    });
+    
     // 첫 번째 슬롯의 이미지가 제거되면 currentGeneratingImage도 초기화
     if (index === 0 && type === 'image') {
       setCurrentGeneratingImage(null);
@@ -257,17 +293,54 @@ export default function CanvasPage() {
       return;
     }
 
+    // slotStates 기반으로 사용 가능한 슬롯 찾기
+    let availableSlot = -1;
+    const generatingCount = slotStates.filter(state => state === 'generating').length;
+    
+    // 3개 제한 체크
+    if (generatingCount >= 3) {
+      setGenerationError('최대 3개까지 동시 생성이 가능합니다.');
+      return;
+    }
+
+    // 첫 번째 슬롯이 이미지이고 generating이 아니면 사용
+    if (slotStates[0] !== 'generating' && slotContents[0]?.type === 'image') {
+      availableSlot = 0;
+    } else {
+      // 아니면 빈 슬롯(empty) 중 첫 번째 사용
+      for (let i = 0; i < 4; i++) {
+        if (slotStates[i] === 'empty') {
+          availableSlot = i;
+          break;
+        }
+      }
+    }
+
+    if (availableSlot === -1) {
+      setGenerationError('사용 가능한 슬롯이 없습니다.');
+      return;
+    }
+
+    // slotStates의 해당 인덱스를 'generating'으로 설정
+    setSlotStates(prev => {
+      const newStates = [...prev];
+      newStates[availableSlot] = 'generating';
+      return newStates;
+    });
+    
+    // generatingSlots도 유지 (기존 로직과 호환)
+    setGeneratingSlots(prev => new Set([...prev, availableSlot]));
     setIsGenerating(true);
     setGenerationError(null);
 
-    // 즉시 진행률 맵 초기화 - Generate 버튼 클릭 즉시 로딩 표시
+    // 진행률 맵 초기화 - availableSlot을 키로 사용
     const initialProgressMap = new Map<string, number>();
     const initialJobIdsMap = new Map<string, string>();
     
     // 효과 개수만큼 슬롯을 0%로 초기화
     selectedEffects.forEach((_, index) => {
-      initialProgressMap.set(index.toString(), 0);
-      initialJobIdsMap.set(index.toString(), `pending-${index}`);
+      initialProgressMap.set(`${availableSlot}-${index}`, 0);
+      initialJobIdsMap.set(`${availableSlot}-${index}`, `pending-${index}`);
     });
     
     setGeneratingProgress(initialProgressMap);
@@ -302,8 +375,8 @@ export default function CanvasPage() {
       const completionStartTimes = new Map<string, number>(); // 완료 애니메이션 시작 시간
       
       data.jobs.forEach((job: { jobId: string }, index: number) => {
-        progressMap.set(index.toString(), 0);
-        jobIdsMap.set(index.toString(), job.jobId);
+        progressMap.set(`${availableSlot}-${index}`, 0);
+        jobIdsMap.set(`${availableSlot}-${index}`, job.jobId);
         jobStartTimes.set(job.jobId, Date.now());
         jobCompletedMap.set(job.jobId, false);
       });
@@ -358,10 +431,10 @@ export default function CanvasPage() {
                 
                 setGeneratingProgress(prev => {
                   const newMap = new Map(prev);
-                  const currentProgress = prev.get(originalIndex.toString()) || 0;
+                  const currentProgress = prev.get(`${availableSlot}-${originalIndex}`) || 0;
                   // 이전 값보다 큰 경우에만 업데이트 (단조 증가 보장)
                   const newProgress = Math.max(currentProgress, targetProgress);
-                  newMap.set(originalIndex.toString(), Math.floor(newProgress));
+                  newMap.set(`${availableSlot}-${originalIndex}`, Math.floor(newProgress));
                   return newMap;
                 });
               }
@@ -372,7 +445,7 @@ export default function CanvasPage() {
                 completionStartTimes.set(job.jobId, Date.now());
                 
                 // 현재 진행률 가져오기
-                const currentProgressValue = generatingProgress.get(originalIndex.toString()) || 0;
+                const currentProgressValue = generatingProgress.get(`${availableSlot}-${originalIndex}`) || 0;
                 
                 // 유틸리티 함수를 사용하여 애니메이션 시간 계산
                 const animationDuration = calculateCompletionAnimationDuration(currentProgressValue);
@@ -391,7 +464,7 @@ export default function CanvasPage() {
                     const newMap = new Map(prev);
                     const startProgress = currentProgressValue;
                     const targetProgress = startProgress + (100 - startProgress) * easeOut;
-                    newMap.set(originalIndex.toString(), Math.floor(targetProgress));
+                    newMap.set(`${availableSlot}-${originalIndex}`, Math.floor(targetProgress));
                     return newMap;
                   });
                   
@@ -445,8 +518,27 @@ export default function CanvasPage() {
         if (processingJobs.length > 0) {
           setTimeout(pollJobs, 3000); // 3초 후 다시 확인
         } else {
-          // 모든 작업 완료
-          setIsGenerating(false);
+          // slotStates를 'completed'로 변경
+          setSlotStates(prev => {
+            const newStates = [...prev];
+            newStates[availableSlot] = 'completed';
+            return newStates;
+          });
+          
+          // generatingSlots에서 제거
+          setGeneratingSlots(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(availableSlot);
+            return newSet;
+          });
+          
+          // 모든 슬롯이 비어있으면 isGenerating을 false로
+          setGeneratingSlots(prev => {
+            if (prev.size === 0) {
+              setIsGenerating(false);
+            }
+            return prev;
+          });
           
           // 진행률 초기화
           setGeneratingProgress(new Map());
@@ -469,7 +561,29 @@ export default function CanvasPage() {
           ? error.message 
           : 'An error occurred during video generation.'
       );
-      setIsGenerating(false);
+      
+      // slotStates를 다시 'empty'로 되돌리기
+      setSlotStates(prev => {
+        const newStates = [...prev];
+        newStates[availableSlot] = 'empty';
+        return newStates;
+      });
+      
+      // generatingSlots에서 제거
+      setGeneratingSlots(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(availableSlot);
+        return newSet;
+      });
+      
+      // 모든 슬롯이 비어있으면 isGenerating을 false로
+      setGeneratingSlots(prev => {
+        if (prev.size === 0) {
+          setIsGenerating(false);
+        }
+        return prev;
+      });
+      
       setGeneratingProgress(new Map());
       setGeneratingJobIds(new Map());
     }
@@ -645,8 +759,37 @@ export default function CanvasPage() {
                 }
               });
               setCurrentGeneratingImage(imageUrl);
+              // 첫 번째 슬롯 상태를 'completed'로 업데이트
+              setSlotStates(prev => {
+                const newStates = [...prev];
+                newStates[0] = 'completed';
+                return newStates;
+              });
             }}
-            isGenerating={isGenerating}
+            onImageRemove={() => {
+              // 첫 번째 슬롯이 이미지인 경우만 제거
+              setSlotContents(prev => {
+                if (prev[0]?.type === 'image') {
+                  const newSlots = [...prev];
+                  newSlots[0] = null;
+                  // 나머지 슬롯들을 앞으로 이동 (FIFO)
+                  const nonNullSlots = newSlots.slice(1).filter(Boolean);
+                  const result = [...nonNullSlots];
+                  while (result.length < 4) {
+                    result.push(null);
+                  }
+                  return result;
+                }
+                return prev;
+              });
+              // 첫 번째 슬롯 상태를 'empty'로 변경
+              setSlotStates(prev => {
+                const newStates = [...prev];
+                newStates[0] = 'empty';
+                return newStates;
+              });
+              setCurrentGeneratingImage(null);
+            }}
             generationError={generationError}
             onEffectModalOpen={() => setIsEffectModalOpen(true)}
             selectedEffects={selectedEffects}

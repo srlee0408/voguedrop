@@ -179,7 +179,6 @@ export function Canvas({
               selectedSize={selectedSize}
               onPromptModalOpen={onPromptModalOpen}
               onGenerateClick={onGenerateClick}
-              isGenerating={isGenerating}
               canGenerate={canGenerate}
               selectedDuration={selectedDuration}
               onDurationChange={onDurationChange}
@@ -194,7 +193,7 @@ export function Canvas({
       {/* Right History Panel */}
       <CanvasHistoryPanel
         onVideoSelect={onVideoSelect}
-        selectedHistoryVideos={[]}
+        slotContents={slotContents}
       />
     </div>
   );
