@@ -662,6 +662,7 @@ export default function VideoEditorPage() {
             onUpdateTextSize={handleUpdateTextSize}
             selectedTextClip={selectedTextClip}
             onSelectTextClip={setSelectedTextClip}
+            projectTitle={projectTitle}
           />
         </div>
 

@@ -35,6 +35,7 @@ interface VideoPreviewProps {
   onUpdateTextSize?: (id: string, fontSize: number) => void;
   selectedTextClip?: string | null;
   onSelectTextClip?: (id: string | null) => void;
+  projectTitle?: string;
 }
 
 export default function VideoPreview({ 
@@ -47,6 +48,7 @@ export default function VideoPreview({
   onUpdateTextSize,
   selectedTextClip,
   onSelectTextClip,
+  projectTitle = 'Untitled Project',
   currentTime,
   isPlaying,
   onPlayStateChange
@@ -63,6 +65,11 @@ export default function VideoPreview({
   const [isPlayerLoading, setIsPlayerLoading] = useState(clips.length > 0);
   // 버퍼링 상태 추적
   const [isBuffering, setIsBuffering] = useState(false);
+  // 렌더링 상태
+  const [isRendering, setIsRendering] = useState(false);
+  const [renderProgress, setRenderProgress] = useState(0);
+  const [renderComplete, setRenderComplete] = useState(false);
+  const [renderOutputUrl, setRenderOutputUrl] = useState<string | null>(null);
   
   const containerRef = useRef<HTMLDivElement>(null);
   const { ITEM_WIDTH, ITEM_HEIGHT, ITEM_GAP } = CAROUSEL_CONFIG;
@@ -250,6 +257,115 @@ export default function VideoPreview({
   const videoAspectRatio = {
     width: aspectRatioDimensions.width,
     height: aspectRatioDimensions.height
+  };
+
+  // 다운로드 핸들러
+  const handleDownload = async () => {
+    if (clips.length === 0) {
+      alert('Please add video clips first.');
+      return;
+    }
+
+    setIsRendering(true);
+    setRenderProgress(0);
+
+    try {
+      // API 호출하여 렌더링 시작
+      const response = await fetch('/api/video/render', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          videoClips: clips,
+          textClips: textClips,
+          soundClips: soundClips,
+          aspectRatio: selectedAspectRatio,
+          durationInFrames: calculateTotalFrames,
+          projectName: projectTitle, // prop으로 받은 프로젝트 이름 사용
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Render failed');
+      }
+
+      const result = await response.json();
+
+      if (result.success && result.renderId) {
+        console.log('Render started:', result);
+        
+        // 진행 상황 확인 (처음엔 느리게, 나중엔 빠르게)
+        const checkInterval = 20000; // 초기 30초
+        const maxAttempts = 20; // 최대 10분
+        let attempts = 0;
+
+        const checkProgress = async () => {
+          try {
+            const statusResponse = await fetch(
+              `/api/video/render?renderId=${result.renderId}&bucketName=${result.bucketName}`
+            );
+            
+            if (!statusResponse.ok) {
+              throw new Error('Failed to check status');
+            }
+
+            const status = await statusResponse.json();
+            
+            if (status.done && status.outputFile) {
+              // 렌더링 완료 - 상태 업데이트
+              setRenderOutputUrl(status.outputFile);
+              setRenderComplete(true);
+              setIsRendering(false);
+              setRenderProgress(100);
+              
+              // 3초 후 자동 다운로드
+              setTimeout(() => {
+                const link = document.createElement('a');
+                link.href = status.outputFile;
+                link.download = `video-${Date.now()}.mp4`;
+                link.target = '_blank';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                // 5초 후 완료 상태 초기화
+                setTimeout(() => {
+                  setRenderComplete(false);
+                  setRenderProgress(0);
+                  setRenderOutputUrl(null);
+                }, 5000);
+              }, 3000);
+            } else if (attempts < maxAttempts) {
+              // 진행률 업데이트
+              setRenderProgress(Math.round((status.overallProgress || 0) * 100));
+              attempts++;
+              // 다시 체크
+              setTimeout(checkProgress, checkInterval);
+            } else {
+              // 타임아웃
+              throw new Error('Rendering timeout exceeded.');
+            }
+          } catch (error) {
+            console.error('Progress check error:', error);
+            setIsRendering(false);
+            setRenderProgress(0);
+            alert('Error checking render status.');
+          }
+        };
+
+        // 30초 후 첫 체크 시작 (Rate Limit 방지)
+        setTimeout(checkProgress, checkInterval);
+      } else {
+        throw new Error('Failed to start rendering.');
+      }
+    } catch (error) {
+      console.error('Download error:', error);
+      alert(`Download failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setIsRendering(false);
+      setRenderProgress(0);
+    }
   };
 
   if (!is_mounted) return null;
@@ -508,11 +624,17 @@ export default function VideoPreview({
               <div className="relative group">
                 <button 
                   className="p-2 bg-black/50 rounded hover:bg-black/70 transition-colors"
+                  onClick={handleDownload}
+                  disabled={isRendering}
                 >
-                  <i className="ri-download-line text-primary"></i>
+                  {isRendering ? (
+                    <div className="w-4 h-4 border-2 border-gray-500 border-t-primary rounded-full animate-spin" />
+                  ) : (
+                    <i className="ri-download-line text-primary"></i>
+                  )}
                 </button>
                 <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
-                  Download
+                  {isRendering ? `Rendering... ${renderProgress}%` : 'Download'}
                 </div>
               </div>
               
@@ -610,7 +732,7 @@ export default function VideoPreview({
                 >
                   <Player
                   ref={playerRef}
-                  component={CompositePreview}
+                  component={CompositePreview as unknown as React.ComponentType<Record<string, unknown>>}
                   inputProps={{
                     videoClips: clips,
                     textClips: textClips, // 텍스트 효과를 표시하기 위해 실제 데이터 전달
@@ -650,6 +772,91 @@ export default function VideoPreview({
                         {/* 버퍼링 스피너 */}
                         <div className="w-10 h-10 border-3 border-gray-500 border-t-[#38f47cf9] rounded-full animate-spin"></div>
                         <p className="text-white/80 text-xs font-medium">Buffering...</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* 렌더링 진행 오버레이 */}
+                  {(isRendering || renderComplete) && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-lg z-50">
+                      <div className="flex flex-col items-center gap-4 p-6 bg-gray-900/90 rounded-xl backdrop-blur-sm border border-gray-700">
+                        {renderComplete ? (
+                          <>
+                            {/* 완료 아이콘 */}
+                            <div className="relative">
+                              <div className="w-16 h-16 bg-gradient-to-r from-[#38f47cf9] to-[#4affb0] rounded-full flex items-center justify-center">
+                                <i className="ri-check-line text-3xl text-white"></i>
+                              </div>
+                            </div>
+                            
+                            {/* 완료 텍스트 */}
+                            <div className="text-center">
+                              <p className="text-white text-lg font-medium mb-1">Rendering Complete!</p>
+                              <p className="text-gray-400 text-sm">Your video is ready</p>
+                            </div>
+                            
+                            {/* 다운로드 안내 */}
+                            <div className="text-center">
+                              <p className="text-[#38f47cf9] text-sm mb-2">
+                                <i className="ri-download-line mr-1"></i>
+                                Download will start automatically...
+                              </p>
+                              <button
+                                onClick={() => {
+                                  if (renderOutputUrl) {
+                                    const link = document.createElement('a');
+                                    link.href = renderOutputUrl;
+                                    link.download = `video-${Date.now()}.mp4`;
+                                    link.target = '_blank';
+                                    document.body.appendChild(link);
+                                    link.click();
+                                    document.body.removeChild(link);
+                                  }
+                                }}
+                                className="px-4 py-2 bg-[#38f47cf9] text-black rounded-lg hover:bg-[#4affb0] transition-colors text-sm font-medium"
+                              >
+                                Download Now
+                              </button>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            {/* 렌더링 아이콘 */}
+                            <div className="relative">
+                              <div className="w-16 h-16 border-4 border-gray-600 border-t-[#38f47cf9] rounded-full animate-spin"></div>
+                              <i className="ri-vidicon-line text-2xl text-[#38f47cf9] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"></i>
+                            </div>
+                            
+                            {/* 상태 텍스트 */}
+                            <div className="text-center">
+                              <p className="text-white text-lg font-medium mb-1">Rendering Video...</p>
+                              <p className="text-gray-400 text-sm">Please wait a moment</p>
+                            </div>
+                            
+                            {/* 진행률 바 */}
+                            <div className="w-64">
+                              <div className="flex justify-between text-xs text-gray-400 mb-2">
+                                <span>Progress</span>
+                                <span>{renderProgress}%</span>
+                              </div>
+                              <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+                                <div 
+                                  className="h-full bg-gradient-to-r from-[#38f47cf9] to-[#4affb0] transition-all duration-300 ease-out"
+                                  style={{ width: `${renderProgress}%` }}
+                                />
+                              </div>
+                            </div>
+                            
+                            {/* 예상 시간 */}
+                            <p className="text-xs text-gray-500">
+                              {renderProgress < 30 
+                                ? 'Preparing render...' 
+                                : renderProgress < 70 
+                                  ? 'Processing video...' 
+                                  : 'Finalizing...'}
+                            </p>
+                          </>
+                        )}
                       </div>
                     </div>
                   )}
