@@ -109,6 +109,8 @@ export const handler = async (event: unknown): Promise<RenderResponse> => {
       maxRetries: RENDER_CONFIG.maxRetries,
       chromiumOptions: RENDER_CONFIG.chromiumOptions,
       ...dimensions,
+      // Composition의 기본 durationInFrames를 오버라이드
+      frameRange: [0, durationInFrames - 1],
     });
 
     console.log('Render started:', { renderId, bucketName });

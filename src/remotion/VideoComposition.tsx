@@ -33,7 +33,7 @@ export const VideoComposition: React.FC = () => {
       <Composition
         id="video-mobile"
         component={CompositePreview as unknown as React.ComponentType<Record<string, unknown>>}
-        durationInFrames={900} // 30초 기본값, 실제 렌더링 시 덮어씌워짐
+        durationInFrames={900} // 30초 기본값 - Lambda 렌더링 시 API에서 전달된 실제 영상 길이로 동적 오버라이드됨 // 30초 기본값 - Lambda 렌더링 시 API에서 전달된 실제 영상 길이로 동적 오버라이드됨
         fps={30}
         width={1080}
         height={1920}
@@ -50,7 +50,7 @@ export const VideoComposition: React.FC = () => {
       <Composition
         id="video-square"
         component={CompositePreview as unknown as React.ComponentType<Record<string, unknown>>}
-        durationInFrames={900}
+        durationInFrames={900} // 30초 기본값 - Lambda 렌더링 시 API에서 전달된 실제 영상 길이로 동적 오버라이드됨
         fps={30}
         width={1080}
         height={1080}
@@ -67,7 +67,7 @@ export const VideoComposition: React.FC = () => {
       <Composition
         id="video-wide"
         component={CompositePreview as unknown as React.ComponentType<Record<string, unknown>>}
-        durationInFrames={900}
+        durationInFrames={900} // 30초 기본값 - Lambda 렌더링 시 API에서 전달된 실제 영상 길이로 동적 오버라이드됨
         fps={30}
         width={1920}
         height={1080}

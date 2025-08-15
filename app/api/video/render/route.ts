@@ -117,6 +117,9 @@ export async function POST(request: NextRequest) {
       framesPerLambda: 150, // 3초씩 나누어 처리 (10초 = 3-4개 Lambda)
       timeoutInMilliseconds: 900000, // 15분
       maxRetries: 3,
+      overwrite: true,
+      // Composition의 기본 durationInFrames를 오버라이드
+      frameRange: [0, durationInFrames - 1],
     });
 
     console.log('Lambda render started:', {

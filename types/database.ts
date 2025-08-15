@@ -30,7 +30,7 @@ export interface EffectTemplateWithMedia extends EffectTemplate {
 }
 
 export interface ProjectSave {
-  id: string
+  id: number
   user_id: string
   project_name: string
   latest_render_id: string | null
@@ -52,7 +52,7 @@ export interface ProjectSave {
 }
 
 export interface VideoRender {
-  id: string
+  id: number
   user_id: string
   project_name: string
   render_id: string
@@ -65,7 +65,7 @@ export interface VideoRender {
   text_clips: unknown
   sound_clips: unknown
   content_hash: string | null
-  project_save_id: string | null
+  project_save_id: number | null
   created_at: string
   completed_at: string | null
 }
