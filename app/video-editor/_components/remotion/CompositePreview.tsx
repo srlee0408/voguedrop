@@ -30,15 +30,6 @@ export const CompositePreview: React.FC<CompositePreviewProps> = ({
   const { width, height } = useVideoConfig();
   const fontLoadHandles = useRef<Set<number>>(new Set());
   
-  // 디버깅: 사운드 클립 로깅
-  useEffect(() => {
-    console.log('🎵 CompositePreview - Sound Clips:', soundClips);
-    soundClips.forEach(clip => {
-      console.log(`  - ${clip.name || clip.id}: URL=${clip.url?.substring(0, 50)}...`);
-      console.log(`    Volume: ${clip.volume}, Position: ${clip.position}, Duration: ${clip.duration}`);
-    });
-  }, [soundClips]);
-  
   // 폰트 로딩 대기 로직
   useEffect(() => {
     // 사용된 폰트 목록 수집
@@ -407,7 +398,6 @@ export const CompositePreview: React.FC<CompositePreviewProps> = ({
       {/* 3. 오디오 레이어 - 동시 재생 가능 */}
       {soundClips.map(sound => {
         if (!sound.url) {
-          console.warn(`❌ Sound clip ${sound.id} has no URL`);
           return null;
         }
         
@@ -415,11 +405,9 @@ export const CompositePreview: React.FC<CompositePreviewProps> = ({
         try {
           // data URL이거나 http(s) URL인지 확인
           if (!sound.url.startsWith('data:') && !sound.url.startsWith('http')) {
-            console.error(`❌ Invalid URL format for sound ${sound.id}:`, sound.url.substring(0, 50));
             return null;
           }
-        } catch (e) {
-          console.error(`❌ URL validation error for sound ${sound.id}:`, e);
+        } catch {
           return null;
         }
         
@@ -429,8 +417,6 @@ export const CompositePreview: React.FC<CompositePreviewProps> = ({
         // 비디오와 동일한 트리밍 적용
         const startFrom = sound.startTime ? Math.round(sound.startTime * 30) : 0;
         const endAt = sound.endTime ? Math.round(sound.endTime * 30) : undefined;
-        
-        console.log(`🎵 Rendering audio ${sound.id}: from=${audioFrom}, duration=${audioDuration}, volume=${(sound.volume || 100) / 100}`);
         
         return (
           <Sequence
@@ -443,10 +429,6 @@ export const CompositePreview: React.FC<CompositePreviewProps> = ({
               volume={(sound.volume || 100) / 100}
               startFrom={startFrom}
               endAt={endAt}
-              onError={(e) => {
-                console.error(`❌ Audio loading failed for ${sound.id}:`, e);
-                console.error(`  URL: ${sound.url?.substring(0, 100)}...`);
-              }}
             />
           </Sequence>
         );
