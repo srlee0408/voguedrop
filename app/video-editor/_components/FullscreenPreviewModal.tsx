@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { Player, PlayerRef, RenderPoster } from '@remotion/player';
-import { CompositePreview } from '../_remotion/CompositePreview';
+import { CompositePreview } from './remotion/CompositePreview';
 import { TextClip as TextClipType, SoundClip as SoundClipType } from '@/types/video-editor';
 import { AbsoluteFill } from 'remotion';
 

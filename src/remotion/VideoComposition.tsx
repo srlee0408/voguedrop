@@ -1,6 +1,6 @@
 import React from 'react';
 import { Composition } from 'remotion';
-import { CompositePreview } from '../../app/video-editor/_remotion/CompositePreview';
+import { CompositePreview } from '../../app/video-editor/_components/remotion/CompositePreview';
 import { TextClip as TextClipType, SoundClip as SoundClipType } from '@/types/video-editor';
 
 interface VideoClip {
