@@ -15,10 +15,14 @@ VogueDrop은 AI 기반 패션 콘텐츠 생성 플랫폼입니다. 패션 크리
 - `docs/fullstack-architecture.md` - 기술 스택과 시스템 설계
 - `docs/frontend-architecture.md` - UI 구현 가이드
 - `docs/ui-ux-spec.md` - 디자인 시스템과 UX 패턴
+- `docs/video-render-setup-guide.md` - Remotion 렌더링 설정
 
 ## 주요 개발 명령어
 ```bash
 # 개발 서버 시작 (Turbopack 사용)
+npm run dev:turbo
+
+# 개발 서버 시작 (표준)
 npm run dev
 
 # 빌드
@@ -30,15 +34,21 @@ npm run start
 # 린트 검사
 npm run lint
 
-# 테스트 실행
+# 테스트 실행 (watch 모드)
 npm run test
 
 # 테스트 실행 (단일 실행)
 npm run test:run
+
+# Remotion Studio 실행 (비디오 편집 개발)
+npm run remotion:studio
+
+# Remotion 비디오 렌더링
+npm run remotion:render
 ```
 
 ### 빌드 전 필수 체크
-**중요**: 코드 작성 완료 후 반드시 `npm run lint`를 실행하여 타입 에러와 빌드 에러가 없는지 확인해야 합니다. 타입 에러가 있으면 프로덕션 배포가 실패합니다.
+**중요**: 코드 작성 완료 후 반드시 `npm run lint`와 `npm run build`를 실행하여 타입 에러와 빌드 에러가 없는지 확인해야 합니다. 타입 에러가 있으면 프로덕션 배포가 실패합니다.
 
 ## 고수준 아키텍처
 
@@ -48,6 +58,7 @@ npm run test:run
 - **Serverless**: Vercel Functions로 자동 스케일링
 - **Database**: Supabase (PostgreSQL + Auth + Storage)
 - **AI Integration**: fal.ai API로 영상 생성
+- **Video Editing**: Remotion으로 클라이언트 사이드 비디오 편집 및 렌더링
 
 ### 주요 워크플로우
 1. **AI 영상 생성 (Job-based Architecture)**:
@@ -58,33 +69,131 @@ npm run test:run
    - Webhook 수신 시 job 상태 업데이트
    - 5분 후 webhook 미수신 시 fal.ai 직접 polling (fallback)
    - 완료된 영상 Supabase Storage 저장 및 메타데이터 업데이트
-2. **사용자 인증**: Supabase Auth로 이메일/비밀번호 인증
-3. **데이터 저장**: 생성된 영상과 메타데이터를 Supabase에 저장
-4. **슬롯 기반 UI**: Canvas에서 4개 슬롯으로 컨텐츠 관리
+
+2. **비디오 편집 (Remotion)**:
+   - Video Editor에서 클립 타임라인 관리
+   - Remotion Player로 실시간 프리뷰
+   - AWS Lambda 또는 서버 사이드 렌더링으로 최종 영상 생성
+   - 생성된 영상 Supabase Storage 저장
+
+3. **사용자 인증**: Supabase Auth로 이메일/비밀번호 인증
+4. **데이터 저장**: 생성된 영상과 메타데이터를 Supabase에 저장
+5. **슬롯 기반 UI**: Canvas에서 4개 슬롯으로 컨텐츠 관리
 
 ## 프로젝트 구조 패턴
 
 ### Feature-First Co-location
 ```
 app/
-├── (feature)/           # 기능별 그룹화
-│   ├── _components/     # 해당 기능 전용 컴포넌트
-│   ├── _hooks/         # 해당 기능 전용 훅
-│   └── page.tsx        # 라우트 페이지
-├── api/                # API 라우트
-│   └── [feature]/      # 기능별 API 엔드포인트
-components/             # 공유 컴포넌트
-├── ui/                # 기본 UI 요소
-├── layout/            # 레이아웃 컴포넌트
-└── modals/            # 공유 모달
+├── (feature-group)/              # 라우트 그룹 (URL에 영향 없음)
+│   ├── feature-page/
+│   │   ├── page.tsx             # 페이지 컴포넌트
+│   │   ├── layout.tsx           # 레이아웃 (선택사항)
+│   │   ├── _components/         # 기능 전용 컴포넌트
+│   │   │   ├── index.ts         # 배럴 export
+│   │   │   ├── ComponentA.tsx
+│   │   │   └── ComponentB.tsx
+│   │   ├── _hooks/              # 기능 전용 훅
+│   │   │   ├── index.ts
+│   │   │   └── useFeature.ts
+│   │   ├── _context/            # 기능 전용 컨텍스트
+│   │   │   └── FeatureContext.tsx
+│   │   ├── _utils/              # 기능 전용 유틸리티
+│   │   │   └── helpers.ts
+│   │   └── _types/              # 기능 전용 타입
+│   │       └── index.ts
+│   └── another-feature/
+│
+├── api/                         # API 라우트
+│   └── feature/
+│       └── route.ts            # HTTP 메서드 export
+│
+components/                      # 공유 컴포넌트
+├── ui/                         # 기본 UI 요소
+│   ├── Button.tsx
+│   └── index.ts
+├── layout/                     # 레이아웃 컴포넌트
+└── modals/                     # 공유 모달
+
+lib/                            # 유틸리티 및 설정
+├── supabase/
+│   ├── client.ts
+│   └── server.ts
+├── utils/
+└── constants/
+
+types/                          # 글로벌 타입 정의
+├── database.ts
+├── api.ts
+├── env.d.ts                    # 환경 변수 타입
+└── index.ts
+
+src/remotion/                   # Remotion 비디오 컴포지션
+├── index.ts                    # Remotion 엔트리 포인트
+└── compositions/               # 비디오 컴포지션 컴포넌트
+```
+
+### Import 순서 규칙
+```typescript
+// 1. React/Next.js
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+
+// 2. 외부 라이브러리
+import { createClient } from '@supabase/supabase-js';
+import { z } from 'zod';
+
+// 3. 절대 경로 import (@/)
+import { Button } from '@/components/ui/Button';
+import { useAuth } from '@/lib/auth';
+
+// 4. 상대 경로 import
+import { LocalComponent } from './_components/LocalComponent';
+import { useLocalHook } from './_hooks/useLocalHook';
+
+// 5. 타입 import (별도 그룹)
+import type { User } from '@/types/database';
+import type { ComponentProps } from './types';
 ```
 
 ### 타입 정의 구조
 ```
 types/
 ├── database.ts        # Supabase 데이터베이스 타입
-├── api.ts            # API 요청/응답 타입
-└── [feature].ts      # 기능별 타입 (필요시)
+├── canvas.ts          # Canvas 기능 타입
+├── video-editor.ts    # 비디오 에디터 타입
+├── sound.ts          # 사운드 관련 타입
+├── auth.ts           # 인증 관련 타입
+└── env.d.ts          # 환경 변수 타입 정의
+```
+
+#### 환경 변수 타입 정의 예시
+```typescript
+// types/env.d.ts
+declare namespace NodeJS {
+  interface ProcessEnv {
+    NEXT_PUBLIC_SUPABASE_URL: string;
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: string;
+    SUPABASE_SERVICE_KEY: string;
+    FAL_API_KEY: string;
+    WEBHOOK_SECRET: string;
+  }
+}
+```
+
+#### Supabase 타입 안전한 쿼리
+```typescript
+// types/database.ts에 타입 정의
+export interface VideoGenerationWithEffects extends VideoGeneration {
+  effects: EffectTemplate[];
+  user: User;
+}
+
+// 사용 예시
+const { data, error } = await supabase
+  .from('video_generations')
+  .select('*, effects:effect_templates(*), user:users(*)')
+  .returns<VideoGenerationWithEffects[]>();
 ```
 
 ### 데이터베이스 스키마
@@ -94,28 +203,107 @@ types/
 - `categories`: 효과 카테고리 관리
 - `media_assets`: 파일 스토리지 관리
 - `video_generation_logs`: 상세 로깅
+- `project_saves`: 비디오 에디터 프로젝트 저장
+- `sound_generations`: 사운드 생성 작업 추적
 
-## 코딩 표준
+## 코딩 표준 및 에러 방지 가이드
 
 ### TypeScript 필수 규칙
-- `any` 타입 사용 금지 - 타입을 모를 때는 `unknown` 사용 후 타입 가드 적용
-- 모든 함수에 명시적 반환 타입 정의
-- interface로 props 정의, type은 유니온/인터섹션에 사용
-- 빌드 시 타입 에러가 없어야 함 - `npm run build`로 확인
+- **`any` 타입 절대 금지** - 타입을 모를 때는 `unknown` 사용 후 타입 가드 적용
+- **모든 함수에 명시적 반환 타입 정의**
+- **interface로 props 정의, type은 유니온/인터섹션에 사용**
+- **빌드 시 타입 에러가 없어야 함** - `npm run build`로 확인
+- **엄격한 null 체크** - optional chaining(`?.`)과 nullish coalescing(`??`) 활용
 
-### 컴포넌트 패턴
+#### 올바른 타입 정의 예시
 ```typescript
-// 서버 컴포넌트 (기본)
-export default async function PageName() {
-  // 데이터 페칭
-  return <div>...</div>;
+// ❌ 잘못된 예시
+function getData(id) {  // 매개변수와 반환 타입 없음
+  const result: any = fetchData(id);  // any 사용
+  return result.data;  // null 체크 없음
 }
 
-// 클라이언트 컴포넌트 (상태/이벤트 필요시)
-"use client";
-export function ComponentName({ prop }: ComponentProps) {
-  // 상태 관리
-  return <div>...</div>;
+// ✅ 올바른 예시
+function getData(id: string): Promise<DataType | null> {
+  const result: unknown = await fetchData(id);
+  if (isDataType(result)) {  // 타입 가드
+    return result.data ?? null;  // nullish coalescing
+  }
+  return null;
+}
+```
+
+### React/Next.js ESLint 규칙
+
+#### React Hook 의존성 배열 관리
+```typescript
+// ❌ 문제: cleanup 함수에서 ref 직접 접근
+useEffect(() => {
+  return () => {
+    fontLoadHandles.current.clear();  // ref가 변경될 수 있음
+  };
+}, [textClips]);
+
+// ✅ 해결: 로컬 변수에 복사
+useEffect(() => {
+  const handles = fontLoadHandles.current;
+  return () => {
+    handles.clear();
+  };
+}, [textClips]);
+```
+
+#### Async 함수 처리
+```typescript
+// ❌ useEffect에 async 직접 사용 불가
+useEffect(async () => {
+  await fetchData();
+}, []);
+
+// ✅ 내부 async 함수 정의
+useEffect(() => {
+  const loadData = async () => {
+    await fetchData();
+  };
+  loadData();
+}, []);
+
+### 컴포넌트 패턴
+
+#### 서버 컴포넌트 (기본)
+```typescript
+// app/feature/page.tsx
+import { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Feature Page',
+};
+
+export default async function PageName() {
+  // 서버에서 데이터 페칭
+  const data = await fetchData();
+  return (
+    <div>
+      <ClientComponent initialData={data} />
+    </div>
+  );
+}
+```
+
+#### 클라이언트 컴포넌트
+```typescript
+// app/feature/_components/ClientComponent.tsx
+'use client';
+
+interface ClientComponentProps {
+  initialData: DataType;
+  onAction?: (id: string) => void;
+}
+
+export function ClientComponent({ initialData, onAction }: ClientComponentProps) {
+  const [data, setData] = useState(initialData);
+  
+  return <div>{/* UI */}</div>;
 }
 ```
 
@@ -123,12 +311,97 @@ export function ComponentName({ prop }: ComponentProps) {
 ```typescript
 // app/api/[feature]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { z } from 'zod';
+import { createClient } from '@/lib/supabase/server';
 
-export async function POST(request: NextRequest) {
-  const supabase = createRouteHandlerClient({ cookies });
-  // 인증 체크, 비즈니스 로직
-  return NextResponse.json(result);
+// 요청 스키마 정의
+const requestSchema = z.object({
+  field: z.string().min(1),
+});
+
+export async function POST(request: NextRequest): Promise<NextResponse> {
+  try {
+    // 1. 인증 체크
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+    
+    // 2. 요청 검증
+    const body = await request.json();
+    const validated = requestSchema.parse(body);
+    
+    // 3. 비즈니스 로직
+    const result = await processData(validated);
+    
+    return NextResponse.json({ data: result });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: 'Validation failed', details: error.errors },
+        { status: 400 }
+      );
+    }
+    
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+```
+
+### 커스텀 Hook 패턴
+```typescript
+// app/feature/_hooks/useFeature.ts
+import { useState, useCallback, useEffect } from 'react';
+
+interface UseFeatureOptions {
+  autoLoad?: boolean;
+}
+
+interface UseFeatureReturn {
+  data: DataType | null;
+  loading: boolean;
+  error: Error | null;
+  refetch: () => Promise<void>;
+}
+
+export function useFeature(
+  id: string,
+  options: UseFeatureOptions = {}
+): UseFeatureReturn {
+  const { autoLoad = true } = options;
+  const [data, setData] = useState<DataType | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+  
+  const fetch = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await fetchData(id);
+      setData(response);
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('Unknown error'));
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+  
+  useEffect(() => {
+    if (autoLoad) {
+      fetch();
+    }
+  }, [autoLoad, fetch]);
+  
+  return { data, loading, error, refetch: fetch };
 }
 ```
 
@@ -146,7 +419,7 @@ GET /api/canvas/jobs/[jobId]/poll
 - 5분 이상 경과 시 fal.ai 직접 조회
 
 // 3. Webhook 수신
-POST /api/webhooks/fal
+POST /api/webhooks/fal-ai
 - 서명 검증
 - Job 상태 업데이트
 - 결과 저장
@@ -159,6 +432,7 @@ POST /api/webhooks/fal
   - 이메일/비밀번호 회원가입 및 로그인
   - Supabase Auth 통합
   - 세션 관리 및 보호된 라우트
+
 - ✅ **Epic 2**: Canvas AI Studio (완료)
   - 이미지 업로드 (드래그앤드롭 지원)
   - 효과 선택 UI (최대 2개 효과 선택)
@@ -167,10 +441,19 @@ POST /api/webhooks/fal
   - 영상 히스토리 및 즐겨찾기
   - 슬롯 기반 컨텐츠 관리 (4 슬롯)
   - 영상 다운로드 기능
+
 - ✅ **Epic 3**: 갤러리 시스템 (완료)
   - 영상 목록 및 필터링
   - 반응형 그리드 레이아웃
   - 카테고리별 브라우징
+
+- 🚧 **Epic 4**: Video Editor (진행 중)
+  - ✅ Remotion 통합 및 프리뷰
+  - ✅ 타임라인 UI 및 클립 관리
+  - ✅ 텍스트/사운드 클립 추가
+  - ✅ 클립 복제/분할/트림 기능
+  - ✅ 실행 취소/다시 실행
+  - 🚧 서버 사이드 렌더링 (AWS Lambda)
 
 ### 기술적 구현 사항
 - **Job 기반 비동기 처리**: 영상 생성 요청을 job으로 관리
@@ -179,6 +462,7 @@ POST /api/webhooks/fal
 - **Fallback 메커니즘**: Webhook 실패 시 직접 polling
 - **Favorites 기능**: 생성된 영상 즐겨찾기 관리
 - **Stagewise 통합**: 개발 도구 통합 (포트 3100/3000)
+- **Remotion Integration**: 클라이언트 사이드 비디오 편집 및 렌더링
 
 ## 환경 변수 설정
 ```bash
@@ -186,11 +470,14 @@ POST /api/webhooks/fal
 NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 NEXT_PUBLIC_FAL_PUBLISHABLE_KEY=your-fal-publishable-key
+NEXT_PUBLIC_MOCK_MODE=false  # true로 설정 시 AI API 호출 대신 목업 사용
 
 # .env (서버 전용)
 SUPABASE_SERVICE_KEY=your-service-key
 FAL_API_KEY=your-fal-api-key
 WEBHOOK_SECRET=your-webhook-secret
+REMOTION_AWS_ACCESS_KEY_ID=your-aws-access-key
+REMOTION_AWS_SECRET_ACCESS_KEY=your-aws-secret
 ```
 
 ### Vercel 배포 설정
@@ -199,6 +486,9 @@ WEBHOOK_SECRET=your-webhook-secret
 {
   "functions": {
     "app/api/canvas/generate-async/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/video/render/route.ts": {
       "maxDuration": 60
     }
   }
@@ -212,6 +502,11 @@ WEBHOOK_SECRET=your-webhook-secret
 - **API 응답 최소화**: select('*') 사용 금지, 클라이언트에 필요한 최소한의 필드만 명시적으로 선택하여 반환
 - **환경 변수 분리 철저**: NEXT_PUBLIC_ 접두사가 있는 환경 변수는 클라이언트에 노출되므로, Service Key 등 민감한 정보는 서버 전용 환경 변수로 관리
 
+### Remotion 비디오 편집
+- **Player 상태 동기화**: currentFrame 업데이트 시 타임라인과 프리뷰 동기화 필수
+- **클립 오버레이**: z-index와 레이어 순서 관리 주의
+- **렌더링 성능**: 실시간 프리뷰는 클라이언트, 최종 렌더링은 서버 사이드 처리
+
 ### MVP 집중
 - 2주 내 출시 목표: 핵심 기능만 구현
 - 데스크톱 우선: 1280x720 이상 해상도
@@ -221,22 +516,56 @@ WEBHOOK_SECRET=your-webhook-secret
 - 이미지는 Next.js Image 컴포넌트 사용
 - 동적 임포트로 코드 스플리팅
 - 서버 컴포넌트 우선 사용
+- Remotion 컴포지션은 필요 시점에만 로드
 
 ### 에러 처리
 - 모든 API 호출에 try-catch 필수
 - 사용자 친화적인 에러 메시지 표시
 - 로딩 상태 표시 필수
+- Job 실패 시 재시도 로직 구현
 
 ### 코드 품질 체크
 1. **작업 완료 후 필수 명령어 실행**:
    ```bash
    npm run lint      # ESLint 검사
    npm run build     # 타입 체크 및 빌드 테스트
+   npm run test:run  # 테스트 실행
    ```
 2. **빌드 에러 발생 시**:
    - 타입 에러: 정확한 타입 정의 추가
    - ESLint 에러: 코드 스타일 수정
    - 의존성 에러: package.json 확인
+
+### 흔한 에러 및 해결 방법
+
+#### 1. React Hook 의존성 경고
+```
+ESLint: React Hook useEffect has a missing dependency: '...'
+```
+**해결**: ESLint가 제안하는 의존성을 배열에 추가하거나, 의도적인 경우 주석 처리
+
+#### 2. TypeScript 타입 에러
+```
+Property '...' does not exist on type 'unknown'
+```
+**해결**: 타입 가드를 사용하여 타입 좁히기
+```typescript
+if (data && typeof data === 'object' && 'property' in data) {
+  // data.property 접근 가능
+}
+```
+
+#### 3. Async 컴포넌트 에러
+```
+Error: Objects are not valid as a React child
+```
+**해결**: 서버 컴포넌트에서만 async 사용, 클라이언트 컴포넌트는 useEffect 활용
+
+#### 4. Import 경로 에러
+```
+Cannot find module '@/...'
+```
+**해결**: tsconfig.json의 paths 설정 확인, 상대 경로 사용 고려
 
 ## Git 워크플로우
 
@@ -255,7 +584,7 @@ refactor/{description}
 
 ### 커밋 메시지 형식
 ```
-{type}: Story {epic}.{story} - {description}
+{type}: {description}
 
 - 상세 변경사항 1
 - 상세 변경사항 2
@@ -287,14 +616,52 @@ Co-Authored-By: Claude <noreply@anthropic.com>
   - React Hook 의존성 경고: `useCallback` 사용 또는 의존성 배열 업데이트
   - 타입 캐스팅이 필요한 경우: `as` 키워드 사용 (최소한으로)
 
+### 에러 처리 패턴
+```typescript
+// lib/errors.ts
+export class AppError extends Error {
+  constructor(
+    message: string,
+    public code: string,
+    public statusCode: number = 500
+  ) {
+    super(message);
+    this.name = 'AppError';
+  }
+}
+
+// 사용 예시
+try {
+  const result = await riskyOperation();
+} catch (error) {
+  if (error instanceof AppError) {
+    // 앱 에러 처리
+    console.error(`Error ${error.code}: ${error.message}`);
+  } else if (error instanceof Error) {
+    // 일반 에러 처리
+    console.error(error.message);
+  } else {
+    // unknown 에러 처리
+    console.error('Unknown error occurred');
+  }
+}
+```
+
 ### fal.ai API 디버깅
 - Webhook 수신 확인: `/api/canvas/jobs/[jobId]/check-webhook` 엔드포인트 활용
 - Progress 추적: VideoGenerationProgress 컴포넌트의 상태 표시 확인
 - 로그 확인: video_generation_logs 테이블에서 상세 로그 조회
+- Mock 모드: `NEXT_PUBLIC_MOCK_MODE=true`로 AI API 호출 없이 테스트
 
-## BMAD 개발 프로세스 (Cursor Rules)
-프로젝트는 BMAD(Business Model Accelerated Development) 방법론을 사용합니다:
-- `.bmad-core/` 디렉토리에 개발 프로세스 정의
-- Story 기반 개발: 각 기능은 Epic과 Story로 관리
-- `@dev` 명령으로 개발자 페르소나 활성화 가능
-- 개발 완료 시 Story 파일의 Dev Agent Record 섹션만 업데이트
+### Remotion 렌더링 이슈
+- Remotion Studio에서 컴포지션 미리보기: `npm run remotion:studio`
+- 프레임 레이트 확인: 기본 30fps 설정
+- 메모리 사용량 모니터링: 긴 영상 렌더링 시 주의
+- AWS Lambda 설정: `docs/video-render-setup-guide.md` 참조
+
+## Cursor Rules 통합
+프로젝트는 다음 Cursor Rules를 포함합니다:
+- `.cursor/rules/canvas-implementation-guide.mdc` - Canvas 페이지 구현 가이드
+  - 4 슬롯 시스템 상태 관리
+  - 이미지 업로드 및 효과 선택 플로우
+  - Job 기반 비동기 영상 생성 패턴
