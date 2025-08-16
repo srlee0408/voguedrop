@@ -427,9 +427,10 @@ export default function VideoPreview({
       if (result.success && result.renderId) {
         console.log('Render started:', result);
         
-        // 진행 상황 확인 (처음엔 느리게, 나중엔 빠르게)
-        const checkInterval = 20000; // 초기 30초
-        const maxAttempts = 20; // 최대 10분
+        // 진행 상황 확인 간격 개선 - 초반에는 자주, 후반에는 덜 자주
+        let checkInterval = 5000; // 첫 체크는 5초
+        const maxInterval = 20000; // 최대 20초
+        const maxAttempts = 30; // 최대 10분
         let attempts = 0;
 
         const checkProgress = async () => {
@@ -486,6 +487,16 @@ export default function VideoPreview({
               // 진행률 업데이트
               setRenderProgress(Math.round((status.overallProgress || 0) * 100));
               attempts++;
+              
+              // 체크 간격을 점진적으로 증가
+              if (attempts === 1) {
+                checkInterval = 10000; // 두 번째는 10초
+              } else if (attempts === 2) {
+                checkInterval = 15000; // 세 번째는 15초  
+              } else {
+                checkInterval = maxInterval; // 이후는 20초
+              }
+              
               // 다시 체크
               setTimeout(checkProgress, checkInterval);
             } else {
@@ -500,8 +511,8 @@ export default function VideoPreview({
           }
         };
 
-        // 30초 후 첫 체크 시작 (Rate Limit 방지)
-        setTimeout(checkProgress, checkInterval);
+        // 5초 후 첫 체크 시작 (빠른 피드백 제공하면서 Rate Limit 방지)
+        setTimeout(checkProgress, 5000);
       } else {
         throw new Error('Failed to start rendering.');
       }
