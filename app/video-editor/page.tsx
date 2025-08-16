@@ -257,10 +257,10 @@ export default function VideoEditorPage() {
   };
 
   // 텍스트 크기 업데이트 (화면에서 리사이즈)
-  const handleUpdateTextSize = (id: string, fontSize: number) => {
+  const handleUpdateTextSize = (id: string, fontSize: number, fontSizeRatio: number) => {
     setTextClips(prev => prev.map(clip => 
       clip.id === id 
-        ? { ...clip, style: { ...clip.style, fontSize } }
+        ? { ...clip, style: { ...clip.style, fontSize, fontSizeRatio } }
         : clip
     ));
     saveToHistory();

@@ -11,7 +11,7 @@ interface TextOverlayEditorProps {
   currentTime: number;
   pixelsPerSecond: number;
   onUpdatePosition: (id: string, x: number, y: number) => void;
-  onUpdateSize: (id: string, fontSize: number) => void;
+  onUpdateSize: (id: string, fontSize: number, fontSizeRatio: number) => void;
   selectedClip: string | null;
   onSelectClip: (id: string | null) => void;
   aspectRatio?: string;
@@ -215,10 +215,15 @@ export default function TextOverlayEditor({
     const clip = textClips.find(c => c.id === clipId);
     if (!clip) return;
     
+    // fontSizeRatio가 있으면 1080px 기준으로 변환, 없으면 fontSize 사용
+    const initialSize = clip.style?.fontSizeRatio 
+      ? Math.round(clip.style.fontSizeRatio * 1080)
+      : (clip.style?.fontSize || TEXT_DEFAULTS.fontSize);
+    
     setResizingClip(clipId);
     setResizeStart({
       y: e.clientY,
-      size: clip.style?.fontSize || TEXT_DEFAULTS.fontSize // 공통 상수 사용
+      size: initialSize
     });
     onSelectClip(clipId);
   };
@@ -249,7 +254,9 @@ export default function TextOverlayEditor({
       } else if (resizingClip) {
         const deltaY = e.clientY - resizeStart.y;
         const newSize = Math.round(Math.max(16, Math.min(200, resizeStart.size + deltaY / 2)));
-        onUpdateSize(resizingClip, newSize);
+        // fontSize와 fontSizeRatio를 모두 계산하여 전달 (1080px 기준)
+        const newRatio = newSize / 1080; // TextEditorModal과 동일한 1080px 기준
+        onUpdateSize(resizingClip, newSize, newRatio);
       }
     };
 
@@ -509,7 +516,7 @@ export default function TextOverlayEditor({
                     onMouseDown={(e) => handleResizeStart(e, clip.id)}
                   />
                   <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-black/80 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
-                    Size: {actualFontSize}px
+                    Size: {fontSizeRatio ? Math.round(fontSizeRatio * 1080) : actualFontSize}px
                   </div>
                 </>
               )}

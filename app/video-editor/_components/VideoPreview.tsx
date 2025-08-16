@@ -33,7 +33,7 @@ interface VideoPreviewProps {
   isPlaying?: boolean;
   onPlayStateChange?: (playing: boolean) => void;
   onUpdateTextPosition?: (id: string, x: number, y: number) => void;
-  onUpdateTextSize?: (id: string, fontSize: number) => void;
+  onUpdateTextSize?: (id: string, fontSize: number, fontSizeRatio: number) => void;
   selectedTextClip?: string | null;
   onSelectTextClip?: (id: string | null) => void;
   projectTitle?: string;
@@ -936,9 +936,9 @@ export default function VideoPreview({
                         onUpdateTextPosition(id, x, y);
                       }
                     }}
-                    onUpdateSize={(id, fontSize) => {
+                    onUpdateSize={(id, fontSize, fontSizeRatio) => {
                       if (onUpdateTextSize) {
-                        onUpdateTextSize(id, fontSize);
+                        onUpdateTextSize(id, fontSize, fontSizeRatio);
                       }
                     }}
                     selectedClip={selectedTextClip || null}
