@@ -1,5 +1,5 @@
-import React from 'react';
-import { AbsoluteFill, Sequence, OffthreadVideo, Audio, useVideoConfig } from 'remotion';
+import React, { useEffect, useRef } from 'react';
+import { AbsoluteFill, Sequence, OffthreadVideo, Audio, useVideoConfig, delayRender, continueRender } from 'remotion';
 import { TextClip as TextClipType, SoundClip as SoundClipType } from '@/types/video-editor';
 
 interface VideoClip {
@@ -28,6 +28,52 @@ export const CompositePreview: React.FC<CompositePreviewProps> = ({
   backgroundColor = 'black'
 }) => {
   const { width, height } = useVideoConfig();
+  const fontLoadHandles = useRef<Set<number>>(new Set());
+  
+  // 폰트 로딩 대기 로직
+  useEffect(() => {
+    // 사용된 폰트 목록 수집
+    const fontsToLoad = new Set<string>();
+    textClips.forEach(clip => {
+      if (clip.style?.fontFamily && clip.style.fontFamily !== 'default' && clip.style.fontFamily !== 'sans-serif') {
+        fontsToLoad.add(clip.style.fontFamily);
+      }
+    });
+
+    // 각 폰트에 대해 로딩 대기
+    fontsToLoad.forEach(fontFamily => {
+      const handle = delayRender(`Loading font: ${fontFamily}`);
+      fontLoadHandles.current.add(handle);
+      
+      // 폰트 로딩 확인 - 폰트 사이즈와 weight 고려
+      const fontSize = '48px';
+      const fontWeight = 'bold';
+      const fontString = `${fontWeight} ${fontSize} "${fontFamily}"`;
+      
+      document.fonts.load(fontString).then(() => {
+        continueRender(handle);
+        fontLoadHandles.current.delete(handle);
+      }).catch((error) => {
+        console.warn(`Failed to load font ${fontFamily}:`, error);
+        // 실패해도 계속 진행
+        continueRender(handle);
+        fontLoadHandles.current.delete(handle);
+      });
+    });
+
+    // 클린업
+    return () => {
+      const handles = fontLoadHandles.current;
+      handles.forEach(handle => {
+        try {
+          continueRender(handle);
+        } catch {
+          // 이미 continue된 경우 무시
+        }
+      });
+      handles.clear();
+    };
+  }, [textClips]);
   
   // 픽셀을 프레임으로 변환 (40px = 1초 = 30프레임)
   const pxToFrames = (px: number): number => {
@@ -214,33 +260,41 @@ export const CompositePreview: React.FC<CompositePreviewProps> = ({
           const textFrom = pxToFrames(text.position || 0);
           const textDuration = pxToFrames(text.duration);
           
-          // 텍스트 위치 계산
+          // 텍스트 위치 계산 - 일관된 계산 방식 적용
           const getTextPosition = () => {
             const style = text.style;
             let top = '50%';
             let left = '50%';
             let transform = 'translate(-50%, -50%)';
             
-            // positionX와 positionY가 있으면 우선 사용
+            // positionX와 positionY가 있으면 우선 사용 (드래그로 설정한 커스텀 위치)
             if (style?.positionX !== undefined && style?.positionY !== undefined) {
+              // 퍼센트 값 그대로 사용 (TextOverlayEditor와 동일)
               left = `${style.positionX}%`;
               top = `${style.positionY}%`;
+              // 항상 중앙 기준으로 변환
               transform = 'translate(-50%, -50%)';
             } else {
+              // 프리셋 위치 사용
               // 수직 위치
               if (style?.verticalPosition === 'top') {
                 top = '15%';
               } else if (style?.verticalPosition === 'bottom') {
                 top = '85%';
+              } else {
+                top = '50%'; // middle
               }
               
-              // 수평 위치
+              // 수평 위치와 transform 조정
               if (style?.alignment === 'left') {
                 left = '10%';
-                transform = 'translateY(-50%)';
+                transform = 'translateY(-50%)'; // Y축만 중앙 정렬
               } else if (style?.alignment === 'right') {
                 left = '90%';
-                transform = 'translate(-100%, -50%)';
+                transform = 'translate(-100%, -50%)'; // 우측 정렬
+              } else {
+                left = '50%'; // center
+                transform = 'translate(-50%, -50%)'; // 완전 중앙 정렬
               }
             }
             
@@ -260,15 +314,16 @@ export const CompositePreview: React.FC<CompositePreviewProps> = ({
                 style={{
                   position: 'absolute',
                   ...position,
-                  maxWidth: '80%',
-                  padding: text.style?.backgroundColor ? '20px 30px' : '0',
+                  // 텍스트 박스 크기를 적절히 제한
+                  maxWidth: '90%',
+                  padding: text.style?.backgroundColor ? '12px 20px' : '0',
                   backgroundColor: text.style?.backgroundColor || 'transparent',
                   opacity: text.style?.backgroundOpacity ?? 1,
                   borderRadius: '8px'
                 }}
               >
                 <h1 style={{
-                  fontSize: text.style?.fontSize || 72, // 기본 크기 증가
+                  fontSize: text.style?.fontSize || 48, // TextEditorModal과 동일한 기본값
                   color: text.effect === 'gradient' ? 'transparent' : (text.style?.color || 'white'),
                   fontFamily: text.style?.fontFamily || 'sans-serif',
                   fontWeight: text.style?.fontWeight || 'bold',
@@ -281,9 +336,12 @@ export const CompositePreview: React.FC<CompositePreviewProps> = ({
                   `, // 더 강한 그림자 (gradient와 glow 제외)
                   textAlign,
                   margin: 0,
+                  padding: 0,
                   lineHeight: 1.2,
                   display: ['spin', 'pulse', 'bounce', 'zoom', 'wave', 'typing'].includes(text.effect || '') ? 'inline-block' : 'block',
                   transformOrigin: 'center',
+                  // typing 효과일 때만 whiteSpace 적용
+                  whiteSpace: text.effect === 'typing' ? 'nowrap' : 'normal',
                   // 텍스트 효과 추가
                   ...(text.effect === 'none' && {}),
                   ...(text.effect === 'fade' && {
@@ -318,7 +376,6 @@ export const CompositePreview: React.FC<CompositePreviewProps> = ({
                   }),
                   ...(text.effect === 'typing' && {
                     overflow: 'hidden',
-                    whiteSpace: 'nowrap',
                     width: '100%',
                     animation: 'typing 4s steps(40, end) infinite',
                     borderRight: '3px solid rgba(255,255,255,0.7)'

@@ -207,7 +207,7 @@ export default function TextOverlayEditor({
     setResizingClip(clipId);
     setResizeStart({
       y: e.clientY,
-      size: clip.style?.fontSize || 72
+      size: clip.style?.fontSize || 48 // CompositePreview와 동일한 기본값
     });
     onSelectClip(clipId);
   };

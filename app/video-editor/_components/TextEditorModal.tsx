@@ -91,7 +91,7 @@ export default function TextEditorModal({
   const [content, setContent] = useState(editingClip?.content || '');
   const [style, setStyle] = useState<TextStyle>(
     editingClip?.style || {
-      fontSize: 24, // 기본 크기를 크게 변경
+      fontSize: 48, // CompositePreview와 동일한 기본값으로 통일
       fontFamily: 'default',
       color: '#FFFFFF',
       alignment: 'center',
