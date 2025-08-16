@@ -149,32 +149,71 @@ export default function VideoPreview({
     }
   }, [clips.length]); // clips의 길이만 의존성으로 설정하여 불필요한 리렌더링 방지
   
-  // Player 이벤트 리스너 설정 - 버퍼링 상태 추적
+  // Player 이벤트 리스너 설정 - 버퍼링 상태 추적 및 초기 볼륨 설정
   useEffect(() => {
-    if (!playerRef?.current) return;
-
-    const player = playerRef.current;
+    let volumeInterval: NodeJS.Timeout | null = null;
+    let volumeTimeout: NodeJS.Timeout | null = null;
     
-    // waiting 이벤트 - 버퍼링 시작
-    const handleWaiting = () => {
-      setIsBuffering(true);
+    // Player가 실제로 준비될 때까지 대기하며 볼륨 설정
+    const checkAndSetVolume = () => {
+      if (playerRef?.current) {
+        try {
+          playerRef.current.setVolume(1);
+          
+          // 이벤트 리스너 설정
+          const player = playerRef.current;
+          
+          // waiting 이벤트 - 버퍼링 시작
+          const handleWaiting = () => {
+            setIsBuffering(true);
+          };
+          
+          // resume 이벤트 - 버퍼링 종료
+          const handleResume = () => {
+            setIsBuffering(false);
+          };
+          
+          // 이벤트 리스너 등록
+          player.addEventListener('waiting', handleWaiting);
+          player.addEventListener('resume', handleResume);
+          
+          // 클린업 함수 저장
+          return () => {
+            player.removeEventListener('waiting', handleWaiting);
+            player.removeEventListener('resume', handleResume);
+          };
+        } catch {
+          return null;
+        }
+      }
+      return null;
     };
     
-    // resume 이벤트 - 버퍼링 종료
-    const handleResume = () => {
-      setIsBuffering(false);
-    };
-    
-    // 이벤트 리스너 등록
-    player.addEventListener('waiting', handleWaiting);
-    player.addEventListener('resume', handleResume);
+    // 즉시 시도
+    const cleanup = checkAndSetVolume();
+    if (!cleanup) {
+      // 실패하면 짧은 간격으로 재시도
+      volumeInterval = setInterval(() => {
+        const cleanup = checkAndSetVolume();
+        if (cleanup) {
+          if (volumeInterval) clearInterval(volumeInterval);
+          if (volumeTimeout) clearTimeout(volumeTimeout);
+        }
+      }, 100);
+      
+      // 최대 5초 후 정리
+      volumeTimeout = setTimeout(() => {
+        if (volumeInterval) clearInterval(volumeInterval);
+      }, 5000);
+    }
     
     // 클린업
     return () => {
-      player.removeEventListener('waiting', handleWaiting);
-      player.removeEventListener('resume', handleResume);
+      if (volumeInterval) clearInterval(volumeInterval);
+      if (volumeTimeout) clearTimeout(volumeTimeout);
+      cleanup?.();
     };
-  }, [playerRef]);
+  }, [playerRef, clips.length, soundClips.length]); // clips나 soundClips 변경 시 재설정
   
   // 선택된 클립이 변경되면 해당 인덱스로 이동
   useEffect(() => {
@@ -847,7 +886,7 @@ export default function VideoPreview({
                     display: 'block'
                   }}
                   controls={false}
-                  showVolumeControls={false}
+                  showVolumeControls={true}
                   clickToPlay={false}
                   doubleClickToFullscreen={false}
                   />

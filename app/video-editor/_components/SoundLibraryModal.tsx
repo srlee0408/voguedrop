@@ -200,6 +200,16 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
     });
   };
 
+  // 파일을 data URL로 변환하는 함수
+  const fileToDataUrl = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
@@ -215,12 +225,13 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
         }
 
         const duration = await getAudioDuration(file);
-        const url = URL.createObjectURL(file);
+        // blob URL 대신 data URL 사용
+        const dataUrl = await fileToDataUrl(file);
         
         const newAudio: UploadedAudio = {
           id: `audio-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           name: file.name,
-          url: url,
+          url: dataUrl,  // data URL 사용
           duration: duration,
           size: file.size,
         };
@@ -514,7 +525,8 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
   const handleRemoveAudio = (audioId: string) => {
     const audio = uploadedAudios.find(a => a.id === audioId);
     if (audio) {
-      URL.revokeObjectURL(audio.url);
+      // data URL은 revoke할 필요 없음 (blob URL만 revoke 필요)
+      // URL.revokeObjectURL(audio.url);
       setUploadedAudios(prev => prev.filter(a => a.id !== audioId));
       setSelectedAudioIds(prev => {
         const newSet = new Set(prev);

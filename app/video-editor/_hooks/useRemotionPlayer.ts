@@ -35,6 +35,11 @@ export const useRemotionPlayer = ({
       playerRef.current.pause();
       setIsPlaying(false);
       
+      // 초기 볼륨을 1(100%)로 설정
+      playerRef.current.setVolume(1);
+      setVolume(1);
+      console.log('🔊 FullscreenPreviewModal: Player volume set to 1');
+      
       // 충분한 시간을 두고 모든 요소(비디오, 텍스트, 오디오)가 렌더링될 때까지 대기
       // CompositePreview의 delayRender가 모두 완료될 시간 확보
       const timer = setTimeout(() => {
