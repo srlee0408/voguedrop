@@ -554,7 +554,7 @@ export default function Timeline({
           const delta = parseFloat(clipElement.style.transform.replace(/translateX\(|px\)/g, '')) || 0;
           
           // Import helper functions for timeline positioning
-          import('../_utils/timeline-utils').then(({ magneticPositioning, freePositioning }) => {
+          import('../_utils/timeline-utils').then(({ magneticPositioning, freePositioning, soundPositioning }) => {
             // Handle position update for all clip types
             if (activeClipType === 'video' && onUpdateAllVideoClips) {
               const currentClip = clips.find(c => c.id === activeClip);
@@ -594,21 +594,26 @@ export default function Timeline({
                 // Only update the dragged clip
                 onUpdateTextClipPosition(activeClip, targetPosition);
               }
-            } else if (activeClipType === 'sound' && onUpdateSoundClipPosition) {
+            } else if (activeClipType === 'sound' && onUpdateAllSoundClips) {
               const currentClip = soundClips.find(c => c.id === activeClip);
               if (currentClip) {
                 const newPosition = Math.max(0, currentClip.position + delta);
                 
-                // Use free positioning for sound clips (no pushing)
-                const targetPosition = freePositioning(
+                // Use sound positioning for sound clips (smart between-clip detection with pushing)
+                const { targetPosition, adjustedClips } = soundPositioning(
                   soundClips,
                   activeClip,
                   newPosition,
                   currentClip.duration
                 );
                 
-                // Only update the dragged clip
-                onUpdateSoundClipPosition(activeClip, targetPosition);
+                // Update all clips including the dragged one (like video clips)
+                const updatedClips = [
+                  ...adjustedClips,
+                  { ...currentClip, position: targetPosition }
+                ].sort((a, b) => a.position - b.position);
+                
+                onUpdateAllSoundClips(updatedClips);
               }
             }
           });

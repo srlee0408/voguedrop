@@ -551,6 +551,169 @@ export const freePositioning = <T extends BaseClip>(
 };
 
 /**
+ * Sound positioning - intelligently positions sound clips with between-clip detection
+ * Similar to video clips, pushes other clips when inserting between clips
+ * @param clips Array of all clips (including the one being dragged)
+ * @param draggedClipId ID of the clip being dragged
+ * @param requestedPosition Position where the clip is being placed
+ * @param duration Duration of the clip being placed
+ * @returns Target position and adjusted clips array
+ */
+export const soundPositioning = <T extends BaseClip>(
+  clips: T[],
+  draggedClipId: string,
+  requestedPosition: number,
+  duration: number
+): { targetPosition: number; adjustedClips: T[] } => {
+  // 드래그된 클립 제외한 클립들을 position 순으로 정렬
+  const otherClips = clips.filter(c => c.id !== draggedClipId);
+  const sortedClips = [...otherClips].sort((a, b) => a.position - b.position);
+  
+  // 클립이 없으면 그냥 요청 위치에 배치
+  if (sortedClips.length === 0) {
+    return { targetPosition: Math.max(0, requestedPosition), adjustedClips: [] };
+  }
+  
+  // 드래그된 클립의 중심과 끝점
+  const draggedCenter = requestedPosition + (duration / 2);
+  const draggedEnd = requestedPosition + duration;
+  
+  // 1. 두 클립 사이에 있는지 확인
+  for (let i = 0; i < sortedClips.length - 1; i++) {
+    const leftClip = sortedClips[i];
+    const rightClip = sortedClips[i + 1];
+    
+    const leftEnd = leftClip.position + leftClip.duration;
+    const rightStart = rightClip.position;
+    
+    // 드래그한 클립이 두 클립 사이 공간과 관련이 있는지 확인
+    // 더 넓은 범위로 감지: 중심이 사이에 있거나, 클립의 일부가 사이 공간과 겹치는 경우
+    const isInBetween = 
+      (draggedCenter >= leftEnd && draggedCenter <= rightStart) || // 중심이 사이에
+      (requestedPosition >= leftEnd && requestedPosition <= rightStart) || // 시작이 사이에
+      (draggedEnd >= leftEnd && draggedEnd <= rightStart) || // 끝이 사이에
+      (requestedPosition <= leftEnd && draggedEnd >= rightStart); // 공간을 완전히 덮음
+    
+    if (isInBetween) {
+      const gap = rightStart - leftEnd;
+      
+      if (gap >= duration) {
+        // 공간이 충분하면 사용자가 드래그한 위치에 배치
+        // 단, 왼쪽 클립과 겹치지 않고 오른쪽 클립과도 겹치지 않도록 조정
+        let finalPosition = requestedPosition;
+        
+        // 왼쪽 클립과 겹치는 경우 조정
+        if (finalPosition < leftEnd) {
+          finalPosition = leftEnd;
+        }
+        
+        // 오른쪽 클립과 겹치는 경우 조정
+        if (finalPosition + duration > rightStart) {
+          finalPosition = rightStart - duration;
+        }
+        
+        return {
+          targetPosition: finalPosition,
+          adjustedClips: otherClips
+        };
+      } else {
+        // 공간이 부족하면 오른쪽 클립들을 밀어내되, 연속적으로 재배치
+        const insertPosition = leftEnd; // 삽입 위치는 왼쪽 클립 끝
+        
+        // 오른쪽 클립들을 연속적으로 재배치
+        let currentPosition = insertPosition + duration; // 삽입될 클립 다음 위치
+        const adjustedClips = sortedClips.map((clip, idx) => {
+          if (idx <= i) {
+            // 왼쪽 클립들은 그대로
+            return clip;
+          } else {
+            // 오른쪽 클립들을 연속적으로 배치 (빈 공간 없이)
+            const newClip = { ...clip, position: currentPosition } as T;
+            currentPosition = currentPosition + clip.duration; // 다음 클립 위치 업데이트
+            return newClip;
+          }
+        });
+        
+        return {
+          targetPosition: insertPosition,
+          adjustedClips
+        };
+      }
+    }
+  }
+  
+  // 2. 맨 앞에 놓으려는 경우
+  if (draggedEnd <= sortedClips[0].position) {
+    return {
+      targetPosition: Math.max(0, requestedPosition),
+      adjustedClips: otherClips
+    };
+  }
+  
+  // 3. 맨 앞 클립과 겹치는 경우 - 모든 클립 밀기
+  if (requestedPosition < sortedClips[0].position && draggedEnd > sortedClips[0].position) {
+    const pushAmount = draggedEnd - sortedClips[0].position;
+    
+    const adjustedClips = sortedClips.map(clip => ({
+      ...clip,
+      position: clip.position + pushAmount
+    } as T));
+    
+    return {
+      targetPosition: Math.max(0, requestedPosition),
+      adjustedClips
+    };
+  }
+  
+  // 4. 단일 클립 위에 있는 경우 - 중심 기준 좌/우 배치
+  const overlappingClip = sortedClips.find(clip =>
+    requestedPosition < clip.position + clip.duration &&
+    draggedEnd > clip.position
+  );
+  
+  if (overlappingClip) {
+    const clipCenter = overlappingClip.position + (overlappingClip.duration / 2);
+    
+    if (draggedCenter > clipCenter) {
+      // 오른쪽에 배치
+      return {
+        targetPosition: overlappingClip.position + overlappingClip.duration,
+        adjustedClips: otherClips
+      };
+    } else {
+      // 왼쪽에 배치
+      const leftPos = overlappingClip.position - duration;
+      
+      if (leftPos < 0) {
+        // 맨 앞 공간 부족 - 모든 클립 밀어내기
+        const pushAmount = -leftPos;
+        
+        const adjustedClips = sortedClips.map(clip => ({
+          ...clip,
+          position: clip.position + pushAmount
+        } as T));
+        
+        return {
+          targetPosition: 0,
+          adjustedClips
+        };
+      }
+      
+      return {
+        targetPosition: leftPos,
+        adjustedClips: otherClips
+      };
+    }
+  }
+  
+  // 5. 빈 공간에 배치
+  return {
+    targetPosition: Math.max(0, requestedPosition),
+    adjustedClips: otherClips
+  };
+};
+
+/**
  * Magnetic insert - pushes clips to the right when inserting
  * @param clips Array of existing clips
  * @param insertPosition Position where new clip will be inserted
