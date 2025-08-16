@@ -39,6 +39,7 @@ interface TimelineProps {
   onResizeVideoClip?: (id: string, newDuration: number, handle?: 'left' | 'right', deltaPosition?: number) => void;
   onUpdateSoundClipPosition?: (id: string, newPosition: number) => void;
   onUpdateAllVideoClips?: (clips: VideoClipType[]) => void;
+  onUpdateAllTextClips?: (clips: TextClipType[]) => void;
   onUpdateAllSoundClips?: (clips: SoundClipType[]) => void;
   pixelsPerSecond?: number;
   currentTime?: number;
@@ -76,6 +77,7 @@ export default function Timeline({
   onResizeVideoClip,
   onUpdateSoundClipPosition,
   onUpdateAllVideoClips,
+  onUpdateAllTextClips,
   onUpdateAllSoundClips,
   pixelsPerSecond = 40,
   currentTime = 0,
@@ -444,7 +446,7 @@ export default function Timeline({
                 
                 onUpdateAllVideoClips(updatedClips);
               }
-            } else if (activeClipType === 'text' && onUpdateTextClipPosition) {
+            } else if (activeClipType === 'text' && onUpdateAllTextClips) {
               const currentClip = textClips.find(c => c.id === activeClip);
               if (currentClip) {
                 const newPosition = Math.max(0, currentClip.position + delta);
@@ -454,7 +456,12 @@ export default function Timeline({
                   newPosition,
                   currentClip.duration
                 );
-                onUpdateTextClipPosition(activeClip, targetPosition);
+                
+                const updatedClips = textClips.map(clip =>
+                  clip.id === activeClip ? { ...clip, position: targetPosition } : clip
+                ).sort((a, b) => a.position - b.position);
+                
+                onUpdateAllTextClips(updatedClips);
               }
             } else if (activeClipType === 'sound' && onUpdateAllSoundClips) {
               const currentClip = soundClips.find(c => c.id === activeClip);
@@ -522,6 +529,7 @@ export default function Timeline({
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeClip, activeClipType, isDragging, isResizing, dragStartX, startWidth, startPosition, resizeHandle, clips, textClips, soundClips, resizeMoved, finalResizeWidth, finalResizePosition]);
 
   // Selection range effect
@@ -573,6 +581,7 @@ export default function Timeline({
       document.removeEventListener('mousemove', handleMove);
       document.removeEventListener('mouseup', handleUp);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSelectingRange, selectionStartX, selectionCurrentX, selectionStartY, selectionCurrentY]);
 
   // Playhead drag effect
@@ -602,6 +611,7 @@ export default function Timeline({
         document.removeEventListener('mouseup', handlePlayheadMouseUp);
       };
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isDraggingPlayhead, onSeek, pixelsPerSecond, totalDuration]);
 
   // Get selection bounds for rendering

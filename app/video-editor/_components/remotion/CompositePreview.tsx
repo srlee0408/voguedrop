@@ -73,6 +73,7 @@ export const CompositePreview: React.FC<CompositePreviewProps> = ({
       });
       fontLoadHandles.current.clear();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [textClips]);
   
   // pxToFrames는 이제 constants에서 import하여 사용
