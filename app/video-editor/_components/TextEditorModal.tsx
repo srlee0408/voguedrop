@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
 import { TextClip, TextStyle, TextEffect } from '@/types/video-editor';
+import { TEXT_DEFAULTS, FONT_SIZE_PRESETS, pixelsToRatio } from '../../../constants/text-editor';
 
 interface TextEditorModalProps {
   isOpen: boolean;
@@ -91,7 +92,8 @@ export default function TextEditorModal({
   const [content, setContent] = useState(editingClip?.content || '');
   const [style, setStyle] = useState<TextStyle>(
     editingClip?.style || {
-      fontSize: 48, // CompositePreview와 동일한 기본값으로 통일
+      fontSize: TEXT_DEFAULTS.fontSize, // 호환성을 위해 유지
+      fontSizeRatio: TEXT_DEFAULTS.fontSizeRatio, // 비율 추가
       fontFamily: 'default',
       color: '#FFFFFF',
       alignment: 'center',
@@ -280,34 +282,55 @@ export default function TextEditorModal({
                 <label className="block text-sm font-medium mb-2 text-gray-300">
                   Font Size
                 </label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    min="8"
-                    max="72"
-                    value={style.fontSize}
-                    onChange={(e) =>
-                      setStyle({ ...style, fontSize: parseInt(e.target.value) || 16 })
-                    }
-                    className="w-20 px-3 py-2 bg-gray-900 rounded-lg text-sm text-white focus:ring-2 focus:ring-[#38f47cf9] focus:outline-none"
-                  />
+                <div className="flex flex-col gap-2">
+                  {/* 크기 프리셋 버튼들 */}
                   <div className="flex gap-1">
-                    <button
-                      onClick={() =>
-                        setStyle({ ...style, fontSize: Math.max(8, style.fontSize - 1) })
-                      }
-                      className="w-7 h-7 flex items-center justify-center bg-gray-900 rounded hover:bg-gray-700"
-                    >
-                      <i className="ri-subtract-line text-white"></i>
-                    </button>
-                    <button
-                      onClick={() =>
-                        setStyle({ ...style, fontSize: Math.min(72, style.fontSize + 1) })
-                      }
-                      className="w-7 h-7 flex items-center justify-center bg-gray-900 rounded hover:bg-gray-700"
-                    >
-                      <i className="ri-add-line text-white"></i>
-                    </button>
+                    {Object.entries(FONT_SIZE_PRESETS).map(([key, preset]) => {
+                      const isActive = Math.abs((style.fontSizeRatio || TEXT_DEFAULTS.fontSizeRatio) - preset.ratio) < 0.005;
+                      return (
+                        <button
+                          key={key}
+                          onClick={() => {
+                            const baseFontSize = Math.round(preset.ratio * 1080);
+                            setStyle({ 
+                              ...style, 
+                              fontSize: baseFontSize,
+                              fontSizeRatio: preset.ratio 
+                            });
+                          }}
+                          className={`flex-1 px-2 py-1 text-xs rounded transition-colors ${
+                            isActive 
+                              ? 'bg-[#38f47cf9] text-black font-medium' 
+                              : 'bg-gray-900 text-gray-300 hover:bg-gray-700'
+                          }`}
+                        >
+                          {preset.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {/* 미세 조정 슬라이더 */}
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="range"
+                      min="0.02"
+                      max="0.12"
+                      step="0.002"
+                      value={style.fontSizeRatio || pixelsToRatio(style.fontSize, 1080)}
+                      onChange={(e) => {
+                        const ratio = parseFloat(e.target.value);
+                        const baseFontSize = Math.round(ratio * 1080);
+                        setStyle({ 
+                          ...style, 
+                          fontSize: baseFontSize,
+                          fontSizeRatio: ratio 
+                        });
+                      }}
+                      className="flex-1"
+                    />
+                    <span className="text-xs text-gray-400 w-12 text-right">
+                      {Math.round((style.fontSizeRatio || pixelsToRatio(style.fontSize, 1080)) * 1080)}px
+                    </span>
                   </div>
                 </div>
               </div>

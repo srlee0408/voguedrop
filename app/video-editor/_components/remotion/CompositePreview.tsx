@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { AbsoluteFill, Sequence, OffthreadVideo, Audio, useVideoConfig, delayRender, continueRender } from 'remotion';
 import { TextClip as TextClipType, SoundClip as SoundClipType } from '@/types/video-editor';
+import { TEXT_DEFAULTS, TEXT_PADDING, TEXT_POSITION_PRESETS, TEXT_ANIMATION, pxToFrames, ratioToPixels, pixelsToRatio } from '../../../../constants/text-editor';
 
 interface VideoClip {
   id: string;
@@ -16,7 +17,6 @@ interface CompositePreviewProps {
   videoClips: VideoClip[];
   textClips: TextClipType[];
   soundClips: SoundClipType[];
-  pixelsPerSecond?: number;
   backgroundColor?: string;
 }
 
@@ -24,7 +24,6 @@ export const CompositePreview: React.FC<CompositePreviewProps> = ({
   videoClips, 
   textClips, 
   soundClips,
-  pixelsPerSecond = 40,
   backgroundColor = 'black'
 }) => {
   const { width, height } = useVideoConfig();
@@ -46,8 +45,8 @@ export const CompositePreview: React.FC<CompositePreviewProps> = ({
       fontLoadHandles.current.add(handle);
       
       // 폰트 로딩 확인 - 폰트 사이즈와 weight 고려
-      const fontSize = '48px';
-      const fontWeight = 'bold';
+      const fontSize = `${TEXT_DEFAULTS.fontSize}px`; // 공통 상수 사용
+      const fontWeight = TEXT_DEFAULTS.fontWeight;
       const fontString = `${fontWeight} ${fontSize} "${fontFamily}"`;
       
       document.fonts.load(fontString).then(() => {
@@ -63,23 +62,20 @@ export const CompositePreview: React.FC<CompositePreviewProps> = ({
 
     // 클린업
     return () => {
-      const handles = fontLoadHandles.current;
-      handles.forEach(handle => {
+      // ref 값을 변수에 복사하여 cleanup 시점의 값 보존
+      const currentHandles = new Set(fontLoadHandles.current);
+      currentHandles.forEach(handle => {
         try {
           continueRender(handle);
         } catch {
           // 이미 continue된 경우 무시
         }
       });
-      handles.clear();
+      fontLoadHandles.current.clear();
     };
   }, [textClips]);
   
-  // 픽셀을 프레임으로 변환 (40px = 1초 = 30프레임)
-  const pxToFrames = (px: number): number => {
-    const seconds = px / pixelsPerSecond;
-    return Math.round(seconds * 30); // 30fps
-  };
+  // pxToFrames는 이제 constants에서 import하여 사용
   
   // 비율 계산
   const aspectRatio = width / height;
@@ -277,23 +273,18 @@ export const CompositePreview: React.FC<CompositePreviewProps> = ({
             } else {
               // 프리셋 위치 사용
               // 수직 위치
-              if (style?.verticalPosition === 'top') {
-                top = '15%';
-              } else if (style?.verticalPosition === 'bottom') {
-                top = '85%';
-              } else {
-                top = '50%'; // middle
-              }
+              const verticalPreset = style?.verticalPosition || 'middle';
+              top = `${TEXT_POSITION_PRESETS.vertical[verticalPreset]}%`;
               
               // 수평 위치와 transform 조정
-              if (style?.alignment === 'left') {
-                left = '10%';
+              const horizontalPreset = style?.alignment || 'center';
+              left = `${TEXT_POSITION_PRESETS.horizontal[horizontalPreset]}%`;
+              
+              if (horizontalPreset === 'left') {
                 transform = 'translateY(-50%)'; // Y축만 중앙 정렬
-              } else if (style?.alignment === 'right') {
-                left = '90%';
+              } else if (horizontalPreset === 'right') {
                 transform = 'translate(-100%, -50%)'; // 우측 정렬
               } else {
-                left = '50%'; // center
                 transform = 'translate(-50%, -50%)'; // 완전 중앙 정렬
               }
             }
@@ -303,6 +294,23 @@ export const CompositePreview: React.FC<CompositePreviewProps> = ({
           
           const position = getTextPosition();
           const textAlign: 'left' | 'center' | 'right' = text.style?.alignment || 'center';
+          
+          // 상대적 크기 계산
+          const actualFontSize = (() => {
+            // fontSizeRatio가 있으면 우선 사용
+            if (text.style?.fontSizeRatio !== undefined) {
+              return ratioToPixels(text.style.fontSizeRatio, width);
+            }
+            // 기존 fontSize를 비율로 변환 (1080px 기준)
+            const baseWidth = 1080;
+            const ratio = pixelsToRatio(text.style?.fontSize || TEXT_DEFAULTS.fontSize, baseWidth);
+            return ratioToPixels(ratio, width);
+          })();
+          
+          // 상대적 패딩 계산
+          const hasBackground = !!text.style?.backgroundColor;
+          const paddingH = hasBackground ? ratioToPixels(TEXT_PADDING.horizontalRatio, width) : 0;
+          const paddingV = hasBackground ? ratioToPixels(TEXT_PADDING.verticalRatio, height) : 0;
           
           return (
             <Sequence
@@ -315,18 +323,18 @@ export const CompositePreview: React.FC<CompositePreviewProps> = ({
                   position: 'absolute',
                   ...position,
                   // 텍스트 박스 크기를 적절히 제한
-                  maxWidth: '90%',
-                  padding: text.style?.backgroundColor ? '12px 20px' : '0',
+                  maxWidth: `${TEXT_DEFAULTS.maxWidthRatio * 100}%`,
+                  padding: hasBackground ? `${paddingV}px ${paddingH}px` : '0',
                   backgroundColor: text.style?.backgroundColor || 'transparent',
                   opacity: text.style?.backgroundOpacity ?? 1,
-                  borderRadius: '8px'
+                  borderRadius: `${TEXT_ANIMATION.borderRadius}px`
                 }}
               >
                 <h1 style={{
-                  fontSize: text.style?.fontSize || 48, // TextEditorModal과 동일한 기본값
-                  color: text.effect === 'gradient' ? 'transparent' : (text.style?.color || 'white'),
-                  fontFamily: text.style?.fontFamily || 'sans-serif',
-                  fontWeight: text.style?.fontWeight || 'bold',
+                  fontSize: actualFontSize, // 상대적 크기 사용
+                  color: text.effect === 'gradient' ? 'transparent' : (text.style?.color || TEXT_DEFAULTS.color),
+                  fontFamily: text.style?.fontFamily || TEXT_DEFAULTS.fontFamily,
+                  fontWeight: text.style?.fontWeight || TEXT_DEFAULTS.fontWeight,
                   textShadow: text.effect === 'gradient' || text.effect === 'glow' ? 'none' : `
                     3px 3px 6px rgba(0,0,0,0.9),
                     -1px -1px 2px rgba(0,0,0,0.5),
@@ -337,7 +345,7 @@ export const CompositePreview: React.FC<CompositePreviewProps> = ({
                   textAlign,
                   margin: 0,
                   padding: 0,
-                  lineHeight: 1.2,
+                  lineHeight: TEXT_ANIMATION.lineHeight,
                   display: ['spin', 'pulse', 'bounce', 'zoom', 'wave', 'typing'].includes(text.effect || '') ? 'inline-block' : 'block',
                   transformOrigin: 'center',
                   // typing 효과일 때만 whiteSpace 적용

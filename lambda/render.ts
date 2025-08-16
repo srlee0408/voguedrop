@@ -100,7 +100,6 @@ export const handler = async (event: unknown): Promise<RenderResponse> => {
         videoClips,
         textClips,
         soundClips,
-        pixelsPerSecond: 40,
         backgroundColor: 'black',
       },
       outName: outputFileName,

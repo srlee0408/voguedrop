@@ -132,7 +132,6 @@ export default function FullscreenPreviewModal({
                 videoClips: clips,
                 textClips: textClips,  // 항상 텍스트 클립 전달
                 soundClips: soundClips,
-                pixelsPerSecond: 40,
                 backgroundColor: 'black'
               }}
               durationInFrames={calculateTotalFrames}

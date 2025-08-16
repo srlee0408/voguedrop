@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { TextClip as TextClipType } from '@/types/video-editor';
+import { TEXT_DEFAULTS, TEXT_PADDING, TEXT_POSITION_PRESETS, ratioToPixels, pixelsToRatio } from '../../../constants/text-editor';
 
 interface TextOverlayEditorProps {
   textClips: TextClipType[];
@@ -84,10 +85,19 @@ export default function TextOverlayEditor({
   };
 
   // 단순화된 텍스트 크기 측정 함수 - 원본 크기로 측정 (최대 너비 80% 적용)
-  const measureTextSizeSimple = useCallback((text: string, fontSize: number, fontFamily: string, fontWeight: string) => {
-    // 스케일 적용하지 않고 원본 크기로 측정
-    const scaledFontSize = fontSize; // 스케일 미적용
+  const measureTextSizeSimple = useCallback((text: string, fontSize: number, fontSizeRatio: number | undefined, fontFamily: string, fontWeight: string) => {
+    // 상대적 크기 계산 (비율 우선 사용)
     const containerSize = getContainerSize();
+    const actualFontSize = (() => {
+      if (fontSizeRatio !== undefined) {
+        return ratioToPixels(fontSizeRatio, containerSize.width);
+      }
+      // 기존 fontSize를 비율로 변환 (1080px 기준)
+      const baseWidth = 1080;
+      const ratio = pixelsToRatio(fontSize, baseWidth);
+      return ratioToPixels(ratio, containerSize.width);
+    })();
+    const scaledFontSize = actualFontSize; // 스케일 미적용
     const aspectRatio = containerSize.width / containerSize.height;
     
     // DOM 측정만 사용 (더 정확함)
@@ -101,9 +111,8 @@ export default function TextOverlayEditor({
     tempElement.style.lineHeight = '1.2';
     // Remotion의 기본 흐름과 동일하게 공백을 접고 자동 줄바꿈되도록 설정
     tempElement.style.whiteSpace = 'normal';
-    // Remotion 텍스트 컨테이너와 동일한 80% 최대 너비 제한을 적용해 실제 줄바꿈을 반영
-    const container = getContainerSize();
-    tempElement.style.maxWidth = `${container.width * 0.8}px`;
+    // Remotion 텍스트 컨테이너와 동일한 최대 너비 제한을 적용해 실제 줄바꿈을 반영
+    tempElement.style.maxWidth = `${containerSize.width * TEXT_DEFAULTS.maxWidthRatio}px`;
     tempElement.style.visibility = 'hidden';
     tempElement.style.pointerEvents = 'none';
     tempElement.textContent = text;
@@ -151,8 +160,8 @@ export default function TextOverlayEditor({
     } else {
       const vertical = clip.style?.verticalPosition || 'middle';
       const align = clip.style?.alignment || 'center';
-      const top_percent = vertical === 'top' ? 15 : vertical === 'bottom' ? 85 : 50;
-      const left_percent = align === 'left' ? 10 : align === 'right' ? 90 : 50;
+      const top_percent = TEXT_POSITION_PRESETS.vertical[vertical as keyof typeof TEXT_POSITION_PRESETS.vertical];
+      const left_percent = TEXT_POSITION_PRESETS.horizontal[align as keyof typeof TEXT_POSITION_PRESETS.horizontal];
       anchorX = percentToPixel(left_percent, size.width);
       anchorY = percentToPixel(top_percent, size.height);
     }
@@ -160,18 +169,20 @@ export default function TextOverlayEditor({
     // 중앙 앵커로 변환: Remotion은 커스텀 좌표를 항상 중앙 기준으로 해석하므로
     // 좌/우 정렬로 기본 위치한 요소를 드래그 시작 시 중앙 기준으로 전환해 저장되도록 보정한다.
     // 텍스트 박스 전체 너비(패딩 포함)를 구해 좌/우 정렬 시 중앙 이동량을 반영한다.
-    const actualFontSize = clip.style?.fontSize || 72;
-    const fontFamily = clip.style?.fontFamily || 'sans-serif';
-    const fontWeight = clip.style?.fontWeight || 'bold';
+    const actualFontSize = clip.style?.fontSize || TEXT_DEFAULTS.fontSize;
+    const fontSizeRatio = clip.style?.fontSizeRatio;
+    const fontFamily = clip.style?.fontFamily || TEXT_DEFAULTS.fontFamily;
+    const fontWeight = clip.style?.fontWeight || TEXT_DEFAULTS.fontWeight;
     const hasBackground = !!clip.style?.backgroundColor;
     const measurement = measureTextSizeSimple(
       clip.content,
       actualFontSize,
+      fontSizeRatio,
       fontFamily,
       fontWeight
     );
     const contentWidth = measurement.width; // 컴포지션 좌표계(px)
-    const fullBoxWidth = contentWidth + (hasBackground ? 60 : 0); // 30px 좌/우 패딩 포함
+    const fullBoxWidth = contentWidth + (hasBackground ? TEXT_PADDING.horizontal * 2 : 0); // 좌/우 패딩 포함
 
     if (!has_custom_position) {
       const align = clip.style?.alignment || 'center';
@@ -207,7 +218,7 @@ export default function TextOverlayEditor({
     setResizingClip(clipId);
     setResizeStart({
       y: e.clientY,
-      size: clip.style?.fontSize || 48 // CompositePreview와 동일한 기본값
+      size: clip.style?.fontSize || TEXT_DEFAULTS.fontSize // 공통 상수 사용
     });
     onSelectClip(clipId);
   };
@@ -337,8 +348,8 @@ export default function TextOverlayEditor({
           } else {
             const vertical = clip.style?.verticalPosition || 'middle';
             const align = clip.style?.alignment || 'center';
-            const top_percent = vertical === 'top' ? 15 : vertical === 'bottom' ? 85 : 50;
-            const left_percent = align === 'left' ? 10 : align === 'right' ? 90 : 50;
+            const top_percent = TEXT_POSITION_PRESETS.vertical[vertical as keyof typeof TEXT_POSITION_PRESETS.vertical];
+            const left_percent = TEXT_POSITION_PRESETS.horizontal[align as keyof typeof TEXT_POSITION_PRESETS.horizontal];
             x = percentToPixel(left_percent, scaledSize.width);
             y = percentToPixel(top_percent, scaledSize.height);
             // CompositePreview와 동일한 transform 로직 적용
@@ -351,31 +362,34 @@ export default function TextOverlayEditor({
             }
           }
           
-          const actualFontSize = clip.style?.fontSize || 72;
-          const fontFamily = clip.style?.fontFamily || 'sans-serif';
-          const fontWeight = clip.style?.fontWeight || 'bold';
+          const actualFontSize = clip.style?.fontSize || TEXT_DEFAULTS.fontSize;
+          const fontSizeRatio = clip.style?.fontSizeRatio;
+          const fontFamily = clip.style?.fontFamily || TEXT_DEFAULTS.fontFamily;
+          const fontWeight = clip.style?.fontWeight || TEXT_DEFAULTS.fontWeight;
           
           // ---- [ 단순화된 텍스트 박스 크기 계산 ] ----
           // 1. 단순화된 텍스트 크기 측정
           const textMeasurement = measureTextSizeSimple(
             clip.content,
             actualFontSize,
+            fontSizeRatio,
             fontFamily,
             fontWeight
           );
           
           const { width: textWidth, height: textHeight } = textMeasurement;
           
-          // 2. 패딩 계산 - 스케일 적용
+          // 2. 패딩 계산 - 상대적 크기 적용
           const hasBackground = !!clip.style?.backgroundColor;
           const scale = displayScale; // Remotion Player와 동일 스케일 사용
-          // Remotion과 동일한 패딩 규칙: 배경 있을 때만 20px(상하)/30px(좌우)
-          const PADDING_X = hasBackground ? 30 * scale : 0;
-          const PADDING_Y = hasBackground ? 20 * scale : 0;
+          // 상대적 패딩 계산
+          const containerSize = getContainerSize();
+          const paddingX = hasBackground ? ratioToPixels(TEXT_PADDING.horizontalRatio, containerSize.width) * scale : 0;
+          const paddingY = hasBackground ? ratioToPixels(TEXT_PADDING.verticalRatio, containerSize.height) * scale : 0;
           
           // 3. 박스 크기 계산 - 콘텐츠(width/height) + 패딩을 스케일링
-          const boxWidth = (textWidth * scale) + (PADDING_X * 2);
-          const boxHeight = (textHeight * scale) + (PADDING_Y * 2);
+          const boxWidth = (textWidth * scale) + (paddingX * 2);
+          const boxHeight = (textHeight * scale) + (paddingY * 2);
           
           // 4. 시각적 스타일 조정
           const cornerSize = 12 * scale; // 항상 같은 크기의 코너 사용
@@ -407,9 +421,9 @@ export default function TextOverlayEditor({
                   width: `${boxWidth}px`,
                   height: `${boxHeight}px`,
                   
-                  // 단순화된 패딩 - 대칭 적용
+                  // 상대적 패딩 - 대칭 적용
                   padding: hasBackground 
-                    ? `${20 * displayScale}px ${30 * displayScale}px` 
+                    ? `${paddingY}px ${paddingX}px` 
                     : '0',
                   backgroundColor: isSelected ? 'rgba(56, 244, 124, 0.1)' : 'transparent', // 선택 시 약간 보이게
                   borderRadius: '8px',

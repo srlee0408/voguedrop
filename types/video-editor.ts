@@ -35,6 +35,7 @@ export interface SoundClip {
 
 export interface TextStyle {
   fontSize: number;
+  fontSizeRatio?: number; // 컨테이너 너비의 비율 (0.044 = 4.4%)
   fontFamily: string;
   color: string;
   alignment: 'left' | 'center' | 'right';

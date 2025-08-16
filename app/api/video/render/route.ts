@@ -105,7 +105,6 @@ export async function POST(request: NextRequest) {
         videoClips,
         textClips,
         soundClips,
-        pixelsPerSecond: 40,
         backgroundColor: 'black',
       },
       outName: outputKey,

@@ -17,7 +17,6 @@ export interface VideoCompositionProps {
   videoClips: VideoClip[];
   textClips: TextClipType[];
   soundClips: SoundClipType[];
-  pixelsPerSecond?: number;
   backgroundColor?: string;
   width: number;
   height: number;
@@ -41,7 +40,6 @@ export const VideoComposition: React.FC = () => {
           videoClips: [],
           textClips: [],
           soundClips: [],
-          pixelsPerSecond: 40,
           backgroundColor: 'black',
         }}
       />
@@ -58,7 +56,6 @@ export const VideoComposition: React.FC = () => {
           videoClips: [],
           textClips: [],
           soundClips: [],
-          pixelsPerSecond: 40,
           backgroundColor: 'black',
         }}
       />
@@ -75,7 +72,6 @@ export const VideoComposition: React.FC = () => {
           videoClips: [],
           textClips: [],
           soundClips: [],
-          pixelsPerSecond: 40,
           backgroundColor: 'black',
         }}
       />
