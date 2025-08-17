@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useCallback, useMemo, ReactNode, useEffect } from 'react';
+import { createContext, useContext, useState, useCallback, useMemo, ReactNode } from 'react';
 import { VideoClip, TextClip, SoundClip } from '@/types/video-editor';
 import { useClips } from './ClipContext';
 
@@ -51,6 +51,20 @@ export function HistoryProvider({ children }: { children: ReactNode }) {
       soundClips: [...soundClips]
     };
     
+    // 현재 인덱스가 히스토리 끝이 아닌 경우 (Undo 후 새 작업)
+    // 현재 위치의 상태와 비교하여 다른 경우에만 저장
+    if (historyIndex >= 0 && historyIndex < history.length) {
+      const currentState = history[historyIndex];
+      const isSameState = 
+        JSON.stringify(currentState.timelineClips) === JSON.stringify(timelineClips) &&
+        JSON.stringify(currentState.textClips) === JSON.stringify(textClips) &&
+        JSON.stringify(currentState.soundClips) === JSON.stringify(soundClips);
+      
+      if (isSameState) {
+        return; // 동일한 상태면 저장하지 않음
+      }
+    }
+    
     // 현재 인덱스 이후의 히스토리 제거 (새로운 분기 생성)
     const newHistory = history.slice(0, historyIndex + 1);
     newHistory.push(newState);
@@ -90,13 +104,6 @@ export function HistoryProvider({ children }: { children: ReactNode }) {
   // Undo/Redo 가능 여부
   const canUndo = useMemo(() => historyIndex > 0, [historyIndex]);
   const canRedo = useMemo(() => historyIndex < history.length - 1, [historyIndex, history.length]);
-  
-  // 초기 상태를 히스토리에 저장
-  useEffect(() => {
-    if (history.length === 0) {
-      saveToHistory();
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   
   // Context value를 useMemo로 최적화
   const value = useMemo(() => ({

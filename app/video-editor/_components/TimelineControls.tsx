@@ -52,28 +52,40 @@ export default function TimelineControls({
       {/* 좌측: Undo/Redo 버튼 */}
       <div className="flex items-center gap-2">
         <button
-          className={`w-8 h-8 flex items-center justify-center rounded transition-colors ${
+          className={`w-8 h-8 flex items-center justify-center rounded transition-colors relative group ${
             canUndo 
               ? 'hover:bg-gray-800 text-gray-400 hover:text-white cursor-pointer' 
               : 'text-gray-600 cursor-not-allowed opacity-50'
           }`}
           onClick={onUndo}
           disabled={!canUndo}
-          title="실행 취소"
+          title="실행 취소 (Undo)"
         >
           <i className="ri-arrow-go-back-line text-lg"></i>
+          {/* 영어 툴팁 */}
+          <span className={`absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs bg-gray-800 text-white rounded whitespace-nowrap pointer-events-none transition-opacity ${
+            canUndo ? 'opacity-0 group-hover:opacity-100' : 'opacity-0'
+          }`}>
+            Undo
+          </span>
         </button>
         <button
-          className={`w-8 h-8 flex items-center justify-center rounded transition-colors ${
+          className={`w-8 h-8 flex items-center justify-center rounded transition-colors relative group ${
             canRedo 
               ? 'hover:bg-gray-800 text-gray-400 hover:text-white cursor-pointer' 
               : 'text-gray-600 cursor-not-allowed opacity-50'
           }`}
           onClick={onRedo}
           disabled={!canRedo}
-          title="다시 실행"
+          title="다시 실행 (Redo)"
         >
           <i className="ri-arrow-go-forward-line text-lg"></i>
+          {/* 영어 툴팁 */}
+          <span className={`absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs bg-gray-800 text-white rounded whitespace-nowrap pointer-events-none transition-opacity ${
+            canRedo ? 'opacity-0 group-hover:opacity-100' : 'opacity-0'
+          }`}>
+            Redo
+          </span>
         </button>
       </div>
 
@@ -81,20 +93,28 @@ export default function TimelineControls({
       <div className="flex items-center gap-3">
         {/* 처음으로 버튼 */}
         <button
-          className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-800 transition-colors text-gray-400 hover:text-white"
+          className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-800 transition-colors text-gray-400 hover:text-white relative group"
           onClick={() => onSeek(0)}
-          title="처음으로"
+          title="처음으로 (Skip to Start)"
         >
           <i className="ri-skip-back-line text-lg"></i>
+          {/* 영어 툴팁 */}
+          <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs bg-gray-800 text-white rounded whitespace-nowrap pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
+            Skip to Start
+          </span>
         </button>
 
         {/* 재생/일시정지 버튼 */}
         <button
-          className="w-10 h-10 flex items-center justify-center rounded-full bg-[#38f47cf9] hover:bg-[#38f47c] transition-colors text-black"
+          className="w-10 h-10 flex items-center justify-center rounded-full bg-[#38f47cf9] hover:bg-[#38f47c] transition-colors text-black relative group"
           onClick={onPlayPause}
-          title={isPlaying ? '일시정지' : '재생'}
+          title={isPlaying ? '일시정지 (Pause)' : '재생 (Play)'}
         >
           <i className={`${isPlaying ? 'ri-pause-fill' : 'ri-play-fill'} text-xl`}></i>
+          {/* 영어 툴팁 */}
+          <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs bg-gray-800 text-white rounded whitespace-nowrap pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
+            {isPlaying ? 'Pause' : 'Play'}
+          </span>
         </button>
 
         {/* 타임코드 표시 */}

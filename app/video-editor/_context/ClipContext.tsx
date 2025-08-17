@@ -65,6 +65,7 @@ interface ClipContextType {
   
   // 히스토리 저장 콜백 (HistoryContext에서 주입)
   saveToHistory?: () => void;
+  setSaveToHistoryCallback?: React.Dispatch<React.SetStateAction<(() => void) | null>>;
 }
 
 const ClipContext = createContext<ClipContextType | undefined>(undefined);
@@ -73,10 +74,9 @@ const PIXELS_PER_SECOND = 40;
 
 interface ClipProviderProps {
   children: ReactNode;
-  onHistoryChange?: () => void;
 }
 
-export function ClipProvider({ children, onHistoryChange }: ClipProviderProps) {
+export function ClipProvider({ children }: ClipProviderProps) {
   // 상태 (page.tsx에서 그대로 가져옴)
   const [timelineClips, setTimelineClips] = useState<VideoClip[]>([]);
   const [textClips, setTextClips] = useState<TextClip[]>([]);
@@ -84,12 +84,14 @@ export function ClipProvider({ children, onHistoryChange }: ClipProviderProps) {
   const [selectedTextClip, setSelectedTextClip] = useState<string | null>(null);
   const [editingTextClip, setEditingTextClip] = useState<TextClip | undefined>(undefined);
   
-  // 히스토리 저장 함수 (props로 전달받거나 기본 빈 함수)
+  // 기본 saveToHistory 함수 (나중에 HistoryContext와 연결)
+  const [saveToHistoryCallback, setSaveToHistoryCallback] = useState<(() => void) | null>(null);
+  
   const saveToHistory = useCallback(() => {
-    if (onHistoryChange) {
-      onHistoryChange();
+    if (saveToHistoryCallback) {
+      saveToHistoryCallback();
     }
-  }, [onHistoryChange]);
+  }, [saveToHistoryCallback]);
   
   // 비디오 URL로부터 길이(초)를 읽어오는 헬퍼 (page.tsx에서 그대로)
   const getVideoDurationSeconds = useCallback((url?: string): Promise<number> => {
@@ -540,6 +542,7 @@ export function ClipProvider({ children, onHistoryChange }: ClipProviderProps) {
     
     // 히스토리 저장 (나중에 연결)
     saveToHistory,
+    setSaveToHistoryCallback,
   }), [
     timelineClips,
     textClips,
@@ -575,6 +578,7 @@ export function ClipProvider({ children, onHistoryChange }: ClipProviderProps) {
     handleUpdateAllSoundClips,
     handleReorderSoundClips,
     saveToHistory,
+    setSaveToHistoryCallback,
   ]);
   
   return (

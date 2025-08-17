@@ -1,43 +1,54 @@
 'use client';
 
-import { ReactNode } from 'react';
+import { ReactNode, useEffect } from 'react';
 import { ClipProvider } from './ClipContext';
 import { PlaybackProvider } from './PlaybackContext';
 import { HistoryProvider } from './HistoryContext';
 import { ProjectProvider } from './ProjectContext';
+import { useClips as useClipsContext } from './ClipContext';
+import { useHistory as useHistoryContext } from './HistoryContext';
 
 interface VideoEditorProvidersProps {
   children: ReactNode;
 }
 
-// Bridge 컴포넌트: ClipProvider와 HistoryProvider를 연결
-function ClipWithHistoryProvider({ children }: { children: ReactNode }) {
-  // 나중에 HistoryContext와 연결할 때 사용
-  // const handleHistoryChange = useCallback(() => {
-  //   // History save logic will be connected here
-  // }, []);
+// ClipProvider와 HistoryProvider를 연결하는 중간 컴포넌트
+function HistoryConnector({ children }: { children: ReactNode }) {
+  const { saveToHistory } = useHistoryContext();
+  const { setSaveToHistoryCallback } = useClipsContext();
   
-  return (
-    <ClipProvider>
-      <HistoryProvider>
-        <PlaybackProvider>
-          {children}
-        </PlaybackProvider>
-      </HistoryProvider>
-    </ClipProvider>
-  );
+  // ClipContext에 saveToHistory 콜백 연결
+  useEffect(() => {
+    if (setSaveToHistoryCallback) {
+      setSaveToHistoryCallback(() => saveToHistory);
+    }
+  }, [saveToHistory, setSaveToHistoryCallback]);
+  
+  // 초기 히스토리 저장 (최초 1회)
+  useEffect(() => {
+    // 컴포넌트 마운트 시 현재 상태를 초기 히스토리로 저장
+    saveToHistory();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  
+  return <>{children}</>;
 }
 
 /**
  * 모든 Video Editor Context를 통합하는 Provider
- * 순서가 중요: 의존성에 따라 배치
+ * ClipProvider가 자체 상태를 관리하고, HistoryProvider가 이를 사용
  */
 export function VideoEditorProviders({ children }: VideoEditorProvidersProps) {
   return (
     <ProjectProvider>
-      <ClipWithHistoryProvider>
-        {children}
-      </ClipWithHistoryProvider>
+      <ClipProvider>
+        <HistoryProvider>
+          <PlaybackProvider>
+            <HistoryConnector>
+              {children}
+            </HistoryConnector>
+          </PlaybackProvider>
+        </HistoryProvider>
+      </ClipProvider>
     </ProjectProvider>
   );
 }
