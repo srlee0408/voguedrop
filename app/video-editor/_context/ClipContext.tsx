@@ -68,7 +68,7 @@ interface ClipContextType {
   setSaveToHistoryCallback?: React.Dispatch<React.SetStateAction<(() => void) | null>>;
 }
 
-const ClipContext = createContext<ClipContextType | undefined>(undefined);
+export const ClipContext = createContext<ClipContextType | undefined>(undefined);
 
 const PIXELS_PER_SECOND = 40;
 
@@ -150,7 +150,14 @@ export function ClipProvider({ children }: ClipProviderProps) {
     
     let currentPosition = startPosition;
     const newClips = videos.map((video, index) => {
-      const clipId = `clip-${Date.now()}-${index}-${Math.random().toString(36).substr(2, 9)}`;
+      // job_id를 포함한 clipId 생성 (비디오 기반 음악 생성을 위해)
+      const clipId = `clip-${video.job_id}-${Date.now()}-${index}`;
+      
+      // 디버깅 로그
+      console.log('Creating VideoClip with job_id:', {
+        originalJobId: video.job_id,
+        newClipId: clipId
+      });
       
       const newClip: VideoClip = {
         id: clipId,

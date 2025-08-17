@@ -1,8 +1,12 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useContext } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
 import { ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
+import { VideoClipSelector } from './VideoClipSelector';
+import { useVideoSoundGeneration } from '../_hooks/useVideoSoundGeneration';
+import { ClipContext } from '../_context/ClipContext';
+import { formatSoundDisplayTitle } from '@/lib/sound/utils';
 
 interface SoundLibraryModalProps {
   onClose: () => void;
@@ -29,10 +33,20 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
   
   // AI Sound Generation states
   const [soundPrompt, setSoundPrompt] = useState('');
+  const [soundTitle, setSoundTitle] = useState('');
   const [soundDuration, setSoundDuration] = useState(8);
   const [isGeneratingSound, setIsGeneratingSound] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [showDurationDropdown, setShowDurationDropdown] = useState(false);
+  const [inputMode, setInputMode] = useState<'manual' | 'fromVideo'>('manual');
+  const [selectedVideoClip, setSelectedVideoClip] = useState<string | null>(null);
+  
+  // Get timeline clips from ClipContext
+  const clipContext = useContext(ClipContext);
+  const timelineClips = clipContext?.timelineClips || [];
+  
+  // Video-based sound generation hook
+  const videoSoundGeneration = useVideoSoundGeneration();
   interface SoundVariation {
     id: string;
     variationNumber: number;
@@ -373,39 +387,86 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
   };
 
   const handleSoundGenerate = async () => {
-    if (!soundPrompt.trim()) {
-      setGenerationError('Please enter a sound description.');
-      return;
-    }
+    // Manual mode validation
+    if (inputMode === 'manual') {
+      if (!soundPrompt.trim()) {
+        setGenerationError('Please enter a sound description.');
+        return;
+      }
 
-    if (soundPrompt.length > 450) {
-      setGenerationError('Description cannot exceed 450 characters.');
-      return;
+      if (soundPrompt.length > 450) {
+        setGenerationError('Description cannot exceed 450 characters.');
+        return;
+      }
+    }
+    
+    // From video mode validation
+    if (inputMode === 'fromVideo') {
+      if (!selectedVideoClip) {
+        setGenerationError('Please select a video clip.');
+        return;
+      }
+      
+      const selectedClip = timelineClips.find(c => c.id === selectedVideoClip);
+      if (!selectedClip) {
+        setGenerationError('Selected video clip not found.');
+        return;
+      }
     }
 
     setIsGeneratingSound(true);
     setGenerationError(null);
 
     try {
-      // 1. API 호출로 4개의 job 시작
-      const response = await fetch('/api/sound/generate-async', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          prompt: soundPrompt.trim(),
-          duration_seconds: soundDuration,
-        }),
-      });
+      let response;
+      let jobIds: string[];
+      
+      if (inputMode === 'manual') {
+        // 1. Manual mode: API 호출로 4개의 job 시작
+        response = await fetch('/api/sound/generate-async', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            prompt: soundPrompt.trim(),
+            title: soundTitle.trim() || undefined,
+            duration_seconds: soundDuration,
+          }),
+        });
+        
+        const data = await response.json();
 
-      const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || 'Sound generation failed');
+        }
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Sound generation failed');
+        jobIds = data.jobIds;
+      } else {
+        // From video mode: 비디오 기반 생성
+        const selectedClip = timelineClips.find(c => c.id === selectedVideoClip);
+        if (!selectedClip) {
+          throw new Error('Selected video clip not found');
+        }
+        
+        // 비디오 기반 생성 (프롬프트는 서버에서 처리)
+        const completedJobIds = await videoSoundGeneration.generateFromVideo(
+          selectedClip,
+          soundDuration
+        );
+        
+        if (completedJobIds.length > 0) {
+          // 생성 완료 시 히스토리 새로고침
+          loadSoundHistory(true);
+          setIsGeneratingSound(false);
+          setSoundPrompt(''); // 입력 초기화
+          setSoundTitle(''); // 타이틀 초기화
+          setSelectedVideoClip(null); // 선택 초기화
+          return; // 비디오 모드는 hook에서 처리 완료
+        } else {
+          throw new Error('Video-based sound generation failed');
+        }
       }
-
-      const { jobIds } = data;
       
       // 내부적으로 job progress 추적
       const jobProgresses: JobProgress[] = jobIds.map((jobId: string, index: number) => ({
@@ -511,6 +572,7 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
             loadSoundHistory(true);
             setIsGeneratingSound(false);
             setSoundPrompt(''); // 입력 초기화
+            setSoundTitle(''); // 타이틀 초기화
           }
         }
       }, 1000);
@@ -640,31 +702,83 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
               <div className="mb-6">
                 <h3 className="font-medium mb-4">AI Sound Generation</h3>
                 
+                {/* Input Mode Selection */}
+                <div className="flex gap-2 mb-4">
+                  <button
+                    onClick={() => {
+                      setInputMode('manual');
+                      setGenerationError(null);
+                      videoSoundGeneration.clearError();
+                    }}
+                    className={`flex-1 px-4 py-2 rounded-lg transition-colors flex items-center justify-center gap-2 ${
+                      inputMode === 'manual'
+                        ? 'bg-primary text-black'
+                        : 'bg-gray-700 hover:bg-gray-600'
+                    }`}
+                  >
+                    <i className="ri-edit-line"></i>
+                    <span>Write description</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setInputMode('fromVideo');
+                      setGenerationError(null);
+                      videoSoundGeneration.clearError();
+                    }}
+                    disabled={timelineClips.length === 0}
+                    className={`flex-1 px-4 py-2 rounded-lg transition-colors flex items-center justify-center gap-2 ${
+                      inputMode === 'fromVideo'
+                        ? 'bg-primary text-black'
+                        : 'bg-gray-700 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed'
+                    }`}
+                  >
+                    <i className="ri-video-line"></i>
+                    <span>From video clip</span>
+                  </button>
+                </div>
+                
                 {/* 인라인 생성 폼 */}
                 <div className="space-y-4">
-                  {/* 입력 필드와 컨트롤 */}
-                  <div className="flex items-start gap-3 p-4 bg-gray-700/50 rounded-lg">
-                    <textarea
-                      value={soundPrompt}
-                      onChange={(e) => {
-                        setSoundPrompt(e.target.value);
-                        setGenerationError(null);
-                      }}
-                      placeholder="Describe a sound..."
-                      className="flex-1 px-4 py-2 bg-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary resize-none min-h-[40px] max-h-[120px] overflow-y-auto"
-                      disabled={isGeneratingSound}
-                      maxLength={450}
-                      rows={1}
-                      style={{
-                        height: 'auto',
-                        minHeight: '40px'
-                      }}
-                      onInput={(e) => {
-                        const target = e.target as HTMLTextAreaElement;
-                        target.style.height = 'auto';
-                        target.style.height = Math.min(target.scrollHeight, 120) + 'px';
-                      }}
-                    />
+                  {/* Conditional Input based on mode */}
+                  {inputMode === 'manual' ? (
+                    /* Manual Input Mode */
+                    <div className="space-y-3">
+                      {/* Title Input */}
+                      <div className="p-4 bg-gray-700/50 rounded-lg">
+                        <input
+                          type="text"
+                          value={soundTitle}
+                          onChange={(e) => setSoundTitle(e.target.value)}
+                          placeholder="Title (optional - uses description if empty)"
+                          className="w-full px-4 py-2 bg-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                          disabled={isGeneratingSound}
+                          maxLength={100}
+                        />
+                      </div>
+                      
+                      {/* Prompt and Controls */}
+                      <div className="flex items-start gap-3 p-4 bg-gray-700/50 rounded-lg">
+                        <textarea
+                          value={soundPrompt}
+                          onChange={(e) => {
+                            setSoundPrompt(e.target.value);
+                            setGenerationError(null);
+                          }}
+                          placeholder="Describe a sound..."
+                          className="flex-1 px-4 py-2 bg-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary resize-none min-h-[40px] max-h-[120px] overflow-y-auto"
+                          disabled={isGeneratingSound}
+                          maxLength={450}
+                          rows={1}
+                          style={{
+                            height: 'auto',
+                            minHeight: '40px'
+                          }}
+                          onInput={(e) => {
+                            const target = e.target as HTMLTextAreaElement;
+                            target.style.height = 'auto';
+                            target.style.height = Math.min(target.scrollHeight, 120) + 'px';
+                          }}
+                        />
                     
                     {/* Duration 선택 */}
                     <div className="relative duration-dropdown-container">
@@ -718,18 +832,86 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
                           <span>Generate</span>
                         </>
                       )}
-                    </button>
-                  </div>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    /* From Video Mode */
+                    <>
+                      {/* Video Clip Selector */}
+                      <VideoClipSelector
+                        clips={timelineClips}
+                        selectedClipId={selectedVideoClip}
+                        onSelectClip={setSelectedVideoClip}
+                        disabled={isGeneratingSound || videoSoundGeneration.isGenerating}
+                      />
+                      
+                      {/* Duration and Generate Controls */}
+                      <div className="flex items-center gap-3 p-4 bg-gray-700/50 rounded-lg">
+                        {/* Duration 선택 */}
+                        <div className="relative duration-dropdown-container">
+                          <button
+                            onClick={() => setShowDurationDropdown(!showDurationDropdown)}
+                            disabled={isGeneratingSound || videoSoundGeneration.isGenerating}
+                            className="flex items-center gap-2 px-3 py-2 bg-gray-800 rounded-lg hover:bg-gray-700 disabled:opacity-50"
+                          >
+                            <span className="text-sm min-w-[55px]">↔ {soundDuration}.0s</span>
+                          </button>
+                          
+                          {showDurationDropdown && (
+                            <div className="absolute top-full mt-2 left-0 bg-gray-800 border border-gray-700 rounded-lg shadow-2xl shadow-black/50 z-10 p-4 w-80">
+                              <div className="text-sm text-gray-400 mb-2">Duration</div>
+                              <div className="flex items-center gap-3">
+                                <input
+                                  type="range"
+                                  min="1"
+                                  max="22"
+                                  value={soundDuration}
+                                  onChange={(e) => setSoundDuration(Number(e.target.value))}
+                                  className="flex-1 accent-primary"
+                                />
+                                <span className="text-sm text-gray-300 min-w-[50px] text-right">
+                                  ↔ {soundDuration}.0s
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className="flex-1"></div>
+                        
+                        {/* Generate 버튼 */}
+                        <button
+                          onClick={handleSoundGenerate}
+                          disabled={isGeneratingSound || videoSoundGeneration.isGenerating || !selectedVideoClip}
+                          className="px-6 py-2 bg-primary rounded-button hover:bg-primary/90 text-black disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 min-w-[120px] justify-center"
+                        >
+                          {(isGeneratingSound || videoSoundGeneration.isGenerating) ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              <span>Generating</span>
+                            </>
+                          ) : (
+                            <>
+                              <i className="ri-magic-line"></i>
+                              <span>Generate from Video</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </>
+                  )}
                   
                   {/* 에러 메시지 */}
-                  {generationError && (
+                  {(generationError || videoSoundGeneration.error) && (
                     <div className="p-3 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400 text-sm">
-                      {generationError}
+                      {generationError || videoSoundGeneration.error}
                     </div>
                   )}
                 </div>
               </div>
 
+              {/* Generated Sounds History - 모든 모드에서 표시 */}
               <div>
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="font-medium">Generated Sounds ({soundGroups.reduce((acc, g) => acc + g.variations.length, 0)})</h3>
@@ -770,7 +952,7 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="text-sm font-medium truncate">
-                              {group.prompt}
+                              {formatSoundDisplayTitle(group.title, group.prompt)}
                             </div>
                             <div className="text-xs text-gray-400 mt-1">
                               {new Date(group.createdAt).toLocaleDateString()}

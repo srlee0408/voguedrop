@@ -1,19 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/service';
 import { nanoid } from 'nanoid';
-import { processSoundTitle } from '@/lib/sound/utils';
+import { extractJobIdPrefix } from '@/lib/sound/utils';
 
-interface GenerateSoundRequest {
-  prompt: string;
+interface GenerateFromVideoRequest {
+  video_job_id: string;
   duration_seconds?: number;
-  title?: string;
 }
 
 export async function POST(request: NextRequest) {
   const isMockMode = process.env.NEXT_PUBLIC_MOCK_MODE === 'true';
   
   try {
-    // Supabase 클라이언트 생성 및 인증 확인
+    // 1. 사용자 인증 확인
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     
@@ -24,31 +24,18 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // 1. 요청 데이터 검증
-    const body: GenerateSoundRequest = await request.json();
-    const { 
-      prompt,
-      duration_seconds,
-      title
-    } = body;
+    // 2. 요청 데이터 검증
+    const body: GenerateFromVideoRequest = await request.json();
+    const { video_job_id, duration_seconds } = body;
     
-    const userId = user.id;
-    
-    if (!prompt || prompt.trim().length === 0) {
+    if (!video_job_id) {
       return NextResponse.json(
-        { error: '사운드 설명을 입력해주세요.' },
+        { error: '비디오를 선택해주세요.' },
         { status: 400 }
       );
     }
     
-    if (prompt.length > 450) {
-      return NextResponse.json(
-        { error: '프롬프트는 450자를 초과할 수 없습니다.' },
-        { status: 400 }
-      );
-    }
-    
-    const finalDuration = duration_seconds || 5;
+    const finalDuration = duration_seconds || 8;
     if (finalDuration < 1 || finalDuration > 22) {
       return NextResponse.json(
         { error: '길이는 1초에서 22초 사이여야 합니다.' },
@@ -56,24 +43,75 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // 2. Group ID 생성 (4개의 variation을 그룹화)
+    // 3. 서비스 클라이언트로 민감한 정보 조회 (보안: 서버에서만 접근)
+    const serviceSupabase = createServiceClient();
+    
+    console.log('Fetching video generation for job_id:', video_job_id, 'user_id:', user.id);
+    
+    // video_generations 테이블에서 프롬프트와 효과 정보 조회
+    const { data: videoGeneration, error: fetchError } = await serviceSupabase
+      .from('video_generations')
+      .select('prompt, selected_effects, job_id')
+      .eq('job_id', video_job_id)
+      .eq('user_id', user.id) // 본인 영상만 조회 가능
+      .single();
+    
+    if (fetchError || !videoGeneration) {
+      console.error('Failed to fetch video generation:', {
+        error: fetchError,
+        job_id: video_job_id,
+        user_id: user.id
+      });
+      return NextResponse.json(
+        { error: `비디오 정보를 찾을 수 없습니다. (job_id: ${video_job_id})` },
+        { status: 404 }
+      );
+    }
+    
+    console.log('Found video generation, prompt length:', videoGeneration.prompt?.length);
+    
+    // job_id에서 앞 5자리 추출하여 타이틀로 사용
+    const titlePrefix = extractJobIdPrefix(video_job_id);
+    
+    // 4. 실제 비디오 프롬프트를 그대로 음악 생성에 사용 (450자 제한)
+    let musicPrompt = videoGeneration.prompt;
+    
+    // 프롬프트가 450자를 넘으면 트림
+    if (musicPrompt.length > 450) {
+      // 447자로 자르고 '...' 추가 (총 450자)
+      const truncated = musicPrompt.substring(0, 447);
+      // 마지막 단어를 자르지 않도록 마지막 공백 위치 찾기
+      const lastSpaceIndex = truncated.lastIndexOf(' ');
+      
+      // 공백이 있고 너무 많이 잘리지 않는다면 공백 위치에서 자르기
+      if (lastSpaceIndex > 350) {
+        musicPrompt = truncated.substring(0, lastSpaceIndex) + '...';
+      } else {
+        // 공백이 없거나 너무 많이 잘리면 그냥 447자에서 자르기
+        musicPrompt = truncated + '...';
+      }
+      
+      console.log('Trimmed video prompt from', videoGeneration.prompt.length, 'to', musicPrompt.length, 'characters');
+    }
+    
+    // 5. Group ID 생성 (4개의 variation)
     const groupId = `group_${nanoid()}`;
     const jobIds: string[] = [];
     
-    // 3. 4개의 variation에 대한 DB 레코드 생성
+    // 6. 4개의 variation DB 레코드 생성
     const insertPromises = [];
     for (let i = 1; i <= 4; i++) {
       const jobId = `job_${nanoid()}`;
       jobIds.push(jobId);
       
       insertPromises.push(
-        supabase
+        serviceSupabase
           .from('sound_generations')
           .insert({
             job_id: jobId,
-            user_id: userId,
-            prompt: prompt.trim(),
-            title: processSoundTitle(title, prompt.trim()),
+            user_id: user.id,
+            prompt: musicPrompt, // 변환된 음악 프롬프트 사용 (서버에서만 보관)
+            title: `${titlePrefix} - Soundtrack ${i}`, // job_id 앞 5자리로 타이틀 생성
             duration_seconds: finalDuration,
             status: 'pending',
             webhook_status: 'pending',
@@ -97,16 +135,9 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // 4. fal.ai에 비동기 요청 전송 (4개의 variation)
-    const webhookBaseUrl = process.env.NEXT_PUBLIC_SITE_URL || 
-                          `https://${request.headers.get('host')}`;
-    
-    // Mock 모드에서는 fal.ai API 호출을 건너뛰고 5초 후 자동 완료
+    // 7. Mock 모드 처리
     if (isMockMode) {
-      console.log('Mock mode enabled - generating 4 sound variations');
-      
-      const { createServiceClient } = await import('@/lib/supabase/service');
-      const serviceSupabase = createServiceClient();
+      console.log('Mock mode enabled - generating video-based sounds');
       
       // 모든 job을 processing으로 업데이트
       for (const jobId of jobIds) {
@@ -120,12 +151,15 @@ export async function POST(request: NextRequest) {
           .eq('job_id', jobId);
       }
       
-      // 각 job에 대해 webhook 시뮬레이션 (약간의 딜레이를 두고)
+      // Mock webhook 시뮬레이션
+      const webhookBaseUrl = process.env.NEXT_PUBLIC_SITE_URL || 
+                            `https://${request.headers.get('host')}`;
+      
       jobIds.forEach((jobId, index) => {
         setTimeout(async () => {
           try {
             const webhookUrl = `${webhookBaseUrl}/api/webhooks/fal-ai?jobId=${jobId}&type=sound`;
-            const mockResponse = await fetch(webhookUrl, {
+            await fetch(webhookUrl, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -137,37 +171,33 @@ export async function POST(request: NextRequest) {
                 status: 'OK',
                 payload: {
                   audio: {
-                    url: `https://v3.fal.media/files/example/mock_sound_effect_v${index + 1}.mp3`
+                    url: `https://v3.fal.media/files/example/mock_video_soundtrack_v${index + 1}.mp3`
                   }
                 }
               })
             });
-            
-            if (!mockResponse.ok) {
-              console.error(`Mock webhook call failed for job ${jobId}`);
-            }
           } catch (error) {
             console.error(`Mock webhook error for job ${jobId}:`, error);
           }
-        }, 3000 + (index * 1000)); // 3초부터 시작해서 1초씩 간격
+        }, 3000 + (index * 1000));
       });
       
       return NextResponse.json({
         success: true,
-        groupId,
+        groupId: groupId, // 클라이언트 호환성을 위해 유지
         jobIds,
         status: 'processing',
-        message: '4개의 사운드 variation 생성이 시작되었습니다.'
+        message: '비디오 기반 사운드트랙 생성이 시작되었습니다.'
       });
     }
     
-    // 실제 fal.ai API 호출 (4개의 variation 동시 생성)
+    // 8. 실제 fal.ai API 호출
     const endpoint = "fal-ai/elevenlabs/sound-effects";
-    const { createServiceClient } = await import('@/lib/supabase/service');
-    const serviceSupabase = createServiceClient();
+    const webhookBaseUrl = process.env.NEXT_PUBLIC_SITE_URL || 
+                          `https://${request.headers.get('host')}`;
     
     const requestPayload = {
-      text: prompt.trim(),
+      text: musicPrompt,
       duration_seconds: finalDuration,
       prompt_influence: 0.3
     };
@@ -191,7 +221,6 @@ export async function POST(request: NextRequest) {
           const errorData = await response.json();
           console.error(`fal.ai API error for job ${jobId}:`, errorData);
           
-          // 실패 시 DB 업데이트
           await serviceSupabase
             .from('sound_generations')
             .update({
@@ -201,12 +230,11 @@ export async function POST(request: NextRequest) {
             })
             .eq('job_id', jobId);
           
-          return { success: false, jobId, error: errorData.detail || 'fal.ai API 호출 실패' };
+          return { success: false, jobId, error: errorData.detail };
         }
         
         const result = await response.json();
         
-        // fal request ID 저장 및 상태 업데이트
         await serviceSupabase
           .from('sound_generations')
           .update({
@@ -234,8 +262,6 @@ export async function POST(request: NextRequest) {
     });
     
     const apiResults = await Promise.all(apiPromises);
-    
-    // 성공한 job 확인
     const successfulJobs = apiResults.filter(r => r.success);
     
     if (successfulJobs.length === 0) {
@@ -245,18 +271,18 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // 5. 클라이언트에 즉시 응답 반환
+    // 9. 클라이언트에 응답 (프롬프트 정보 제외)
     return NextResponse.json({
       success: true,
-      groupId,
+      groupId: groupId, // 클라이언트 호환성을 위해 유지 (실제로는 DB에 저장하지 않음)
       jobIds,
       successfulJobIds: successfulJobs.map(j => j.jobId),
       status: 'processing',
-      message: `${successfulJobs.length}개의 사운드 variation 생성이 시작되었습니다.`
+      message: `비디오 기반 ${successfulJobs.length}개의 사운드트랙 생성이 시작되었습니다.`
     });
     
   } catch (error) {
-    console.error('Sound generation error:', error);
+    console.error('Video-based sound generation error:', error);
     
     return NextResponse.json(
       { 
@@ -268,3 +294,4 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
