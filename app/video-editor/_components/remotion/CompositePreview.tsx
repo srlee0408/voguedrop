@@ -31,6 +31,9 @@ export const CompositePreview: React.FC<CompositePreviewProps> = ({
   
   // 폰트 로딩 대기 로직
   useEffect(() => {
+    // cleanup 함수에서 사용할 handles를 미리 저장
+    const handles = fontLoadHandles.current;
+    
     // 사용된 폰트 목록 수집
     const fontsToLoad = new Set<string>();
     textClips.forEach(clip => {
@@ -42,7 +45,7 @@ export const CompositePreview: React.FC<CompositePreviewProps> = ({
     // 각 폰트에 대해 로딩 대기
     fontsToLoad.forEach(fontFamily => {
       const handle = delayRender(`Loading font: ${fontFamily}`);
-      fontLoadHandles.current.add(handle);
+      handles.add(handle);
       
       // 폰트 로딩 확인 - 폰트 사이즈와 weight 고려
       const fontSize = `${TEXT_DEFAULTS.fontSize}px`; // 공통 상수 사용
@@ -51,19 +54,19 @@ export const CompositePreview: React.FC<CompositePreviewProps> = ({
       
       document.fonts.load(fontString).then(() => {
         continueRender(handle);
-        fontLoadHandles.current.delete(handle);
+        handles.delete(handle);
       }).catch((error) => {
         console.warn(`Failed to load font ${fontFamily}:`, error);
         // 실패해도 계속 진행
         continueRender(handle);
-        fontLoadHandles.current.delete(handle);
+        handles.delete(handle);
       });
     });
 
     // 클린업
     return () => {
-      // ref 값을 변수에 복사하여 cleanup 시점의 값 보존
-      const currentHandles = new Set(fontLoadHandles.current);
+      // 미리 저장된 handles 사용
+      const currentHandles = new Set(handles);
       currentHandles.forEach(handle => {
         try {
           continueRender(handle);
@@ -71,9 +74,8 @@ export const CompositePreview: React.FC<CompositePreviewProps> = ({
           // 이미 continue된 경우 무시
         }
       });
-      fontLoadHandles.current.clear();
+      handles.clear();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [textClips]);
   
   // pxToFrames는 이제 constants에서 import하여 사용

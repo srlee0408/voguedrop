@@ -33,7 +33,7 @@ interface ProjectContextType {
   handleAddText: () => void;
   
   // 컨테이너 ref
-  containerRef: React.RefObject<HTMLDivElement>;
+  containerRef: React.RefObject<HTMLDivElement | null>;
 }
 
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
