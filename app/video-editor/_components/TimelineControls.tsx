@@ -121,7 +121,12 @@ export default function TimelineControls({
         <div className="flex items-center gap-1 ml-2 font-mono text-xs">
           <span className="text-white">{displayTime}</span>
           <span className="text-gray-500">/</span>
-          <span className="text-gray-400">{displayDuration}</span>
+          <span className={totalDuration > 120 ? "text-red-400" : "text-gray-400"}>{displayDuration}</span>
+          {totalDuration > 120 && (
+            <span className="text-red-400 ml-2 text-[14px] font-sans">
+              (Exceeds 2:00 limit)
+            </span>
+          )}
         </div>
       </div>
 

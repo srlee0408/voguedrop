@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, useRef } from 'react';
+import { toast } from 'sonner';
 import { Player, PlayerRef } from '@remotion/player';
 import { CompositePreview } from './remotion/CompositePreview';
 import { TextClip as TextClipType, SoundClip as SoundClipType } from '@/types/video-editor';
@@ -359,7 +360,17 @@ export default function VideoPreview({
   // Export Video 핸들러 (Save + Download 통합)
   const handleExportVideo = async () => {
     if (clips.length === 0) {
-      alert('Please add video clips first.');
+      toast.error('Please add video clips first.');
+      return;
+    }
+
+    // 2분(120초) 제한 체크
+    const totalDurationInSeconds = calculateTotalFrames / 30; // 30fps 기준
+    if (totalDurationInSeconds > 120) {
+      toast.error(
+        `Timeline cannot exceed 2 minutes (Current: ${Math.floor(totalDurationInSeconds / 60)}m ${Math.floor(totalDurationInSeconds % 60)}s)`,
+        { duration: 5000 }
+      );
       return;
     }
 

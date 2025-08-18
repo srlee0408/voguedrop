@@ -1,7 +1,8 @@
 'use client';
 
-import { createContext, useContext, useState, useCallback, useMemo, ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useMemo, useEffect, ReactNode } from 'react';
 import { VideoClip, TextClip, SoundClip, LibraryVideo } from '@/types/video-editor';
+import { toast } from 'sonner';
 import {
   duplicateVideoClip,
   duplicateTextClip,
@@ -12,6 +13,7 @@ import {
   applyResizeTrim,
 } from '../_utils/clip-operations';
 import { analyzeAudioFile } from '../_utils/audio-analysis';
+import { calculateTimelineDuration } from '../_utils/timeline-helpers';
 
 interface ClipContextType {
   // 상태
@@ -74,6 +76,7 @@ interface ClipContextType {
 export const ClipContext = createContext<ClipContextType | undefined>(undefined);
 
 const PIXELS_PER_SECOND = 40;
+const MAX_TIMELINE_DURATION_SECONDS = 120; // 2분 제한
 
 interface ClipProviderProps {
   children: ReactNode;
@@ -95,6 +98,29 @@ export function ClipProvider({ children }: ClipProviderProps) {
       saveToHistoryCallback();
     }
   }, [saveToHistoryCallback]);
+  
+  // 마지막 경고 시간 추적 (중복 경고 방지)
+  const [lastWarningTime, setLastWarningTime] = useState<number>(0);
+  
+  // 타임라인 전체 길이 모니터링
+  useEffect(() => {
+    const totalDuration = calculateTimelineDuration(timelineClips, textClips, soundClips, PIXELS_PER_SECOND);
+    const isOverLimit = totalDuration > MAX_TIMELINE_DURATION_SECONDS;
+    
+    if (isOverLimit) {
+      const now = Date.now();
+      // 5초 내 중복 경고 방지
+      if (now - lastWarningTime > 5000) {
+        const minutes = Math.floor(totalDuration / 60);
+        const seconds = Math.floor(totalDuration % 60);
+        toast.warning(
+          `Timeline cannot exceed 2 minutes (Current: ${minutes}m ${seconds}s)`,
+          { duration: 5000 }
+        );
+        setLastWarningTime(now);
+      }
+    }
+  }, [timelineClips, textClips, soundClips, lastWarningTime]);
   
   // 비디오 URL로부터 길이(초)를 읽어오는 헬퍼 (page.tsx에서 그대로)
   const getVideoDurationSeconds = useCallback((url?: string): Promise<number> => {

@@ -840,8 +840,25 @@ export default function Timeline({
                     </span>
                   ))}
                 </div>
+                {/* 2-minute limit warning line */}
+                <div
+                  className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-20"
+                  style={{ 
+                    left: `${120 * pixelsPerSecond}px`,
+                    boxShadow: '0 0 4px rgba(239, 68, 68, 0.5)'
+                  }}
+                  title="2-minute limit"
+                />
               </div>
             </div>
+
+            {/* 2-minute limit warning line extending across all tracks */}
+            <div
+              className="absolute top-8 bottom-0 w-0.5 bg-red-500 opacity-30 z-10 pointer-events-none"
+              style={{ 
+                left: `${120 * pixelsPerSecond}px`
+              }}
+            />
 
             {/* Video track */}
             <TimelineTrack
