@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { VideoClip as VideoClipType, TextClip as TextClipType, SoundClip as SoundClipType } from '@/types/video-editor';
 import TimelineControls from './TimelineControls';
 import TimelineTrack from './TimelineTrack';
@@ -151,6 +151,21 @@ export default function Timeline({
 
   const playheadRef = useRef<HTMLDivElement>(null);
 
+  // Helper function to check if click is near playhead
+  const isNearPlayhead = useCallback((clientX: number): boolean => {
+    const scrollContainer = document.querySelector('.timeline-content .overflow-x-auto');
+    if (!scrollContainer) return false;
+    
+    const rect = scrollContainer.getBoundingClientRect();
+    const scrollLeft = scrollContainer.scrollLeft;
+    const x = clientX - rect.left - 192 + scrollLeft; // 192 is the left panel width
+    const clickPosition = x;
+    const playheadPos = currentTime * pixelsPerSecond;
+    
+    // Return true if click is within 8 pixels of playhead
+    return Math.abs(clickPosition - playheadPos) < 8;
+  }, [currentTime, pixelsPerSecond]);
+
   // Calculate timeline duration
   const totalDuration = calculateTimelineDuration(clips, textClips, soundClips, pixelsPerSecond);
   const minimumDuration = 60;
@@ -189,6 +204,14 @@ export default function Timeline({
 
   // Handle mouse down on clip
   const handleMouseDown = (e: React.MouseEvent, clipId: string, clipType: 'video' | 'text' | 'sound') => {
+    // Check if click is near playhead first - if so, start dragging playhead instead
+    if (isNearPlayhead(e.clientX)) {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDraggingPlayhead(true);
+      return;
+    }
+    
     if (e.shiftKey || isSelectingRange || isAdjustingSelection || isMovingSelection) {
       return;
     }
@@ -332,6 +355,14 @@ export default function Timeline({
 
   // Handle track click for seeking
   const handleTrackClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Check if click is near playhead first - if so, start dragging instead of seeking
+    if (isNearPlayhead(e.clientX)) {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDraggingPlayhead(true);
+      return;
+    }
+    
     if ((e.target as HTMLElement).closest('.timeline-clip')) return;
     if (e.shiftKey || isSelectingRange || isAdjustingSelection || isMovingSelection) return;
     if (!onSeek || isResizing || isDragging) return;
@@ -351,6 +382,14 @@ export default function Timeline({
 
   // Handle selection mouse down
   const handleSelectionMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Check if click is near playhead first
+    if (isNearPlayhead(e.clientX)) {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDraggingPlayhead(true);
+      return;
+    }
+    
     if (isDragging || isResizing || isAdjustingSelection || isMovingSelection) return;
     const target = e.target as HTMLElement;
     if (target.closest('.timeline-clip')) return;
@@ -617,6 +656,30 @@ export default function Timeline({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isDraggingPlayhead, onSeek, pixelsPerSecond, totalDuration]);
+
+  // Mouse move effect for cursor feedback near playhead
+  useEffect(() => {
+    const handleMouseMoveForCursor = (e: MouseEvent) => {
+      // Only change cursor if not dragging anything
+      if (isDragging || isResizing || isDraggingPlayhead || isSelectingRange) return;
+      
+      const scrollContainer = document.querySelector('.timeline-content .overflow-x-auto');
+      if (!scrollContainer) return;
+      
+      // Check if mouse is near playhead
+      if (isNearPlayhead(e.clientX)) {
+        document.body.style.cursor = 'ew-resize';
+      } else {
+        document.body.style.cursor = '';
+      }
+    };
+    
+    document.addEventListener('mousemove', handleMouseMoveForCursor);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMoveForCursor);
+      document.body.style.cursor = '';
+    };
+  }, [isDragging, isResizing, isDraggingPlayhead, isSelectingRange, isNearPlayhead]);
 
   // Get selection bounds for rendering
   const selectionBounds = getSelectionBounds();
