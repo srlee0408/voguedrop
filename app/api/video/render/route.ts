@@ -67,11 +67,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 최대 duration 제한 (2분 = 3600 프레임)
+    const MAX_DURATION_FRAMES = 3600;
+    if (durationInFrames > MAX_DURATION_FRAMES) {
+      return NextResponse.json(
+        { 
+          error: 'Duration exceeds maximum limit',
+          details: `Maximum allowed duration is ${MAX_DURATION_FRAMES / 30} seconds (${MAX_DURATION_FRAMES} frames)`
+        },
+        { status: 400 }
+      );
+    }
+
     console.log('Starting render request:', {
       userId: user.id,
       clipCount: videoClips.length,
+      textClips: textClips.length,
+      soundClips: soundClips.length,
       aspectRatio,
       durationInFrames,
+      durationInSeconds: durationInFrames / 30,
     });
 
     // Lambda에서 직접 렌더링

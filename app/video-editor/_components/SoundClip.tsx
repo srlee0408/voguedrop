@@ -220,6 +220,37 @@ export default function SoundClip({
     setTempFadeIn(clip.fadeInDuration || 0);
     setTempFadeOut(clip.fadeOutDuration || 0);
   }, [clip.fadeInDuration, clip.fadeOutDuration]);
+  
+  // Auto-adjust fade values when clip duration changes
+  useEffect(() => {
+    const minGap = 10;
+    const maxFadeIn = Math.min(
+      tempFadeIn,
+      clip.duration * 0.5,
+      clip.duration - tempFadeOut - minGap
+    );
+    const maxFadeOut = Math.min(
+      tempFadeOut,
+      clip.duration * 0.5,
+      clip.duration - tempFadeIn - minGap
+    );
+    
+    // Adjust fade in if it exceeds new limits
+    if (tempFadeIn > maxFadeIn) {
+      setTempFadeIn(Math.max(0, maxFadeIn));
+      if (onFadeChange && maxFadeIn >= 0) {
+        onFadeChange(clip.id, 'fadeIn', Math.max(0, maxFadeIn));
+      }
+    }
+    
+    // Adjust fade out if it exceeds new limits
+    if (tempFadeOut > maxFadeOut) {
+      setTempFadeOut(Math.max(0, maxFadeOut));
+      if (onFadeChange && maxFadeOut >= 0) {
+        onFadeChange(clip.id, 'fadeOut', Math.max(0, maxFadeOut));
+      }
+    }
+  }, [clip.duration, clip.id, tempFadeIn, tempFadeOut, onFadeChange]);
 
   // Handle fade in drag start
   const handleFadeInMouseDown = useCallback((e: React.MouseEvent) => {
@@ -294,11 +325,11 @@ export default function SoundClip({
       
       // Limit fade out to not overlap with fade in (minimum 10px gap)
       const minGap = 10; // Minimum gap between fade in and fade out
-      const maxFadeSeconds = 5; // Maximum 5 seconds
+      const maxFadeSeconds = 10; // Maximum 10 seconds
       const maxFadePixels = maxFadeSeconds * pixelsPerSecond; // Convert to pixels
       
       const maxFadeOut = Math.min(
-        maxFadePixels, // Maximum 5 seconds
+        maxFadePixels, // Maximum 10 seconds
         clip.duration * 0.5, // Maximum 50% of clip
         clip.duration - tempFadeIn - minGap // Don't overlap with fade in
       );
@@ -355,13 +386,14 @@ export default function SoundClip({
         {/* Volume adjustment line (horizontal) */}
         <div
           ref={volumeLineRef}
-          className={`absolute left-0 right-0 h-[3px] cursor-ns-resize transition-all ${
+          className={`absolute left-0 right-0 h-[3px] cursor-ns-resize ${
             isDraggingVolume ? 'bg-yellow-400 shadow-lg' : 
             isHoveringVolumeLine ? 'bg-cyan-400 shadow-md' : 
             'bg-cyan-500/80'
           }`}
           style={{ 
             top: `${volumeLinePosition}px`,
+            transition: isDraggingVolume ? 'none' : 'all 0.15s ease-out', // 드래그 중에는 transition 제거
             boxShadow: isDraggingVolume ? '0 0 8px rgba(250, 204, 21, 0.5)' : 
                       isHoveringVolumeLine ? '0 0 4px rgba(34, 211, 238, 0.3)' : 'none'
           }}
@@ -372,7 +404,11 @@ export default function SoundClip({
           {/* Volume handle dot */}
           <div className={`absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full ${
             isDraggingVolume ? 'bg-yellow-400' : 'bg-cyan-400'
-          }`} />
+          }`} 
+          style={{
+            transition: isDraggingVolume ? 'none' : 'all 0.15s ease-out' // 드래그 중에는 transition 제거
+          }}
+          />
         </div>
         
         {/* Max volume line at center (100% volume) */}
@@ -412,7 +448,7 @@ export default function SoundClip({
         {/* Fade handles */}
         {/* Fade In Handle - top 1/3 height position */}
         <div
-          className={`absolute w-2 h-2 rounded-full cursor-ew-resize z-20 transition-all border border-gray-600 ${
+          className={`absolute w-2 h-2 rounded-full cursor-ew-resize z-20 border border-gray-600 ${
             isDraggingFadeIn ? 'bg-yellow-400 scale-125 border-yellow-500' : 
             isHoveringFadeIn ? 'bg-white scale-110 border-white' : 
             'bg-gray-300'
@@ -421,6 +457,7 @@ export default function SoundClip({
             left: `${tempFadeIn}px`,
             top: '33%', // 상단 1/3 지점
             transform: 'translateY(-50%)',
+            transition: isDraggingFadeIn ? 'none' : 'all 0.15s ease-out', // 드래그 중에는 transition 제거
             boxShadow: isDraggingFadeIn ? '0 0 8px rgba(250, 204, 21, 0.5)' : 
                       isHoveringFadeIn ? '0 0 6px rgba(255, 255, 255, 0.5)' : '0 0 3px rgba(255, 255, 255, 0.3)'
           }}
@@ -432,7 +469,7 @@ export default function SoundClip({
         
         {/* Fade Out Handle - top 1/3 height position */}
         <div
-          className={`absolute w-2 h-2 rounded-full cursor-ew-resize z-20 transition-all border border-gray-600 ${
+          className={`absolute w-2 h-2 rounded-full cursor-ew-resize z-20 border border-gray-600 ${
             isDraggingFadeOut ? 'bg-yellow-400 scale-125 border-yellow-500' : 
             isHoveringFadeOut ? 'bg-white scale-110 border-white' : 
             'bg-gray-300'
@@ -441,6 +478,7 @@ export default function SoundClip({
             right: `${tempFadeOut}px`,
             top: '33%', // 상단 1/3 지점
             transform: 'translateY(-50%)',
+            transition: isDraggingFadeOut ? 'none' : 'all 0.15s ease-out', // 드래그 중에는 transition 제거
             boxShadow: isDraggingFadeOut ? '0 0 8px rgba(250, 204, 21, 0.5)' : 
                       isHoveringFadeOut ? '0 0 6px rgba(255, 255, 255, 0.5)' : '0 0 3px rgba(255, 255, 255, 0.3)'
           }}
