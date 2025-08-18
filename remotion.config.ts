@@ -1,43 +1,22 @@
 import { Config } from '@remotion/cli/config';
-import { enableTailwind } from '@remotion/tailwind';
 
 // Remotion 설정
 Config.setVideoImageFormat('jpeg');
 Config.setOverwriteOutput(true);
 
-// Chromium 설정 - 폰트 렌더링 개선
-Config.setChromiumOpenGlRenderer('angle');
-Config.setChromiumDisableWebSecurity(true);
-
 // 번들링 설정
 Config.overrideWebpackConfig((config) => {
-  // Tailwind 활성화
-  const withTailwind = enableTailwind(config);
-  
   return {
-    ...withTailwind,
+    ...config,
     module: {
-      ...withTailwind.module,
+      ...config.module,
       rules: [
-        ...(withTailwind.module?.rules ?? []),
+        ...(config.module?.rules ?? []),
         {
           test: /\.css$/i,
           use: ['style-loader', 'css-loader', 'postcss-loader'],
         },
-        // 폰트 파일 처리
-        {
-          test: /\.(woff|woff2|eot|ttf|otf)$/i,
-          type: 'asset/resource',
-        },
       ],
-    },
-    // 폰트 관련 모듈 해결
-    resolve: {
-      ...withTailwind.resolve,
-      alias: {
-        ...withTailwind.resolve?.alias,
-        '@remotion/fonts': require.resolve('@remotion/fonts'),
-      },
     },
   };
 });
@@ -53,21 +32,6 @@ export const RENDER_CONFIG = {
   frameRate: 30,
   chromiumOptions: {
     disableWebSecurity: true,
-    gl: 'angle' as const, // GPU 렌더링 활성화 - 폰트 렌더링 개선
-    args: [
-      '--disable-web-security',
-      '--disable-features=IsolateOrigins',
-      '--disable-site-isolation-trials',
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-accelerated-2d-canvas',
-      '--no-first-run',
-      '--no-zygote',
-      '--single-process',
-      '--disable-gpu', // Lambda 환경에서 GPU 비활성화
-      '--font-render-hinting=none', // 폰트 렌더링 힌팅 비활성화
-    ],
   },
   timeoutInMilliseconds: 900000, // 15분
   maxRetries: 3,
