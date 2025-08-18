@@ -275,7 +275,15 @@ export function ClipProvider({ children }: ClipProviderProps) {
     if (editingTextClip) {
       setTextClips(textClips.map(clip => 
         clip.id === editingTextClip.id 
-          ? { ...clip, ...textData } 
+          ? { 
+              ...clip, 
+              content: textData.content || clip.content,
+              style: textData.style || clip.style,
+              effect: textData.effect !== undefined ? textData.effect : clip.effect,
+              // position과 duration은 명시적으로 전달되지 않으면 기존 값 유지
+              position: textData.position !== undefined ? textData.position : clip.position,
+              duration: textData.duration !== undefined ? textData.duration : clip.duration,
+            } 
           : clip
       ));
       saveToHistory();

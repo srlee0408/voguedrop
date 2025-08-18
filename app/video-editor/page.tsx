@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { Header } from '@/components/layout/Header';
 import { VideoEditorProviders, useClips, usePlayback, useHistory, useProject } from './_context/Providers';
 import VideoPreview from './_components/VideoPreview';
@@ -89,6 +90,13 @@ function VideoEditorContent() {
   
   // 타임라인 스케일: 1초당 몇 px로 표시할지 결정
   const PIXELS_PER_SECOND = 40;
+  
+  // editingTextClip이 변경될 때 모달을 열기
+  useEffect(() => {
+    if (editingTextClip) {
+      setShowTextEditor(true);
+    }
+  }, [editingTextClip, setShowTextEditor]);
   
   // Split 함수들 - currentTime을 전달하기 위한 래퍼
   const handleSplitVideoClip = (id: string) => {

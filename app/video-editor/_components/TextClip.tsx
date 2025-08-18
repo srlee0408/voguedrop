@@ -19,7 +19,8 @@ export default function TextClip({
 }: TextClipProps) {
   const clipRef = useRef<HTMLDivElement>(null);
 
-  const handleDoubleClick = () => {
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (onEdit) {
       onEdit(clip);
     }

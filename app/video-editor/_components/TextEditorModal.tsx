@@ -112,13 +112,19 @@ export default function TextEditorModal({
 
   const handleSubmit = () => {
     if (content.trim()) {
-      onAddText({
+      const clipData: Partial<TextClip> = {
         content,
         style,
         effect: selectedEffect,
-        duration: 200,
-        position: 0,
-      });
+      };
+      
+      // 새로 추가할 때만 duration과 position 설정
+      if (!editingClip) {
+        clipData.duration = 200;
+        clipData.position = 0;
+      }
+      
+      onAddText(clipData);
       onClose();
       setContent('');
       setSelectedEffect('none');
