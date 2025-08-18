@@ -43,10 +43,14 @@ export default function TimelineTrack({
   isSelectingRange = false,
   onTrackClick,
 }: TimelineTrackProps) {
+  // 줌 비율 계산 (기준: 40px/초)
+  const zoomRatio = pixelsPerSecond / 40;
   
   const renderVideoClip = (clip: VideoClipType) => {
     const isRectSelected = rectSelectedClips.some(c => c.id === clip.id && c.type === 'video');
     const isSelected = selectedClips.includes(clip.id);
+    const clipWidth = clip.duration * zoomRatio;
+    const showText = clipWidth > 30; // 30px 이하면 텍스트 숨김
     
     return (
       <div 
@@ -61,8 +65,8 @@ export default function TimelineTrack({
               : ''
         }`}
         style={{ 
-          width: `${clip.duration}px`,
-          left: `${clip.position}px`
+          width: `${clipWidth}px`,
+          left: `${clip.position * zoomRatio}px`
         }}
         onClick={() => onClipClick(clip.id, 'video')}
         onMouseDown={(e) => {
@@ -75,19 +79,25 @@ export default function TimelineTrack({
         <div 
           className="w-full h-5 bg-gradient-to-r from-gray-900 to-gray-800 rounded cursor-pointer hover:from-gray-800 hover:to-gray-700 transition-colors relative overflow-hidden border border-gray-700"
         >
-          {/* Title */}
-          <div className="absolute inset-0 flex items-center">
-            <div className="px-2 py-0.5 text-[10px] font-medium text-white/90 truncate">
-              {clip.title || 'Video Clip'}
+          {/* Title - 작을 때는 숨김 */}
+          {showText && (
+            <div className="absolute inset-0 flex items-center">
+              <div className="px-2 py-0.5 text-[10px] font-medium text-white/90 truncate">
+                {clip.title || 'Video Clip'}
+              </div>
             </div>
-          </div>
-          {/* Resize handles */}
+          )}
+          {/* Resize handles - 줌 레벨에 따라 크기 조정 */}
           <div 
-            className="absolute inset-y-0 left-0 w-1 bg-[#38f47cf9] rounded-l cursor-ew-resize resize-handle"
+            className={`absolute inset-y-0 left-0 bg-[#38f47cf9] rounded-l cursor-ew-resize resize-handle ${
+              clipWidth < 50 ? 'w-0.5' : 'w-1'
+            }`}
             onMouseDown={(e) => onResizeStart(e, clip.id, 'left', 'video')}
           />
           <div 
-            className="absolute inset-y-0 right-0 w-1 bg-[#38f47cf9] rounded-r cursor-ew-resize resize-handle"
+            className={`absolute inset-y-0 right-0 bg-[#38f47cf9] rounded-r cursor-ew-resize resize-handle ${
+              clipWidth < 50 ? 'w-0.5' : 'w-1'
+            }`}
             onMouseDown={(e) => onResizeStart(e, clip.id, 'right', 'video')}
           />
         </div>
@@ -98,6 +108,7 @@ export default function TimelineTrack({
   const renderTextClip = (clip: TextClipType) => {
     const isRectSelected = rectSelectedClips.some(c => c.id === clip.id && c.type === 'text');
     const isSelected = selectedClips.includes(clip.id);
+    const clipWidth = clip.duration * zoomRatio;
     
     return (
       <div
@@ -112,8 +123,8 @@ export default function TimelineTrack({
               : ''
         }`}
         style={{ 
-          width: `${clip.duration}px`,
-          left: `${clip.position}px`
+          width: `${clipWidth}px`,
+          left: `${clip.position * zoomRatio}px`
         }}
         onClick={() => onClipClick(clip.id, 'text')}
         onMouseDown={(e) => {
@@ -129,6 +140,7 @@ export default function TimelineTrack({
           onDelete={onDeleteClip}
           onResizeStart={(e, handle) => onResizeStart(e, clip.id, handle, 'text')}
           isActive={activeClip === clip.id}
+          clipWidth={clipWidth}
         />
       </div>
     );
@@ -137,6 +149,7 @@ export default function TimelineTrack({
   const renderSoundClip = (clip: SoundClipType) => {
     const isRectSelected = rectSelectedClips.some(c => c.id === clip.id && c.type === 'sound');
     const isSelected = selectedClips.includes(clip.id);
+    const clipWidth = clip.duration * zoomRatio;
     
     return (
       <div
@@ -151,8 +164,8 @@ export default function TimelineTrack({
               : ''
         }`}
         style={{ 
-          width: `${clip.duration}px`,
-          left: `${clip.position}px`
+          width: `${clipWidth}px`,
+          left: `${clip.position * zoomRatio}px`
         }}
         onClick={() => onClipClick(clip.id, 'sound')}
         onMouseDown={(e) => {
@@ -171,6 +184,7 @@ export default function TimelineTrack({
           onFadeChange={onFadeChange}
           isActive={activeClip === clip.id}
           pixelsPerSecond={pixelsPerSecond}
+          clipWidth={clipWidth}
         />
       </div>
     );

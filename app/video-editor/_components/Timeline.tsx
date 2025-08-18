@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { VideoClip as VideoClipType, TextClip as TextClipType, SoundClip as SoundClipType } from '@/types/video-editor';
 import TimelineControls from './TimelineControls';
 import TimelineTrack from './TimelineTrack';
@@ -83,7 +83,7 @@ export default function Timeline({
   onUpdateAllSoundClips,
   onUpdateSoundVolume,
   onUpdateSoundFade,
-  pixelsPerSecond = 40,
+  pixelsPerSecond: initialPixelsPerSecond = 40,
   currentTime = 0,
   isPlaying = false,
   onSeek,
@@ -93,6 +93,8 @@ export default function Timeline({
   canUndo = false,
   canRedo = false,
 }: TimelineProps) {
+  // 줌 레벨 상태 관리
+  const [pixelsPerSecond, setPixelsPerSecond] = useState(initialPixelsPerSecond);
   // Use custom hooks for state management
   const {
     activeClip,
@@ -151,6 +153,29 @@ export default function Timeline({
 
   const playheadRef = useRef<HTMLDivElement>(null);
 
+  // 줌 변경 핸들러
+  const handleZoomChange = (direction: 'in' | 'out') => {
+    setPixelsPerSecond(prev => {
+      const basePixelsPerSecond = 40; // 기본값 (100%)
+      const currentPercent = (prev / basePixelsPerSecond) * 100;
+      const zoomStep = 10; // 10% 단위로 조절
+      const minPercent = 50;  // 최소 50% (축소 제한)
+      const maxPercent = 200; // 최대 200% (확대 제한)
+      
+      let newPercent: number;
+      if (direction === 'in') {
+        // 줌 인 (확대) - 10% 증가
+        newPercent = Math.min(maxPercent, currentPercent + zoomStep);
+      } else {
+        // 줌 아웃 (축소) - 10% 감소
+        newPercent = Math.max(minPercent, currentPercent - zoomStep);
+      }
+      
+      // 퍼센트를 픽셀로 변환
+      return Math.round((newPercent / 100) * basePixelsPerSecond);
+    });
+  };
+
   // Helper function to check if click is near playhead
   const isNearPlayhead = useCallback((clientX: number): boolean => {
     const scrollContainer = document.querySelector('.timeline-content .overflow-x-auto');
@@ -166,12 +191,17 @@ export default function Timeline({
     return Math.abs(clickPosition - playheadPos) < 8;
   }, [currentTime, pixelsPerSecond]);
 
-  // Calculate timeline duration
-  const totalDuration = calculateTimelineDuration(clips, textClips, soundClips, pixelsPerSecond);
-  const minimumDuration = 60;
-  const bufferTime = 10;
-  const timelineLength = Math.max(minimumDuration, Math.ceil(totalDuration + bufferTime));
-  const timeMarkers = generateTimeMarkers(timelineLength);
+  // Calculate timeline duration with zoom
+  const basePixelsPerSecond = 40;
+  
+  // 기본 스케일로 총 시간 계산 (초 단위)
+  const totalDurationInSeconds = calculateTimelineDuration(clips, textClips, soundClips, basePixelsPerSecond) / basePixelsPerSecond;
+  const minimumDuration = 120; // 120초 (2분) - 기본 표시 시간
+  const bufferTime = 10; // 10초 버퍼
+  const timelineLengthInSeconds = Math.max(minimumDuration, Math.ceil(totalDurationInSeconds + bufferTime));
+  
+  // 줌 적용된 픽셀 값
+  const timeMarkers = generateTimeMarkers(timelineLengthInSeconds);
   const playheadPosition = currentTime * pixelsPerSecond;
 
   // Update rect selected clips based on selection area
@@ -349,7 +379,7 @@ export default function Timeline({
     
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
-    const time = Math.max(0, Math.min(x / pixelsPerSecond, totalDuration));
+    const time = Math.max(0, Math.min(x / pixelsPerSecond, totalDurationInSeconds));
     onSeek(time);
   };
 
@@ -369,7 +399,7 @@ export default function Timeline({
     
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
-    const time = Math.max(0, Math.min(x / pixelsPerSecond, totalDuration));
+    const time = Math.max(0, Math.min(x / pixelsPerSecond, totalDurationInSeconds));
     onSeek(time);
   };
 
@@ -638,7 +668,11 @@ export default function Timeline({
       const rect = scrollContainer.getBoundingClientRect();
       const scrollLeft = scrollContainer.scrollLeft;
       const x = e.clientX - rect.left - 192 + scrollLeft;
-      const time = Math.max(0, Math.min(x / pixelsPerSecond, totalDuration));
+      // 직접 계산하여 클로저 이슈 방지
+      const basePixelsPerSecond = 40;
+      const totalDurationInSec = calculateTimelineDuration(clips, textClips, soundClips, basePixelsPerSecond) / basePixelsPerSecond;
+      const maxDuration = Math.max(120, Math.ceil(totalDurationInSec + 10)); // 최소 2분
+      const time = Math.max(0, Math.min(x / pixelsPerSecond, maxDuration));
       onSeek(time);
     };
 
@@ -655,7 +689,7 @@ export default function Timeline({
       };
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isDraggingPlayhead, onSeek, pixelsPerSecond, totalDuration]);
+  }, [isDraggingPlayhead, onSeek, pixelsPerSecond, clips, textClips, soundClips]);
 
   // Mouse move effect for cursor feedback near playhead
   useEffect(() => {
@@ -681,6 +715,7 @@ export default function Timeline({
     };
   }, [isDragging, isResizing, isDraggingPlayhead, isSelectingRange, isNearPlayhead]);
 
+
   // Get selection bounds for rendering
   const selectionBounds = getSelectionBounds();
 
@@ -690,7 +725,7 @@ export default function Timeline({
       <TimelineControls
         isPlaying={isPlaying}
         currentTime={currentTime}
-        totalDuration={totalDuration}
+        totalDuration={totalDurationInSeconds}
         onPlayPause={onPlayPause || (() => {})}
         onSeek={onSeek || (() => {})}
         onUndo={onUndo}
@@ -760,14 +795,47 @@ export default function Timeline({
               </span>
             </button>
             
-            <div className="ml-auto text-[10px] text-gray-400">
-              {rectSelectedClips.length > 0 ? (
-                `${rectSelectedClips.length} selected`
-              ) : selectedClip ? (
-                `${selectedClipType === 'video' ? 'Video' : selectedClipType === 'text' ? 'Text' : 'Sound'} clip selected`
-              ) : (
-                'Select a clip or drag to multi-select'
-              )}
+            <div className="ml-auto flex items-center gap-4">
+              {/* 줌 컨트롤 */}
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => handleZoomChange('out')}
+                  disabled={Math.round((pixelsPerSecond / 40) * 100) <= 50}
+                  className={`px-2 py-1 rounded text-xs flex items-center gap-1 transition-colors ${
+                    Math.round((pixelsPerSecond / 40) * 100) <= 50
+                      ? 'bg-gray-900 text-gray-600 cursor-not-allowed'
+                      : 'bg-gray-800 hover:bg-gray-700'
+                  }`}
+                  title="줌 아웃 (최소 50%)"
+                >
+                  <i className="ri-zoom-out-line text-[11px]"></i>
+                </button>
+                <span className="text-[10px] text-gray-400 min-w-[60px] text-center">
+                  {Math.round((pixelsPerSecond / 40) * 100)}%
+                </span>
+                <button
+                  onClick={() => handleZoomChange('in')}
+                  disabled={Math.round((pixelsPerSecond / 40) * 100) >= 200}
+                  className={`px-2 py-1 rounded text-xs flex items-center gap-1 transition-colors ${
+                    Math.round((pixelsPerSecond / 40) * 100) >= 200
+                      ? 'bg-gray-900 text-gray-600 cursor-not-allowed'
+                      : 'bg-gray-800 hover:bg-gray-700'
+                  }`}
+                  title="줌 인 (최대 200%)"
+                >
+                  <i className="ri-zoom-in-line text-[11px]"></i>
+                </button>
+              </div>
+              
+              <div className="text-[10px] text-gray-400">
+                {rectSelectedClips.length > 0 ? (
+                  `${rectSelectedClips.length} selected`
+                ) : selectedClip ? (
+                  `${selectedClipType === 'video' ? 'Video' : selectedClipType === 'text' ? 'Text' : 'Sound'} clip selected`
+                ) : (
+                  'Select a clip or drag to multi-select'
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -814,7 +882,7 @@ export default function Timeline({
           {/* Right scrollable area */}
           <div
             className="flex-1 relative"
-            style={{ minWidth: `${timelineLength * pixelsPerSecond}px` }}
+            style={{ minWidth: `${timelineLengthInSeconds * pixelsPerSecond}px` }}
             ref={selectionContainerRef}
             onMouseDownCapture={handleSelectionMouseDown}
           >

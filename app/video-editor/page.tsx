@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Header } from '@/components/layout/Header';
+import { LibraryModal } from '@/components/modals/LibraryModal';
 import { VideoEditorProviders, useClips, usePlayback, useHistory, useProject } from './_context/Providers';
 import VideoPreview from './_components/VideoPreview';
 import Timeline from './_components/Timeline';
@@ -22,9 +23,11 @@ function VideoEditorContent() {
     showVideoLibrary,
     showSoundLibrary,
     showTextEditor,
+    showLibrary,
     setShowVideoLibrary,
     setShowSoundLibrary,
     setShowTextEditor,
+    setShowLibrary,
     handleAddClip,
     handleAddSound,
     handleAddText: handleAddTextButton,
@@ -126,6 +129,21 @@ function VideoEditorContent() {
   const handleEditSoundClip = () => {
     // TODO: Implement sound editing modal
   };
+  
+  // Favorites 상태 관리 (간단한 로컬 상태로 처리)
+  const [favoriteVideos, setFavoriteVideos] = useState<Set<string>>(new Set());
+  
+  const handleToggleFavorite = useCallback((videoId: string) => {
+    setFavoriteVideos(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(videoId)) {
+        newSet.delete(videoId);
+      } else {
+        newSet.add(videoId);
+      }
+      return newSet;
+    });
+  }, []);
 
   // 리사이저 이벤트는 ProjectContext에서 이미 처리됨
 
@@ -135,6 +153,7 @@ function VideoEditorContent() {
         activePage="edit"
         projectTitle={projectTitle}
         onProjectTitleChange={setProjectTitle}
+        onLibraryClick={() => setShowLibrary(true)}
       />
       
       <div className="flex-1 flex flex-col overflow-hidden">
@@ -254,6 +273,15 @@ function VideoEditorContent() {
           }}
           onAddText={handleAddTextClip}
           editingClip={editingTextClip}
+        />
+      )}
+      
+      {showLibrary && (
+        <LibraryModal
+          isOpen={showLibrary}
+          onClose={() => setShowLibrary(false)}
+          favoriteVideos={favoriteVideos}
+          onToggleFavorite={handleToggleFavorite}
         />
       )}
     </div>

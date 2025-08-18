@@ -13,6 +13,7 @@ interface SoundClipProps {
   onFadeChange?: (id: string, fadeType: 'fadeIn' | 'fadeOut', duration: number) => void;
   isActive?: boolean;
   pixelsPerSecond?: number;
+  clipWidth?: number;
 }
 
 export default function SoundClip({
@@ -23,6 +24,7 @@ export default function SoundClip({
   onFadeChange,
   isActive = false,
   pixelsPerSecond = 40,
+  clipWidth = 200,
 }: SoundClipProps) {
   const clipRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -423,27 +425,39 @@ export default function SoundClip({
           </div>
         )}
         
-        {/* Clip info overlay */}
-        <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-2 py-1 pointer-events-none">
-          <div className="flex items-center gap-1">
-            <i className="ri-volume-up-line text-[10px] text-cyan-300 flex-shrink-0"></i>
-            <span className="text-[10px] text-white/90 truncate max-w-[100px] font-medium">
-              {clip.name}
-            </span>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            {/* Volume percentage display */}
-            {(isDraggingVolume || isHoveringVolumeLine) && (
-              <span className="text-[10px] text-cyan-300 font-mono bg-black/60 px-1 rounded">
-                {Math.round(tempVolume)}%
-              </span>
+        {/* Clip info overlay - 작을 때 조건부 렌더링 */}
+        {clipWidth > 30 && (
+          <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-2 py-1 pointer-events-none">
+            {clipWidth > 40 ? (
+              <>
+                <div className="flex items-center gap-1">
+                  <i className="ri-volume-up-line text-[10px] text-cyan-300 flex-shrink-0"></i>
+                  {clipWidth > 60 && (
+                    <span className="text-[10px] text-white/90 truncate max-w-[100px] font-medium">
+                      {clip.name}
+                    </span>
+                  )}
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  {/* Volume percentage display */}
+                  {(isDraggingVolume || isHoveringVolumeLine) && (
+                    <span className="text-[10px] text-cyan-300 font-mono bg-black/60 px-1 rounded">
+                      {Math.round(tempVolume)}%
+                    </span>
+                  )}
+                  {clipWidth > 80 && (
+                    <span className="text-[10px] text-gray-400 whitespace-nowrap">
+                      {formatDuration(clip.duration)}
+                    </span>
+                  )}
+                </div>
+              </>
+            ) : (
+              <i className="ri-volume-up-line text-[10px] text-cyan-300 mx-auto"></i>
             )}
-            <span className="text-[10px] text-gray-400 whitespace-nowrap">
-              {formatDuration(clip.duration)}
-            </span>
           </div>
-        </div>
+        )}
         
         {/* Fade handles */}
         {/* Fade In Handle - top 1/3 height position */}
