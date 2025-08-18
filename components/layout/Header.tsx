@@ -93,14 +93,12 @@ export function Header({
         >
           Edit
         </button>
-        {activePage === 'clip' && (
-          <button 
-            className="font-medium text-sm text-text-secondary hover:text-text-primary transition-colors" 
-            onClick={onLibraryClick}
-          >
-            Library
-          </button>
-        )}
+        <button 
+          className="font-medium text-sm text-text-secondary hover:text-text-primary transition-colors" 
+          onClick={onLibraryClick}
+        >
+          Library
+        </button>
       </div>
       <div className="flex items-center space-x-4">
         <div className="w-8 h-8 flex items-center justify-center text-text-tertiary hover:text-text-primary transition-colors cursor-pointer">

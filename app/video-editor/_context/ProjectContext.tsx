@@ -23,9 +23,11 @@ interface ProjectContextType {
   showVideoLibrary: boolean;
   showSoundLibrary: boolean;
   showTextEditor: boolean;
+  showLibrary: boolean;
   setShowVideoLibrary: React.Dispatch<React.SetStateAction<boolean>>;
   setShowSoundLibrary: React.Dispatch<React.SetStateAction<boolean>>;
   setShowTextEditor: React.Dispatch<React.SetStateAction<boolean>>;
+  setShowLibrary: React.Dispatch<React.SetStateAction<boolean>>;
   
   // 모달 열기 핸들러
   handleAddClip: () => void;
@@ -55,6 +57,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const [showVideoLibrary, setShowVideoLibrary] = useState(false);
   const [showSoundLibrary, setShowSoundLibrary] = useState(false);
   const [showTextEditor, setShowTextEditor] = useState(false);
+  const [showLibrary, setShowLibrary] = useState(false);
   
   // URL 파라미터에서 프로젝트 제목 읽기 (page.tsx에서 그대로)
   useEffect(() => {
@@ -139,9 +142,11 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     showVideoLibrary,
     showSoundLibrary,
     showTextEditor,
+    showLibrary,
     setShowVideoLibrary,
     setShowSoundLibrary,
     setShowTextEditor,
+    setShowLibrary,
     
     // 모달 열기 핸들러
     handleAddClip,
@@ -161,6 +166,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     showVideoLibrary,
     showSoundLibrary,
     showTextEditor,
+    showLibrary,
     handleAddClip,
     handleAddSound,
     handleAddText,

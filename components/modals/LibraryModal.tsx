@@ -156,17 +156,17 @@ export function LibraryModal({ isOpen, onClose, favoriteVideos = new Set(), onTo
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl p-6 w-full max-w-[1000px] max-h-[90vh] flex flex-col">
+      <div className="bg-gray-800 rounded-xl p-6 w-full max-w-[1000px] max-h-[90vh] flex flex-col">
         <div className="flex justify-between items-center mb-2">
-          <h3 className="text-xl font-medium text-black">Library</h3>
-          <button className="text-gray-400 hover:text-gray-600" onClick={onClose}>
+          <h3 className="text-xl font-medium text-white">Library</h3>
+          <button className="text-gray-400 hover:text-gray-300" onClick={onClose}>
             <X className="w-6 h-6" />
           </button>
         </div>
 
         <div className="flex items-center gap-2 mb-6">
           <Info className="w-4 h-4 text-primary" />
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-gray-400">
             Only favorited videos are permanently stored. Other videos will be automatically deleted after 7 days.
           </p>
         </div>
@@ -175,14 +175,14 @@ export function LibraryModal({ isOpen, onClose, favoriteVideos = new Set(), onTo
           <div className="flex items-center gap-4">
             <Input
               type="date"
-              className="bg-gray-50 text-gray-900 text-sm border-gray-300 focus:border-primary"
+              className="bg-gray-700 text-white text-sm border-gray-600 focus:border-primary"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
             />
-            <span className="text-gray-500">to</span>
+            <span className="text-gray-400">to</span>
             <Input
               type="date"
-              className="bg-gray-50 text-gray-900 text-sm border-gray-300 focus:border-primary"
+              className="bg-gray-700 text-white text-sm border-gray-600 focus:border-primary"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
             />
@@ -194,13 +194,13 @@ export function LibraryModal({ isOpen, onClose, favoriteVideos = new Set(), onTo
           {isLoading ? (
             <div className="col-span-4 flex items-center justify-center py-20">
               <div className="text-center">
-                <Loader2 className="w-8 h-8 animate-spin text-gray-500 mx-auto mb-4" />
-                <p className="text-gray-500">Loading videos...</p>
+                <Loader2 className="w-8 h-8 animate-spin text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-400">Loading videos...</p>
               </div>
             </div>
           ) : filteredVideos.length === 0 ? (
             <div className="col-span-4 flex items-center justify-center py-20">
-              <p className="text-gray-500">No videos found</p>
+              <p className="text-gray-400">No videos found</p>
             </div>
           ) : (
             filteredVideos.map((video) => {
@@ -211,7 +211,7 @@ export function LibraryModal({ isOpen, onClose, favoriteVideos = new Set(), onTo
               return (
                 <div
                   key={video.id}
-                  className="bg-gray-100 rounded-lg overflow-hidden aspect-square relative"
+                  className="bg-gray-700 rounded-lg overflow-hidden aspect-square relative"
                 >
                   <div className="relative group w-full h-full">
                     {video.input_image_url && (
