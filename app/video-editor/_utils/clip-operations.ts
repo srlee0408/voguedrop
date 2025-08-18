@@ -2,71 +2,58 @@ import { VideoClip, TextClip, SoundClip } from '@/types/video-editor';
 
 // 클립 복제 함수
 export function duplicateVideoClip(clip: VideoClip, allClips: VideoClip[]): VideoClip {
+  // 타임라인에서 가장 뒤에 있는 클립의 끝 위치 찾기
+  let maxEndPosition = 0;
+  allClips.forEach(c => {
+    const clipEnd = c.position + c.duration;
+    if (clipEnd > maxEndPosition) {
+      maxEndPosition = clipEnd;
+    }
+  });
+  
   const newClip: VideoClip = {
     ...clip,
     id: `clip-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-    position: clip.position + clip.duration, // 원본 클립 바로 뒤에 배치
+    position: maxEndPosition, // 타임라인의 끝에 배치
   };
-  
-  // 겹치는 클립이 있는지 확인하고 위치 조정
-  const endPosition = newClip.position + newClip.duration;
-  const overlappingClips = allClips.filter(c => 
-    c.id !== clip.id && 
-    c.position < endPosition && 
-    c.position + c.duration > newClip.position
-  );
-  
-  if (overlappingClips.length > 0) {
-    // 겹치는 클립들의 끝 위치 중 가장 뒤쪽으로 이동
-    const maxEndPosition = Math.max(...overlappingClips.map(c => c.position + c.duration));
-    newClip.position = maxEndPosition;
-  }
   
   return newClip;
 }
 
 export function duplicateTextClip(clip: TextClip, allClips: TextClip[]): TextClip {
+  // 타임라인에서 가장 뒤에 있는 클립의 끝 위치 찾기
+  let maxEndPosition = 0;
+  allClips.forEach(c => {
+    const clipEnd = c.position + c.duration;
+    if (clipEnd > maxEndPosition) {
+      maxEndPosition = clipEnd;
+    }
+  });
+  
   const newClip: TextClip = {
     ...clip,
     id: `text-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-    position: clip.position + clip.duration,
+    position: maxEndPosition, // 타임라인의 끝에 배치
   };
-  
-  // 겹치는 클립이 있는지 확인하고 위치 조정
-  const endPosition = newClip.position + newClip.duration;
-  const overlappingClips = allClips.filter(c => 
-    c.id !== clip.id && 
-    c.position < endPosition && 
-    c.position + c.duration > newClip.position
-  );
-  
-  if (overlappingClips.length > 0) {
-    const maxEndPosition = Math.max(...overlappingClips.map(c => c.position + c.duration));
-    newClip.position = maxEndPosition;
-  }
   
   return newClip;
 }
 
 export function duplicateSoundClip(clip: SoundClip, allClips: SoundClip[]): SoundClip {
+  // 타임라인에서 가장 뒤에 있는 클립의 끝 위치 찾기
+  let maxEndPosition = 0;
+  allClips.forEach(c => {
+    const clipEnd = c.position + c.duration;
+    if (clipEnd > maxEndPosition) {
+      maxEndPosition = clipEnd;
+    }
+  });
+  
   const newClip: SoundClip = {
     ...clip,
     id: `sound-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-    position: clip.position + clip.duration,
+    position: maxEndPosition, // 타임라인의 끝에 배치
   };
-  
-  // 겹치는 클립이 있는지 확인하고 위치 조정
-  const endPosition = newClip.position + newClip.duration;
-  const overlappingClips = allClips.filter(c => 
-    c.id !== clip.id && 
-    c.position < endPosition && 
-    c.position + c.duration > newClip.position
-  );
-  
-  if (overlappingClips.length > 0) {
-    const maxEndPosition = Math.max(...overlappingClips.map(c => c.position + c.duration));
-    newClip.position = maxEndPosition;
-  }
   
   return newClip;
 }
