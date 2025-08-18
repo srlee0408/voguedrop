@@ -287,9 +287,6 @@ export default function VideoPreview({
   // 화면 비율 옵션
   const [selectedAspectRatio, setSelectedAspectRatio] = useState<AspectRatioValue>('9:16');
   
-  // 배경 옵션
-  const [previewBackground, setPreviewBackground] = useState<'dark' | 'light' | 'checkerboard'>('checkerboard');
-  
   // 선택된 비율에 따른 실제 크기 계산
   const getAspectRatioDimensions = (ratio: AspectRatioValue) => {
     const ratioConfig = Object.values(ASPECT_RATIOS).find(r => r.value === ratio);
@@ -712,45 +709,6 @@ export default function VideoPreview({
               <div className="bg-black/50 px-2 py-1 rounded text-xs font-medium">
                 Editor
               </div>
-              {/* 구분선 */}
-              <div className="w-px h-6 bg-gray-600 mx-2" />
-              
-              {/* 배경 전환 버튼 */}
-              <div className="flex gap-1 bg-black/50 p-1 rounded">
-                <button
-                  onClick={() => setPreviewBackground('dark')}
-                  className={`p-1 rounded transition-colors ${
-                    previewBackground === 'dark' ? 'bg-gray-700' : 'hover:bg-gray-700/50'
-                  }`}
-                  title="Dark Background"
-                >
-                  <div className="w-3 h-3 bg-black rounded border border-gray-600" />
-                </button>
-                <button
-                  onClick={() => setPreviewBackground('light')}
-                  className={`p-1 rounded transition-colors ${
-                    previewBackground === 'light' ? 'bg-gray-700' : 'hover:bg-gray-700/50'
-                  }`}
-                  title="Light Background"
-                >
-                  <div className="w-3 h-3 bg-white rounded border border-gray-600" />
-                </button>
-                <button
-                  onClick={() => setPreviewBackground('checkerboard')}
-                  className={`p-1 rounded transition-colors ${
-                    previewBackground === 'checkerboard' ? 'bg-gray-700' : 'hover:bg-gray-700/50'
-                  }`}
-                  title="Checkerboard Background"
-                >
-                  <div className="w-3 h-3 rounded border border-gray-600 overflow-hidden">
-                    <div className="h-full w-full" style={{
-                      backgroundImage: 'linear-gradient(45deg, #808080 25%, transparent 25%), linear-gradient(-45deg, #808080 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #808080 75%), linear-gradient(-45deg, transparent 75%, #808080 75%)',
-                      backgroundSize: '2px 2px',
-                      backgroundPosition: '0 0, 0 1px, 1px -1px, -1px 0px'
-                    }} />
-                  </div>
-                </button>
-              </div>
             </div>
             {/* 비디오 컨트롤 버튼들 */}
             <div className="flex gap-2">
@@ -827,22 +785,16 @@ export default function VideoPreview({
             </div>
           </div>
           {/* 비디오 프리뷰 영역 */}
-          <div className={`flex-1 relative flex items-center justify-center p-2 ${
-            previewBackground === 'dark' ? 'bg-black' :
-            previewBackground === 'light' ? 'bg-white' :
-            'bg-gray-500'
-          }`}>
+          <div className="flex-1 relative flex items-center justify-center p-2 bg-gray-500">
             {/* 체커보드 패턴 오버레이 */}
-            {previewBackground === 'checkerboard' && (
-              <div className="absolute inset-0">
-                <div className="h-full w-full" style={{
-                  backgroundImage: 'linear-gradient(45deg, #606060 25%, transparent 25%), linear-gradient(-45deg, #606060 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #606060 75%), linear-gradient(-45deg, transparent 75%, #606060 75%)',
-                  backgroundSize: '20px 20px',
-                  backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px',
-                  backgroundColor: '#505050'
-                }} />
-              </div>
-            )}
+            <div className="absolute inset-0">
+              <div className="h-full w-full" style={{
+                backgroundImage: 'linear-gradient(45deg, #606060 25%, transparent 25%), linear-gradient(-45deg, #606060 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #606060 75%), linear-gradient(-45deg, transparent 75%, #606060 75%)',
+                backgroundSize: '20px 20px',
+                backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px',
+                backgroundColor: '#505050'
+              }} />
+            </div>
             {clips.length > 0 || textClips.length > 0 || soundClips.length > 0 ? (
               <div 
                 className="relative shadow-2xl"
@@ -868,13 +820,9 @@ export default function VideoPreview({
                 
                 {/* 콘텐츠 컨테이너 */}
                 <div 
-                  className={`relative w-full h-full rounded-lg overflow-hidden ${
-                    previewBackground === 'dark' ? 'bg-black' :
-                    previewBackground === 'light' ? 'bg-white' :
-                    ''
-                  }`}
+                  className="relative w-full h-full rounded-lg overflow-hidden"
                   style={{ 
-                    backgroundColor: previewBackground === 'checkerboard' ? 'transparent' : undefined 
+                    backgroundColor: 'transparent'
                   }}
                 >
                   <Player
@@ -977,13 +925,9 @@ export default function VideoPreview({
                   
                   {/* 콘텐츠 */}
                   <div 
-                    className={`relative w-full h-full rounded-lg flex items-center justify-center ${
-                      previewBackground === 'dark' ? 'bg-black' :
-                      previewBackground === 'light' ? 'bg-white' :
-                      ''
-                    }`}
+                    className="relative w-full h-full rounded-lg flex items-center justify-center"
                     style={{ 
-                      backgroundColor: previewBackground === 'checkerboard' ? 'transparent' : undefined 
+                      backgroundColor: 'transparent'
                     }}
                   >
                     <div className="text-green-500 text-sm text-center">
