@@ -790,11 +790,14 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
                       
                       {/* Title Input */}
                       <div className="p-4 bg-gray-700/50 rounded-lg">
+                        <div className="text-sm text-gray-400 mb-2">
+                          Title <span className="text-gray-500">(optional)</span>
+                        </div>
                         <input
                           type="text"
                           value={soundTitle}
                           onChange={(e) => setSoundTitle(e.target.value)}
-                          placeholder="Title (optional - uses description if empty)"
+                          placeholder="Uses description if empty"
                           className="w-full px-4 py-2 bg-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                           disabled={isGeneratingSound}
                           maxLength={100}
@@ -802,84 +805,89 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
                       </div>
                       
                       {/* Prompt and Controls */}
-                      <div className="flex items-start gap-3 p-4 bg-gray-700/50 rounded-lg">
-                        <textarea
-                          value={soundPrompt}
-                          onChange={(e) => {
-                            setSoundPrompt(e.target.value);
-                            setGenerationError(null);
-                          }}
-                          placeholder="Describe a sound..."
-                          className="flex-1 px-4 py-2 bg-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary resize-none min-h-[40px] max-h-[120px] overflow-y-auto"
-                          disabled={isGeneratingSound}
-                          maxLength={450}
-                          rows={1}
-                          style={{
-                            height: 'auto',
-                            minHeight: '40px'
-                          }}
-                          onInput={(e) => {
-                            const target = e.target as HTMLTextAreaElement;
-                            target.style.height = 'auto';
-                            target.style.height = Math.min(target.scrollHeight, 120) + 'px';
-                          }}
-                        />
-                    
-                    {/* Duration 선택 - Sound Effect일 때만 표시 */}
-                    {generationType === 'sound_effect' && (
-                      <div className="relative duration-dropdown-container">
-                      <button
-                        onClick={() => setShowDurationDropdown(!showDurationDropdown)}
-                        disabled={isGeneratingSound}
-                        className="flex items-center gap-2 px-3 py-2 bg-gray-800 rounded-lg hover:bg-gray-700 disabled:opacity-50"
-                      >
-                        <span className="text-sm min-w-[55px]">↔ {soundDuration}.0s</span>
-                      </button>
-                      
-                      {showDurationDropdown && (
-                        <div className="absolute top-full mt-2 left-0 bg-gray-800 border border-gray-700 rounded-lg shadow-2xl shadow-black/50 z-10 p-4 w-80">
-                          <div className="text-sm text-gray-400 mb-2">Duration</div>
-                          <div className="flex items-center gap-3">
-                            <input
-                              type="range"
-                              min="1"
-                              max="22"
-                              value={soundDuration}
-                              onChange={(e) => setSoundDuration(Number(e.target.value))}
-                              className="flex-1 accent-primary"
-                            />
-                            <span className="text-sm text-gray-300 min-w-[50px] text-right">
-                              ↔ {soundDuration}.0s
-                            </span>
+                      <div className="p-4 bg-gray-700/50 rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="text-sm text-gray-400">
+                            Description <span className="text-red-400">*</span>
                           </div>
+                          <span className="text-xs text-gray-500">
+                            {soundPrompt.length}/450
+                          </span>
                         </div>
-                      )}
-                      </div>
-                    )}
-                    
-                    {/* 문자 카운터 */}
-                    <span className="text-sm text-gray-400">
-                      {soundPrompt.length}/450
-                    </span>
-                    
-                    {/* Generate 버튼 */}
-                    <button
-                      onClick={handleSoundGenerate}
-                      disabled={isGeneratingSound || !soundPrompt.trim()}
-                      className="px-6 py-2 bg-primary rounded-button hover:bg-primary/90 text-black disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 min-w-[120px] justify-center"
-                    >
-                      {isGeneratingSound ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          <span>Generating</span>
-                        </>
-                      ) : (
-                        <>
-                          <i className="ri-magic-line"></i>
-                          <span>Generate</span>
-                        </>
-                      )}
-                        </button>
+                        <div className="flex items-start gap-3">
+                          <textarea
+                            value={soundPrompt}
+                            onChange={(e) => {
+                              setSoundPrompt(e.target.value);
+                              setGenerationError(null);
+                            }}
+                            placeholder="Describe the sound you want to generate..."
+                            className="flex-1 px-4 py-2 bg-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary resize-none min-h-[40px] max-h-[120px] overflow-y-auto"
+                            disabled={isGeneratingSound}
+                            maxLength={450}
+                            rows={1}
+                            style={{
+                              height: 'auto',
+                              minHeight: '40px'
+                            }}
+                            onInput={(e) => {
+                              const target = e.target as HTMLTextAreaElement;
+                              target.style.height = 'auto';
+                              target.style.height = Math.min(target.scrollHeight, 120) + 'px';
+                            }}
+                          />
+                          
+                          {/* Duration 선택 - Sound Effect일 때만 표시 */}
+                          {generationType === 'sound_effect' && (
+                            <div className="relative duration-dropdown-container">
+                              <button
+                                onClick={() => setShowDurationDropdown(!showDurationDropdown)}
+                                disabled={isGeneratingSound}
+                                className="flex items-center gap-2 px-3 py-2 bg-gray-800 rounded-lg hover:bg-gray-700 disabled:opacity-50"
+                              >
+                                <span className="text-sm min-w-[55px]">↔ {soundDuration}.0s</span>
+                              </button>
+                              
+                              {showDurationDropdown && (
+                                <div className="absolute top-full mt-2 left-0 bg-gray-800 border border-gray-700 rounded-lg shadow-2xl shadow-black/50 z-10 p-4 w-80">
+                                  <div className="text-sm text-gray-400 mb-2">Duration</div>
+                                  <div className="flex items-center gap-3">
+                                    <input
+                                      type="range"
+                                      min="1"
+                                      max="22"
+                                      value={soundDuration}
+                                      onChange={(e) => setSoundDuration(Number(e.target.value))}
+                                      className="flex-1 accent-primary"
+                                    />
+                                    <span className="text-sm text-gray-300 min-w-[50px] text-right">
+                                      ↔ {soundDuration}.0s
+                                    </span>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          
+                          {/* Generate 버튼 */}
+                          <button
+                            onClick={handleSoundGenerate}
+                            disabled={isGeneratingSound || !soundPrompt.trim()}
+                            className="px-6 py-2 bg-primary rounded-button hover:bg-primary/90 text-black disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 min-w-[120px] justify-center"
+                          >
+                            {isGeneratingSound ? (
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <span>Generating</span>
+                              </>
+                            ) : (
+                              <>
+                                <i className="ri-magic-line"></i>
+                                <span>Generate</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ) : (
