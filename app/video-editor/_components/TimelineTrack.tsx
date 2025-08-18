@@ -14,6 +14,7 @@ interface TimelineTrackProps {
   onResizeStart: (e: React.MouseEvent, clipId: string, handle: 'left' | 'right', clipType: 'video' | 'text' | 'sound') => void;
   onEditClip?: (clip: TextClipType | SoundClipType) => void;
   onDeleteClip?: (id: string) => void;
+  onVolumeChange?: (id: string, volume: number) => void;
   activeClip?: string | null;
   pixelsPerSecond?: number;
   isSelectingRange?: boolean;
@@ -34,6 +35,7 @@ export default function TimelineTrack({
   onResizeStart,
   onEditClip,
   onDeleteClip,
+  onVolumeChange,
   activeClip,
   pixelsPerSecond = 40,
   isSelectingRange = false,
@@ -163,6 +165,7 @@ export default function TimelineTrack({
           onEdit={onEditClip}
           onDelete={onDeleteClip}
           onResizeStart={(e, handle) => onResizeStart(e, clip.id, handle, 'sound')}
+          onVolumeChange={onVolumeChange}
           isActive={activeClip === clip.id}
           pixelsPerSecond={pixelsPerSecond}
         />
@@ -170,9 +173,33 @@ export default function TimelineTrack({
     );
   };
 
+  // Track height calculation based on type
+  // Video: 32px, Text: 32px, Sound: 48px for waveform display
+  const getTrackHeight = () => {
+    switch (type) {
+      case 'sound':
+        return 'h-12'; // 48px for waveform display
+      case 'video':
+      case 'text':
+      default:
+        return 'h-8'; // 32px for video and text
+    }
+  };
+  
+  const getClipContainerHeight = () => {
+    switch (type) {
+      case 'sound':
+        return 'h-10'; // 40px for sound clips
+      case 'video':
+      case 'text':
+      default:
+        return 'h-5'; // 20px for video and text clips
+    }
+  };
+
   return (
-    <div className="border-b border-gray-700 h-8 flex items-center" onClick={onTrackClick}>
-      <div className="relative w-full h-5">
+    <div className={`border-b border-gray-700 ${getTrackHeight()} flex items-center`} onClick={onTrackClick}>
+      <div className={`relative w-full ${getClipContainerHeight()}`}>
         {clips.map((clip) => {
           if (type === 'video') return renderVideoClip(clip as VideoClipType);
           if (type === 'text') return renderTextClip(clip as TextClipType);

@@ -394,15 +394,19 @@ export const CompositePreview: React.FC<CompositePreviewProps> = ({
         const startFrom = sound.startTime ? Math.round(sound.startTime * 30) : 0;
         const endAt = sound.endTime ? Math.round(sound.endTime * 30) : undefined;
         
+        // Calculate volume (0-100% range, linear mapping)
+        const volumeValue = sound.volume !== undefined ? sound.volume : 100;
+        const normalizedVolume = volumeValue / 100; // 0% = 0, 100% = 1
+        
         return (
           <Sequence
-            key={sound.id}
+            key={`${sound.id}-${sound.url}`} // Key based on id and url only, not volume
             from={audioFrom}
             durationInFrames={audioDuration}
           >
             <Audio 
               src={sound.url} 
-              volume={(sound.volume || 100) / 100}
+              volume={normalizedVolume}
               startFrom={startFrom}
               endAt={endAt}
             />

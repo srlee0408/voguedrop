@@ -149,6 +149,14 @@ export default function VideoPreview({
     }
   }, [clips.length]); // clips의 길이만 의존성으로 설정하여 불필요한 리렌더링 방지
   
+  // Memoize soundClips with volume to trigger re-render when volume changes
+  const memoizedSoundClips = useMemo(() => {
+    return soundClips.map(clip => ({
+      ...clip,
+      volume: clip.volume !== undefined ? clip.volume : 100 // Ensure volume is included with proper default
+    }));
+  }, [soundClips]);
+
   // Player 이벤트 리스너 설정 - 버퍼링 상태 추적 및 초기 볼륨 설정
   useEffect(() => {
     let volumeInterval: NodeJS.Timeout | null = null;
@@ -364,7 +372,7 @@ export default function VideoPreview({
       const contentHash = await generateContentHash({
         videoClips: clips,
         textClips: textClips,
-        soundClips: soundClips,
+        soundClips: memoizedSoundClips,
         aspectRatio: selectedAspectRatio
       });
       
@@ -406,7 +414,7 @@ export default function VideoPreview({
         body: JSON.stringify({
           videoClips: clips,
           textClips: textClips,
-          soundClips: soundClips,
+          soundClips: memoizedSoundClips,
           aspectRatio: selectedAspectRatio,
           durationInFrames: calculateTotalFrames,
           projectName: projectTitle,
@@ -453,7 +461,7 @@ export default function VideoPreview({
                   projectName: projectTitle,
                   videoClips: clips,
                   textClips: textClips,
-                  soundClips: soundClips,
+                  soundClips: memoizedSoundClips,
                   aspectRatio: selectedAspectRatio,
                   durationInFrames: calculateTotalFrames,
                   renderId: result.renderId,
@@ -833,7 +841,7 @@ export default function VideoPreview({
                   inputProps={{
                     videoClips: clips,
                     textClips: textClips, // 텍스트 효과를 표시하기 위해 실제 데이터 전달
-                    soundClips: soundClips,
+                    soundClips: memoizedSoundClips,
                     pixelsPerSecond: 40,
                     backgroundColor: 'black' // 항상 검은색 배경으로 설정하여 letterbox 효과
                   }}
@@ -952,7 +960,7 @@ export default function VideoPreview({
         onClose={() => setIsFullscreenOpen(false)}
         clips={clips}
         textClips={textClips}
-        soundClips={soundClips}
+        soundClips={memoizedSoundClips}
         aspectRatio={selectedAspectRatio}
         videoWidth={videoAspectRatio.width}
         videoHeight={videoAspectRatio.height}

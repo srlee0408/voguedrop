@@ -41,6 +41,7 @@ interface TimelineProps {
   onUpdateAllVideoClips?: (clips: VideoClipType[]) => void;
   onUpdateAllTextClips?: (clips: TextClipType[]) => void;
   onUpdateAllSoundClips?: (clips: SoundClipType[]) => void;
+  onUpdateSoundVolume?: (id: string, volume: number) => void;
   pixelsPerSecond?: number;
   currentTime?: number;
   isPlaying?: boolean;
@@ -79,6 +80,7 @@ export default function Timeline({
   onUpdateAllVideoClips,
   onUpdateAllTextClips,
   onUpdateAllSoundClips,
+  onUpdateSoundVolume,
   pixelsPerSecond = 40,
   currentTime = 0,
   isPlaying = false,
@@ -819,6 +821,7 @@ export default function Timeline({
               onResizeStart={handleResizeStart}
               onEditClip={onEditSoundClip as ((clip: TextClipType | SoundClipType) => void) | undefined}
               onDeleteClip={onDeleteSoundClip}
+              onVolumeChange={onUpdateSoundVolume}
               activeClip={activeClip}
               pixelsPerSecond={pixelsPerSecond}
               isSelectingRange={isSelectingRange}

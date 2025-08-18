@@ -31,6 +31,8 @@ export interface SoundClip {
   maxDuration?: number; // Maximum duration in pixels (actual audio length)
   startTime?: number; // Start time in seconds within the original audio
   endTime?: number; // End time in seconds within the original audio
+  waveformData?: number[]; // Normalized waveform peak values (0-1)
+  isAnalyzing?: boolean; // Whether the audio is currently being analyzed
 }
 
 export interface TextStyle {

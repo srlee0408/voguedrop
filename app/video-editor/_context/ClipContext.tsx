@@ -11,6 +11,7 @@ import {
   splitSoundClip,
   applyResizeTrim,
 } from '../_utils/clip-operations';
+import { analyzeAudioFile } from '../_utils/audio-analysis';
 
 interface ClipContextType {
   // 상태
@@ -58,6 +59,7 @@ interface ClipContextType {
   handleUpdateSoundClipPosition: (id: string, newPosition: number) => void;
   handleUpdateAllSoundClips: (newClips: SoundClip[]) => void;
   handleReorderSoundClips: (newClips: SoundClip[]) => void;
+  handleUpdateSoundVolume: (id: string, volume: number) => void;
   
   // 편집 상태
   editingTextClip?: TextClip;
@@ -398,7 +400,7 @@ export function ClipProvider({ children }: ClipProviderProps) {
   }, [saveToHistory]);
   
   // 사운드 클립 추가
-  const handleAddSoundClip = useCallback((soundData: Partial<SoundClip>) => {
+  const handleAddSoundClip = useCallback(async (soundData: Partial<SoundClip>) => {
     const newSoundClip: SoundClip = {
       id: `sound-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       name: soundData.name || 'New Sound',
@@ -407,9 +409,30 @@ export function ClipProvider({ children }: ClipProviderProps) {
       volume: soundData.volume || 100,
       url: soundData.url,
       maxDuration: soundData.maxDuration,
+      isAnalyzing: true, // Start analyzing
     };
     setSoundClips([...soundClips, newSoundClip]);
     saveToHistory();
+    
+    // Analyze audio file asynchronously if URL is provided
+    if (newSoundClip.url) {
+      try {
+        const analysisResult = await analyzeAudioFile(newSoundClip.url);
+        setSoundClips(prev => prev.map(clip => 
+          clip.id === newSoundClip.id 
+            ? { ...clip, waveformData: analysisResult.waveformData, isAnalyzing: false }
+            : clip
+        ));
+      } catch (error) {
+        console.error('Failed to analyze audio:', error);
+        // Remove analyzing flag on error
+        setSoundClips(prev => prev.map(clip => 
+          clip.id === newSoundClip.id 
+            ? { ...clip, isAnalyzing: false }
+            : clip
+        ));
+      }
+    }
   }, [soundClips, saveToHistory]);
   
   // 여러 사운드 클립 추가 (SoundLibraryModal에서 사용)
@@ -430,7 +453,8 @@ export function ClipProvider({ children }: ClipProviderProps) {
         duration: durationInPixels,
         maxDuration: durationInPixels,
         position: currentPosition,
-        volume: 100
+        volume: 100,
+        isAnalyzing: true, // Start analyzing
       };
       
       // Update position for next clip
@@ -442,6 +466,28 @@ export function ClipProvider({ children }: ClipProviderProps) {
     // Add all clips at once
     setSoundClips([...soundClips, ...newSoundClips]);
     saveToHistory();
+    
+    // Analyze audio files asynchronously
+    newSoundClips.forEach(async (clip) => {
+      if (clip.url) {
+        try {
+          const analysisResult = await analyzeAudioFile(clip.url);
+          setSoundClips(prev => prev.map(c => 
+            c.id === clip.id 
+              ? { ...c, waveformData: analysisResult.waveformData, isAnalyzing: false }
+              : c
+          ));
+        } catch (error) {
+          console.error(`Failed to analyze audio for ${clip.name}:`, error);
+          // Remove analyzing flag on error
+          setSoundClips(prev => prev.map(c => 
+            c.id === clip.id 
+              ? { ...c, isAnalyzing: false }
+              : c
+          ));
+        }
+      }
+    });
   }, [soundClips, saveToHistory]);
   
   // 사운드 클립 삭제
@@ -505,6 +551,14 @@ export function ClipProvider({ children }: ClipProviderProps) {
     setSoundClips(newClips);
   }, []);
   
+  // 사운드 클립 음량 업데이트
+  const handleUpdateSoundVolume = useCallback((id: string, volume: number) => {
+    setSoundClips(prev => prev.map(clip => 
+      clip.id === id ? { ...clip, volume } : clip
+    ));
+    saveToHistory();
+  }, [saveToHistory]);
+  
   // Context value를 useMemo로 최적화
   const value = useMemo(() => ({
     // 상태
@@ -554,6 +608,7 @@ export function ClipProvider({ children }: ClipProviderProps) {
     handleUpdateSoundClipPosition,
     handleUpdateAllSoundClips,
     handleReorderSoundClips,
+    handleUpdateSoundVolume,
     
     // 히스토리 저장 (나중에 연결)
     saveToHistory,
@@ -592,6 +647,7 @@ export function ClipProvider({ children }: ClipProviderProps) {
     handleUpdateSoundClipPosition,
     handleUpdateAllSoundClips,
     handleReorderSoundClips,
+    handleUpdateSoundVolume,
     saveToHistory,
     setSaveToHistoryCallback,
   ]);
