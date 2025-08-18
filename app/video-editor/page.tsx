@@ -67,6 +67,7 @@ function VideoEditorContent() {
     handleUpdateAllSoundClips,
     handleReorderSoundClips,
     handleUpdateSoundVolume,
+    handleUpdateSoundFade,
   } = useClips();
   
   // PlaybackContext에서 가져오기
@@ -209,6 +210,7 @@ function VideoEditorContent() {
           onUpdateAllTextClips={handleUpdateAllTextClips}
           onUpdateAllSoundClips={handleUpdateAllSoundClips}
           onUpdateSoundVolume={handleUpdateSoundVolume}
+          onUpdateSoundFade={handleUpdateSoundFade}
           pixelsPerSecond={PIXELS_PER_SECOND}
           currentTime={currentTime}
           isPlaying={isPlaying}

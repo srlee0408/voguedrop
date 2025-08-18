@@ -60,6 +60,7 @@ interface ClipContextType {
   handleUpdateAllSoundClips: (newClips: SoundClip[]) => void;
   handleReorderSoundClips: (newClips: SoundClip[]) => void;
   handleUpdateSoundVolume: (id: string, volume: number) => void;
+  handleUpdateSoundFade: (id: string, fadeType: 'fadeIn' | 'fadeOut', duration: number) => void;
   
   // 편집 상태
   editingTextClip?: TextClip;
@@ -559,6 +560,20 @@ export function ClipProvider({ children }: ClipProviderProps) {
     saveToHistory();
   }, [saveToHistory]);
   
+  // 사운드 클립 페이드 업데이트
+  const handleUpdateSoundFade = useCallback((id: string, fadeType: 'fadeIn' | 'fadeOut', duration: number) => {
+    setSoundClips(prev => prev.map(clip => {
+      if (clip.id !== id) return clip;
+      
+      if (fadeType === 'fadeIn') {
+        return { ...clip, fadeInDuration: duration };
+      } else {
+        return { ...clip, fadeOutDuration: duration };
+      }
+    }));
+    saveToHistory();
+  }, [saveToHistory]);
+  
   // Context value를 useMemo로 최적화
   const value = useMemo(() => ({
     // 상태
@@ -609,6 +624,7 @@ export function ClipProvider({ children }: ClipProviderProps) {
     handleUpdateAllSoundClips,
     handleReorderSoundClips,
     handleUpdateSoundVolume,
+    handleUpdateSoundFade,
     
     // 히스토리 저장 (나중에 연결)
     saveToHistory,
@@ -648,6 +664,7 @@ export function ClipProvider({ children }: ClipProviderProps) {
     handleUpdateAllSoundClips,
     handleReorderSoundClips,
     handleUpdateSoundVolume,
+    handleUpdateSoundFade,
     saveToHistory,
     setSaveToHistoryCallback,
   ]);

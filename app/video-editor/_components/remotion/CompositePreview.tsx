@@ -1,5 +1,5 @@
 import React from 'react';
-import { AbsoluteFill, Sequence, OffthreadVideo, Audio, useVideoConfig } from 'remotion';
+import { AbsoluteFill, Sequence, OffthreadVideo, Audio, useVideoConfig, useCurrentFrame } from 'remotion';
 import { TextClip as TextClipType, SoundClip as SoundClipType } from '@/types/video-editor';
 import { TEXT_DEFAULTS, TEXT_PADDING, TEXT_POSITION_PRESETS, TEXT_ANIMATION, pxToFrames, ratioToPixels, pixelsToRatio } from '../../../../constants/text-editor';
 
@@ -19,6 +19,98 @@ interface CompositePreviewProps {
   soundClips: SoundClipType[];
   backgroundColor?: string;
 }
+
+// Audio component with fade in/out support
+const AudioWithFade: React.FC<{
+  src: string;
+  baseVolume: number;
+  fadeInFrames: number;
+  fadeOutFrames: number;
+  totalFrames: number;
+  startFrom?: number;
+  endAt?: number;
+  fadeInType?: 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out';
+  fadeOutType?: 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out';
+}> = ({ 
+  src, 
+  baseVolume, 
+  fadeInFrames, 
+  fadeOutFrames, 
+  totalFrames, 
+  startFrom, 
+  endAt,
+  fadeInType = 'linear',
+  fadeOutType = 'linear'
+}) => {
+  const frame = useCurrentFrame();
+  
+  // Calculate fade volume
+  let fadeMultiplier = 1;
+  
+  // Apply fade in with more dramatic curve
+  if (fadeInFrames > 0 && frame < fadeInFrames) {
+    const fadeInProgress = frame / fadeInFrames;
+    
+    switch (fadeInType) {
+      case 'ease-in':
+        // More dramatic cubic curve for slower start
+        fadeMultiplier = fadeInProgress * fadeInProgress * fadeInProgress;
+        break;
+      case 'ease-out':
+        // Fast rise, then slow down (more dramatic)
+        fadeMultiplier = 1 - Math.pow(1 - fadeInProgress, 3);
+        break;
+      case 'ease-in-out':
+        // S-curve with more dramatic acceleration/deceleration
+        fadeMultiplier = fadeInProgress < 0.5
+          ? 4 * fadeInProgress * fadeInProgress * fadeInProgress
+          : 1 - Math.pow(-2 * fadeInProgress + 2, 3) / 2;
+        break;
+      case 'linear':
+      default:
+        fadeMultiplier = fadeInProgress;
+        break;
+    }
+  }
+  
+  // Apply fade out with more dramatic curve
+  const fadeOutStart = totalFrames - fadeOutFrames;
+  if (fadeOutFrames > 0 && frame >= fadeOutStart) {
+    const fadeOutProgress = (totalFrames - frame) / fadeOutFrames;
+    
+    switch (fadeOutType) {
+      case 'ease-in':
+        // More dramatic cubic curve for gradual then fast drop
+        fadeMultiplier = Math.pow(fadeOutProgress, 3);
+        break;
+      case 'ease-out':
+        // Fast drop then slow (more dramatic)
+        fadeMultiplier = 1 - Math.pow(1 - fadeOutProgress, 3);
+        break;
+      case 'ease-in-out':
+        // S-curve with more dramatic acceleration/deceleration
+        fadeMultiplier = fadeOutProgress < 0.5
+          ? 4 * fadeOutProgress * fadeOutProgress * fadeOutProgress
+          : 1 - Math.pow(-2 * fadeOutProgress + 2, 3) / 2;
+        break;
+      case 'linear':
+      default:
+        fadeMultiplier = fadeOutProgress;
+        break;
+    }
+  }
+  
+  const finalVolume = baseVolume * fadeMultiplier;
+  
+  return (
+    <Audio 
+      src={src} 
+      volume={finalVolume}
+      startFrom={startFrom}
+      endAt={endAt}
+    />
+  );
+};
 
 export const CompositePreview: React.FC<CompositePreviewProps> = ({ 
   videoClips, 
@@ -398,17 +490,26 @@ export const CompositePreview: React.FC<CompositePreviewProps> = ({
         const volumeValue = sound.volume !== undefined ? sound.volume : 100;
         const normalizedVolume = volumeValue / 100; // 0% = 0, 100% = 1
         
+        // Calculate fade frames
+        const fadeInFrames = sound.fadeInDuration ? pxToFrames(sound.fadeInDuration) : 0;
+        const fadeOutFrames = sound.fadeOutDuration ? pxToFrames(sound.fadeOutDuration) : 0;
+        
         return (
           <Sequence
             key={`${sound.id}-${sound.url}`} // Key based on id and url only, not volume
             from={audioFrom}
             durationInFrames={audioDuration}
           >
-            <Audio 
-              src={sound.url} 
-              volume={normalizedVolume}
+            <AudioWithFade
+              src={sound.url}
+              baseVolume={normalizedVolume}
+              fadeInFrames={fadeInFrames}
+              fadeOutFrames={fadeOutFrames}
+              totalFrames={audioDuration}
               startFrom={startFrom}
               endAt={endAt}
+              fadeInType={sound.fadeInType || 'linear'}
+              fadeOutType={sound.fadeOutType || 'linear'}
             />
           </Sequence>
         );

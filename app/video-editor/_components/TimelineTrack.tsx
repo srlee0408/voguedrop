@@ -15,6 +15,7 @@ interface TimelineTrackProps {
   onEditClip?: (clip: TextClipType | SoundClipType) => void;
   onDeleteClip?: (id: string) => void;
   onVolumeChange?: (id: string, volume: number) => void;
+  onFadeChange?: (id: string, fadeType: 'fadeIn' | 'fadeOut', duration: number) => void;
   activeClip?: string | null;
   pixelsPerSecond?: number;
   isSelectingRange?: boolean;
@@ -36,6 +37,7 @@ export default function TimelineTrack({
   onEditClip,
   onDeleteClip,
   onVolumeChange,
+  onFadeChange,
   activeClip,
   pixelsPerSecond = 40,
   isSelectingRange = false,
@@ -166,6 +168,7 @@ export default function TimelineTrack({
           onDelete={onDeleteClip}
           onResizeStart={(e, handle) => onResizeStart(e, clip.id, handle, 'sound')}
           onVolumeChange={onVolumeChange}
+          onFadeChange={onFadeChange}
           isActive={activeClip === clip.id}
           pixelsPerSecond={pixelsPerSecond}
         />

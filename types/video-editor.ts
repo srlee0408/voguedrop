@@ -33,6 +33,10 @@ export interface SoundClip {
   endTime?: number; // End time in seconds within the original audio
   waveformData?: number[]; // Normalized waveform peak values (0-1)
   isAnalyzing?: boolean; // Whether the audio is currently being analyzed
+  fadeInDuration?: number; // Fade in duration in pixels (0 = no fade)
+  fadeOutDuration?: number; // Fade out duration in pixels (0 = no fade)
+  fadeInType?: 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out'; // Fade curve type
+  fadeOutType?: 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out'; // Fade curve type
 }
 
 export interface TextStyle {
