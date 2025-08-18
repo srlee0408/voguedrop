@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { AbsoluteFill, Sequence, OffthreadVideo, Audio, useVideoConfig, delayRender, continueRender } from 'remotion';
 import { TextClip as TextClipType, SoundClip as SoundClipType } from '@/types/video-editor';
 import { TEXT_DEFAULTS, TEXT_PADDING, TEXT_POSITION_PRESETS, TEXT_ANIMATION, pxToFrames, ratioToPixels, pixelsToRatio } from '../../../../constants/text-editor';
+import { loadSpecificFonts, getFontFamily, generateFontImports } from '@/src/remotion/fonts';
 
 interface VideoClip {
   id: string;
@@ -29,39 +30,38 @@ export const CompositePreview: React.FC<CompositePreviewProps> = ({
   const { width, height } = useVideoConfig();
   const fontLoadHandles = useRef<Set<number>>(new Set());
   
-  // 폰트 로딩 대기 로직
+  // Remotion 폰트 로딩 로직
   useEffect(() => {
     // cleanup 함수에서 사용할 handles를 미리 저장
     const handles = fontLoadHandles.current;
     
     // 사용된 폰트 목록 수집
-    const fontsToLoad = new Set<string>();
+    const fontsToLoad: string[] = [];
     textClips.forEach(clip => {
       if (clip.style?.fontFamily && clip.style.fontFamily !== 'default' && clip.style.fontFamily !== 'sans-serif') {
-        fontsToLoad.add(clip.style.fontFamily);
+        fontsToLoad.push(clip.style.fontFamily);
       }
     });
 
-    // 각 폰트에 대해 로딩 대기
-    fontsToLoad.forEach(fontFamily => {
-      const handle = delayRender(`Loading font: ${fontFamily}`);
+    if (fontsToLoad.length > 0) {
+      // Remotion 렌더링을 지연시키고 폰트 로딩
+      const handle = delayRender('Loading fonts');
       handles.add(handle);
       
-      // 폰트 로딩 확인 - 폰트 사이즈와 weight 고려
-      const fontSize = `${TEXT_DEFAULTS.fontSize}px`; // 공통 상수 사용
-      const fontWeight = TEXT_DEFAULTS.fontWeight;
-      const fontString = `${fontWeight} ${fontSize} "${fontFamily}"`;
-      
-      document.fonts.load(fontString).then(() => {
-        continueRender(handle);
-        handles.delete(handle);
-      }).catch((error) => {
-        console.warn(`Failed to load font ${fontFamily}:`, error);
-        // 실패해도 계속 진행
-        continueRender(handle);
-        handles.delete(handle);
-      });
-    });
+      // Remotion 전용 폰트 로더 사용
+      loadSpecificFonts(fontsToLoad)
+        .then(() => {
+          console.log('Fonts loaded successfully:', fontsToLoad);
+          continueRender(handle);
+          handles.delete(handle);
+        })
+        .catch((error) => {
+          console.warn('Failed to load some fonts:', error);
+          // 실패해도 계속 진행
+          continueRender(handle);
+          handles.delete(handle);
+        });
+    }
 
     // 클린업
     return () => {
@@ -336,7 +336,7 @@ export const CompositePreview: React.FC<CompositePreviewProps> = ({
                 <h1 style={{
                   fontSize: actualFontSize, // 상대적 크기 사용
                   color: text.effect === 'gradient' ? 'transparent' : (text.style?.color || TEXT_DEFAULTS.color),
-                  fontFamily: text.style?.fontFamily || TEXT_DEFAULTS.fontFamily,
+                  fontFamily: getFontFamily(text.style?.fontFamily || TEXT_DEFAULTS.fontFamily),
                   fontWeight: text.style?.fontWeight || TEXT_DEFAULTS.fontWeight,
                   textShadow: text.effect === 'gradient' || text.effect === 'glow' ? 'none' : `
                     3px 3px 6px rgba(0,0,0,0.9),
@@ -445,8 +445,10 @@ export const CompositePreview: React.FC<CompositePreviewProps> = ({
         );
       })}
       
-      {/* CSS 애니메이션 정의 */}
+      {/* Google Fonts 임포트 및 CSS 애니메이션 정의 */}
       <style>{`
+        ${generateFontImports()}
+        
         @keyframes fadeInOut {
           0%, 100% { opacity: 0.3; }
           50% { opacity: 1; }

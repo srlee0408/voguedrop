@@ -7,6 +7,7 @@ import { VideoClipSelector } from './VideoClipSelector';
 import { useVideoSoundGeneration } from '../_hooks/useVideoSoundGeneration';
 import { ClipContext } from '../_context/ClipContext';
 import { formatSoundDisplayTitle } from '@/lib/sound/utils';
+import { SoundGenerationType } from '@/types/sound';
 
 interface SoundLibraryModalProps {
   onClose: () => void;
@@ -40,6 +41,9 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
   const [showDurationDropdown, setShowDurationDropdown] = useState(false);
   const [inputMode, setInputMode] = useState<'manual' | 'fromVideo'>('manual');
   const [selectedVideoClip, setSelectedVideoClip] = useState<string | null>(null);
+  const [generationType, setGenerationType] = useState<SoundGenerationType>('sound_effect');
+  // historyFilter는 아직 UI 구현이 없으므로 setter 제거
+  const [historyFilter] = useState<'all' | SoundGenerationType | 'from_video'>('all');
   
   // Get timeline clips from ClipContext
   const clipContext = useContext(ClipContext);
@@ -59,6 +63,7 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
     prompt: string;
     title: string | null;
     createdAt: string;
+    generationType?: string | null;
     variations: SoundVariation[];
   }
   
@@ -83,6 +88,7 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
   // 캐싱 관련 ref
   const soundCacheRef = useRef<SoundGroup[]>([]);
   const cacheTimestampRef = useRef<number>(0);
+  const lastFilterRef = useRef<string>('all');
   const CACHE_DURATION = 60000; // 1분 캐시
   
   // 진행률 계산 유틸리티 함수
@@ -140,10 +146,10 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
   // Generate 탭으로 전환 시 과거 생성 기록 불러오기
   useEffect(() => {
     if (activeTab === 'generate' && !isLoadingHistory) {
-      loadSoundHistory(); // 캐시가 있으면 사용, 없으면 로드
+      loadSoundHistory(false, historyFilter); // 캐시가 있으면 사용, 없으면 로드
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab]); // isLoadingHistory와 loadSoundHistory는 의도적으로 제외
+  }, [activeTab, historyFilter]); // isLoadingHistory와 loadSoundHistory는 의도적으로 제외
 
   // Duration 드롭다운 외부 클릭 감지
   useEffect(() => {
@@ -162,12 +168,14 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
     }
   }, [showDurationDropdown]);
 
-  const loadSoundHistory = async (forceRefresh = false) => {
-    // 캐시 유효성 검사
+  const loadSoundHistory = async (forceRefresh = false, filterType = historyFilter) => {
+    // 캐시 유효성 검사 (필터가 바뀌면 캐시 무효화)
+    const cacheKey = `${filterType}`;
     const now = Date.now();
     if (!forceRefresh && 
         soundCacheRef.current.length > 0 && 
-        (now - cacheTimestampRef.current) < CACHE_DURATION) {
+        (now - cacheTimestampRef.current) < CACHE_DURATION &&
+        lastFilterRef.current === cacheKey) {
       // 캐시된 데이터 사용
       setSoundGroups(soundCacheRef.current);
       return;
@@ -177,13 +185,18 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
     
     setIsLoadingHistory(true);
     try {
-      const response = await fetch('/api/sound/history');
+      const url = filterType === 'all' 
+        ? '/api/sound/history'
+        : `/api/sound/history?type=${filterType}`;
+      
+      const response = await fetch(url);
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.groups) {
           // 캐시 업데이트
           soundCacheRef.current = data.groups;
           cacheTimestampRef.current = now;
+          lastFilterRef.current = cacheKey;
           
           setSoundGroups(data.groups);
         }
@@ -432,6 +445,7 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
             prompt: soundPrompt.trim(),
             title: soundTitle.trim() || undefined,
             duration_seconds: soundDuration,
+            generation_type: generationType,
           }),
         });
         
@@ -743,6 +757,37 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
                   {inputMode === 'manual' ? (
                     /* Manual Input Mode */
                     <div className="space-y-3">
+                      {/* Generation Type Selection */}
+                      <div className="flex gap-2 p-3 bg-gray-700/50 rounded-lg">
+                        <button
+                          onClick={() => setGenerationType('sound_effect')}
+                          className={`flex-1 px-3 py-2 rounded-lg transition-colors ${
+                            generationType === 'sound_effect'
+                              ? 'bg-primary text-black'
+                              : 'bg-gray-800 hover:bg-gray-700'
+                          }`}
+                          disabled={isGeneratingSound}
+                        >
+                          <i className="ri-volume-up-line mr-2"></i>
+                          Sound Effect
+                        </button>
+                        <button
+                          onClick={() => setGenerationType('music')}
+                          className={`flex-1 px-3 py-2 rounded-lg transition-colors ${
+                            generationType === 'music'
+                              ? 'bg-primary text-black'
+                              : 'bg-gray-800 hover:bg-gray-700'
+                          }`}
+                          disabled={isGeneratingSound}
+                        >
+                          <i className="ri-music-2-line mr-2"></i>
+                          Music
+                          <span className={`ml-1 text-xs ${
+                            generationType === 'music' ? 'text-black/70' : 'text-gray-500'
+                          }`}>(32s)</span>
+                        </button>
+                      </div>
+                      
                       {/* Title Input */}
                       <div className="p-4 bg-gray-700/50 rounded-lg">
                         <input
@@ -780,8 +825,9 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
                           }}
                         />
                     
-                    {/* Duration 선택 */}
-                    <div className="relative duration-dropdown-container">
+                    {/* Duration 선택 - Sound Effect일 때만 표시 */}
+                    {generationType === 'sound_effect' && (
+                      <div className="relative duration-dropdown-container">
                       <button
                         onClick={() => setShowDurationDropdown(!showDurationDropdown)}
                         disabled={isGeneratingSound}
@@ -808,7 +854,8 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
                           </div>
                         </div>
                       )}
-                    </div>
+                      </div>
+                    )}
                     
                     {/* 문자 카운터 */}
                     <span className="text-sm text-gray-400">
@@ -911,10 +958,17 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
                 </div>
               </div>
 
-              {/* Generated Sounds History - 모든 모드에서 표시 */}
+              {/* Generated Sounds History - 최근 30개 그룹만 표시 */}
               <div>
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-medium">Generated Sounds ({soundGroups.reduce((acc, g) => acc + g.variations.length, 0)})</h3>
+                  <h3 className="font-medium">
+                    Generated Sounds 
+                    {soundGroups.length > 0 && (
+                      <span className="text-gray-400 ml-2">
+                        ({soundGroups.reduce((acc, g) => acc + g.variations.length, 0)} in {soundGroups.length} groups)
+                      </span>
+                    )}
+                  </h3>
                 </div>
                 {isLoadingHistory ? (
                   <div className="text-center py-8 text-gray-500">
@@ -954,8 +1008,22 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
                             <div className="text-sm font-medium truncate">
                               {formatSoundDisplayTitle(group.title, group.prompt)}
                             </div>
-                            <div className="text-xs text-gray-400 mt-1">
-                              {new Date(group.createdAt).toLocaleDateString()}
+                            <div className="flex items-center gap-2 text-xs text-gray-400 mt-1">
+                              <span>{new Date(group.createdAt).toLocaleDateString()}</span>
+                              {group.generationType && (
+                                <span className={`px-1.5 py-0.5 rounded text-xs ${
+                                  group.generationType === 'music' 
+                                    ? 'bg-purple-500/20 text-purple-400'
+                                    : group.generationType === 'from_video'
+                                    ? 'bg-blue-500/20 text-blue-400'
+                                    : 'bg-green-500/20 text-green-400'
+                                }`}>
+                                  {group.generationType === 'sound_effect' ? 'Sound Effect' :
+                                   group.generationType === 'music' ? 'Music' :
+                                   group.generationType === 'from_video' ? 'From Video' :
+                                   group.generationType}
+                                </span>
+                              )}
                             </div>
                           </div>
                         </button>

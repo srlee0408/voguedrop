@@ -7,10 +7,13 @@ export interface GeneratedSound {
   createdAt: Date;
 }
 
+export type SoundGenerationType = 'sound_effect' | 'music';
+
 export interface SoundGenerationRequest {
   prompt: string;
   duration_seconds?: number;
   title?: string;
+  generation_type?: SoundGenerationType;
 }
 
 export interface SoundGenerationResult {

@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { nanoid } from 'nanoid';
 import { processSoundTitle } from '@/lib/sound/utils';
+import { SoundGenerationType } from '@/types/sound';
 
 interface GenerateSoundRequest {
   prompt: string;
   duration_seconds?: number;
   title?: string;
+  generation_type?: SoundGenerationType;
 }
 
 export async function POST(request: NextRequest) {
@@ -29,7 +31,8 @@ export async function POST(request: NextRequest) {
     const { 
       prompt,
       duration_seconds,
-      title
+      title,
+      generation_type = 'sound_effect' // 기본값은 sound_effect
     } = body;
     
     const userId = user.id;
@@ -48,8 +51,12 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    const finalDuration = duration_seconds || 5;
-    if (finalDuration < 1 || finalDuration > 22) {
+    // Music 타입은 32초 고정, Sound Effect는 사용자 설정값
+    const finalDuration = generation_type === 'music' 
+      ? 32 
+      : (duration_seconds || 5);
+    
+    if (generation_type === 'sound_effect' && (finalDuration < 1 || finalDuration > 22)) {
       return NextResponse.json(
         { error: '길이는 1초에서 22초 사이여야 합니다.' },
         { status: 400 }
@@ -78,7 +85,8 @@ export async function POST(request: NextRequest) {
             status: 'pending',
             webhook_status: 'pending',
             generation_group_id: groupId,
-            variation_number: i
+            variation_number: i,
+            generation_type: generation_type // DB에 generation_type 필드 추가
           })
           .select('id, job_id, status')
           .single()
@@ -91,8 +99,14 @@ export async function POST(request: NextRequest) {
     const failedInserts = insertResults.filter(result => result.error);
     if (failedInserts.length > 0) {
       console.error('Failed to create sound generation records:', failedInserts);
+      // 더 자세한 에러 메시지 반환
+      const errorDetails = failedInserts[0].error;
+      console.error('Detailed error:', errorDetails);
       return NextResponse.json(
-        { error: '사운드 생성 요청을 저장하는데 실패했습니다.' },
+        { 
+          error: '사운드 생성 요청을 저장하는데 실패했습니다.',
+          details: errorDetails?.message || errorDetails
+        },
         { status: 500 }
       );
     }
@@ -162,15 +176,23 @@ export async function POST(request: NextRequest) {
     }
     
     // 실제 fal.ai API 호출 (4개의 variation 동시 생성)
-    const endpoint = "fal-ai/elevenlabs/sound-effects";
+    const endpoint = generation_type === 'music' 
+      ? "fal-ai/lyria2" 
+      : "fal-ai/elevenlabs/sound-effects";
     const { createServiceClient } = await import('@/lib/supabase/service');
     const serviceSupabase = createServiceClient();
     
-    const requestPayload = {
-      text: prompt.trim(),
-      duration_seconds: finalDuration,
-      prompt_influence: 0.3
-    };
+    // API별로 다른 페이로드 구조
+    const requestPayload = generation_type === 'music'
+      ? {
+          prompt: prompt.trim(),
+          negative_prompt: "low quality"
+        }
+      : {
+          text: prompt.trim(),
+          duration_seconds: finalDuration,
+          prompt_influence: 0.3
+        };
     
     // 4개의 API 호출을 병렬로 실행
     const apiPromises = jobIds.map(async (jobId) => {

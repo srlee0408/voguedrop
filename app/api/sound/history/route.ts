@@ -10,6 +10,7 @@ interface SoundGeneration {
   created_at: string;
   generation_group_id: string | null;
   variation_number: number | null;
+  generation_type: string | null;
 }
 
 interface GroupedSoundHistory {
@@ -17,6 +18,7 @@ interface GroupedSoundHistory {
   prompt: string;
   title: string | null;
   createdAt: string;
+  generationType: string | null;
   variations: {
     id: string;
     variationNumber: number;
@@ -25,8 +27,12 @@ interface GroupedSoundHistory {
   }[];
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    // URL 파라미터에서 generation_type 가져오기
+    const { searchParams } = new URL(request.url);
+    const typeFilter = searchParams.get('type'); // 'all' | 'sound_effect' | 'music' | 'from_video'
+    
     // Supabase 클라이언트 생성 및 인증 확인
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -40,12 +46,19 @@ export async function GET() {
     
     // 최근 완료된 사운드 생성 기록 조회 (그룹화를 위해 더 많이 가져옴)
     // prompt 정보도 포함하여 그룹화
-    const { data: soundHistory, error } = await supabase
+    let query = supabase
       .from('sound_generations')
-      .select('id, title, prompt, output_audio_url, duration_seconds, created_at, generation_group_id, variation_number')
+      .select('id, title, prompt, output_audio_url, duration_seconds, created_at, generation_group_id, variation_number, generation_type')
       .eq('user_id', user.id)
       .eq('status', 'completed')
-      .not('output_audio_url', 'is', null)
+      .not('output_audio_url', 'is', null);
+    
+    // generation_type 필터 적용
+    if (typeFilter && typeFilter !== 'all') {
+      query = query.eq('generation_type', typeFilter);
+    }
+    
+    const { data: soundHistory, error } = await query
       .order('created_at', { ascending: false })
       .limit(120); // 30개 그룹을 만들기 위해 더 많이 가져옴
     
@@ -69,6 +82,7 @@ export async function GET() {
           prompt: sound.prompt,
           title: sound.title,
           createdAt: sound.created_at,
+          generationType: sound.generation_type,
           variations: []
         });
       }

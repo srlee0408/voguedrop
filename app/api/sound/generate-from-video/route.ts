@@ -116,7 +116,8 @@ export async function POST(request: NextRequest) {
             status: 'pending',
             webhook_status: 'pending',
             generation_group_id: groupId,
-            variation_number: i
+            variation_number: i,
+            generation_type: 'from_video' // 비디오 기반 생성 타입
           })
           .select('id, job_id, status')
           .single()

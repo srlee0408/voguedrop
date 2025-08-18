@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { renderMediaOnLambda, getRenderProgress } from '@remotion/lambda';
 import { AwsRegion } from '@remotion/lambda';
+import { RENDER_CONFIG } from '@/remotion.config';
 
 interface RenderRequest {
   videoClips: unknown[];
@@ -99,8 +100,13 @@ export async function POST(request: NextRequest) {
       functionName,
       composition: compositionId,
       serveUrl,
-      codec: 'h264',
-      imageFormat: 'jpeg',
+      codec: RENDER_CONFIG.codec,
+      imageFormat: RENDER_CONFIG.imageFormat,
+      jpegQuality: RENDER_CONFIG.jpegQuality,
+      audioCodec: RENDER_CONFIG.audioCodec,
+      videoBitrate: RENDER_CONFIG.videoBitrate,
+      audioBitrate: RENDER_CONFIG.audioBitrate,
+      chromiumOptions: RENDER_CONFIG.chromiumOptions,
       inputProps: {
         videoClips,
         textClips,
@@ -114,8 +120,8 @@ export async function POST(request: NextRequest) {
         fileName: `video-${Date.now()}.mp4`,
       },
       framesPerLambda: 150, // 3초씩 나누어 처리 (10초 = 3-4개 Lambda)
-      timeoutInMilliseconds: 900000, // 15분
-      maxRetries: 3,
+      timeoutInMilliseconds: RENDER_CONFIG.timeoutInMilliseconds,
+      maxRetries: RENDER_CONFIG.maxRetries,
       overwrite: true,
       // Composition의 기본 durationInFrames를 오버라이드
       frameRange: [0, durationInFrames - 1],
