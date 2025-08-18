@@ -1,22 +1,11 @@
 import type { Metadata } from "next";
 import { 
   Geist, 
-  Geist_Mono,
-  Roboto,
-  Open_Sans,
-  Montserrat,
-  Poppins,
-  Playfair_Display,
-  Merriweather,
-  Dancing_Script,
-  Pacifico,
-  Lobster,
-  Bebas_Neue,
-  Oswald,
-  Noto_Sans_KR
+  Geist_Mono
 } from "next/font/google";
 import "./external-imports.css";
 import "./globals.css";
+import "../styles/fonts.css"; // Google Fonts 직접 import
 
 import { StagewiseToolbar } from "@stagewise/toolbar-next";
 import ReactPlugin from "@stagewise-plugins/react";
@@ -32,90 +21,8 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-// Additional fonts for text editor
-const roboto = Roboto({
-  weight: ['300', '400', '500', '700'],
-  subsets: ["latin"],
-  display: 'swap',
-  variable: "--font-roboto",
-});
-
-const openSans = Open_Sans({
-  weight: ['300', '400', '600', '700'],
-  subsets: ["latin"],
-  display: 'swap',
-  variable: "--font-open-sans",
-});
-
-const montserrat = Montserrat({
-  weight: ['300', '400', '600', '700'],
-  subsets: ["latin"],
-  display: 'swap',
-  variable: "--font-montserrat",
-});
-
-const poppins = Poppins({
-  weight: ['300', '400', '600', '700'],
-  subsets: ["latin"],
-  display: 'swap',
-  variable: "--font-poppins",
-});
-
-const playfairDisplay = Playfair_Display({
-  weight: ['400', '700'],
-  subsets: ["latin"],
-  display: 'swap',
-  variable: "--font-playfair",
-});
-
-const merriweather = Merriweather({
-  weight: ['300', '400', '700'],
-  subsets: ["latin"],
-  display: 'swap',
-  variable: "--font-merriweather",
-});
-
-const dancingScript = Dancing_Script({
-  weight: ['400', '700'],
-  subsets: ["latin"],
-  display: 'swap',
-  variable: "--font-dancing-script",
-});
-
-const pacifico = Pacifico({
-  weight: '400',
-  subsets: ["latin"],
-  display: 'swap',
-  variable: "--font-pacifico",
-});
-
-const lobster = Lobster({
-  weight: '400',
-  subsets: ["latin"],
-  display: 'swap',
-  variable: "--font-lobster",
-});
-
-const bebasNeue = Bebas_Neue({
-  weight: '400',
-  subsets: ["latin"],
-  display: 'swap',
-  variable: "--font-bebas-neue",
-});
-
-const oswald = Oswald({
-  weight: ['300', '400', '600', '700'],
-  subsets: ["latin"],
-  display: 'swap',
-  variable: "--font-oswald",
-});
-
-const notoSansKR = Noto_Sans_KR({
-  weight: ['300', '400', '500', '700'],
-  subsets: ["latin"],
-  display: 'swap',
-  variable: "--font-noto-sans-kr",
-});
+// Text editor fonts are loaded via Google Fonts CDN in globals.css
+// This ensures consistency between preview and Lambda rendering
 
 export const metadata: Metadata = {
   title: "VogueDrop - AI Video Editor",
@@ -130,7 +37,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${roboto.variable} ${openSans.variable} ${montserrat.variable} ${poppins.variable} ${playfairDisplay.variable} ${merriweather.variable} ${dancingScript.variable} ${pacifico.variable} ${lobster.variable} ${bebasNeue.variable} ${oswald.variable} ${notoSansKR.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <AuthProvider>
           {children}

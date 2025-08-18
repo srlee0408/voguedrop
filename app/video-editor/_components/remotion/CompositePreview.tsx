@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from 'react';
-import { AbsoluteFill, Sequence, OffthreadVideo, Audio, useVideoConfig, delayRender, continueRender } from 'remotion';
+import React from 'react';
+import { AbsoluteFill, Sequence, OffthreadVideo, Audio, useVideoConfig } from 'remotion';
 import { TextClip as TextClipType, SoundClip as SoundClipType } from '@/types/video-editor';
 import { TEXT_DEFAULTS, TEXT_PADDING, TEXT_POSITION_PRESETS, TEXT_ANIMATION, pxToFrames, ratioToPixels, pixelsToRatio } from '../../../../constants/text-editor';
 
@@ -27,58 +27,8 @@ export const CompositePreview: React.FC<CompositePreviewProps> = ({
   backgroundColor = 'black'
 }) => {
   const { width, height } = useVideoConfig();
-  const fontLoadHandles = useRef<Set<number>>(new Set());
-  
-  // 폰트 로딩 대기 로직
-  useEffect(() => {
-    // cleanup 함수에서 사용할 handles를 미리 저장
-    const handles = fontLoadHandles.current;
-    
-    // 사용된 폰트 목록 수집
-    const fontsToLoad = new Set<string>();
-    textClips.forEach(clip => {
-      if (clip.style?.fontFamily && clip.style.fontFamily !== 'default' && clip.style.fontFamily !== 'sans-serif') {
-        fontsToLoad.add(clip.style.fontFamily);
-      }
-    });
-
-    // 각 폰트에 대해 로딩 대기
-    fontsToLoad.forEach(fontFamily => {
-      const handle = delayRender(`Loading font: ${fontFamily}`);
-      handles.add(handle);
-      
-      // 폰트 로딩 확인 - 폰트 사이즈와 weight 고려
-      const fontSize = `${TEXT_DEFAULTS.fontSize}px`; // 공통 상수 사용
-      const fontWeight = TEXT_DEFAULTS.fontWeight;
-      const fontString = `${fontWeight} ${fontSize} "${fontFamily}"`;
-      
-      document.fonts.load(fontString).then(() => {
-        continueRender(handle);
-        handles.delete(handle);
-      }).catch((error) => {
-        console.warn(`Failed to load font ${fontFamily}:`, error);
-        // 실패해도 계속 진행
-        continueRender(handle);
-        handles.delete(handle);
-      });
-    });
-
-    // 클린업
-    return () => {
-      // 미리 저장된 handles 사용
-      const currentHandles = new Set(handles);
-      currentHandles.forEach(handle => {
-        try {
-          continueRender(handle);
-        } catch {
-          // 이미 continue된 경우 무시
-        }
-      });
-      handles.clear();
-    };
-  }, [textClips]);
-  
-  // pxToFrames는 이제 constants에서 import하여 사용
+  // Lambda 환경에서는 폰트가 이미 index.ts에서 로드됨
+  // 브라우저 전용 document.fonts.load() 제거
   
   // 비율 계산
   const aspectRatio = width / height;
@@ -92,18 +42,16 @@ export const CompositePreview: React.FC<CompositePreviewProps> = ({
     .map(clip => {
       // 시작/종료 시간을 프레임으로 변환
       const startFrom = clip.startTime ? Math.round(clip.startTime * 30) : 0;
-      const endAt = clip.endTime ? Math.round(clip.endTime * 30) : undefined;
       
-      const seq = {
+      return {
         id: clip.id,
         url: clip.url!,
         title: clip.title,
         from: pxToFrames(clip.position || 0), // position 값을 사용하여 시작 위치 결정
         durationInFrames: pxToFrames(clip.duration),
         startFrom,
-        endAt
+        endAt: clip.endTime ? Math.round(clip.endTime * 30) : undefined
       };
-      return seq;
     });
   
   return (
@@ -336,7 +284,24 @@ export const CompositePreview: React.FC<CompositePreviewProps> = ({
                 <h1 style={{
                   fontSize: actualFontSize, // 상대적 크기 사용
                   color: text.effect === 'gradient' ? 'transparent' : (text.style?.color || TEXT_DEFAULTS.color),
-                  fontFamily: text.style?.fontFamily || TEXT_DEFAULTS.fontFamily,
+                  fontFamily: (() => {
+                    const baseFont = text.style?.fontFamily || TEXT_DEFAULTS.fontFamily;
+                    if (baseFont === 'default') return 'sans-serif';
+                    // Script/Cursive 폰트들
+                    if (['Dancing Script', 'Pacifico', 'Lobster'].includes(baseFont)) {
+                      return `"${baseFont}", cursive, sans-serif`;
+                    }
+                    // Serif 폰트들
+                    if (['Playfair Display', 'Merriweather'].includes(baseFont)) {
+                      return `"${baseFont}", serif, sans-serif`;
+                    }
+                    // Display 폰트들
+                    if (['Bebas Neue', 'Oswald'].includes(baseFont)) {
+                      return `"${baseFont}", Impact, sans-serif`;
+                    }
+                    // Sans-serif 폰트들 (기본)
+                    return `"${baseFont}", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+                  })(),
                   fontWeight: text.style?.fontWeight || TEXT_DEFAULTS.fontWeight,
                   textShadow: text.effect === 'gradient' || text.effect === 'glow' ? 'none' : `
                     3px 3px 6px rgba(0,0,0,0.9),

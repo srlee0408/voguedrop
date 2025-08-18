@@ -85,7 +85,7 @@ export default function TextOverlayEditor({
   };
 
   // 단순화된 텍스트 크기 측정 함수 - 원본 크기로 측정 (최대 너비 80% 적용)
-  const measureTextSizeSimple = useCallback((text: string, fontSize: number, fontSizeRatio: number | undefined, fontFamily: string, fontWeight: string) => {
+  const measureTextSizeSimple = useCallback((text: string, fontSize: number, fontSizeRatio: number | undefined, fontFamily: string, fontWeight: number) => {
     // 상대적 크기 계산 (비율 우선 사용)
     const containerSize = getContainerSize();
     const actualFontSize = (() => {
@@ -107,7 +107,7 @@ export default function TextOverlayEditor({
     tempElement.style.top = '-9999px';
     tempElement.style.fontSize = `${scaledFontSize}px`;
     tempElement.style.fontFamily = fontFamily;
-    tempElement.style.fontWeight = fontWeight;
+    tempElement.style.fontWeight = String(fontWeight);
     tempElement.style.lineHeight = '1.2';
     // Remotion의 기본 흐름과 동일하게 공백을 접고 자동 줄바꿈되도록 설정
     tempElement.style.whiteSpace = 'normal';

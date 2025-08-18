@@ -428,7 +428,7 @@ export default function VideoPreview({
         console.log('Render started:', result);
         
         // 진행 상황 확인 간격 개선 - 초반에는 자주, 후반에는 덜 자주
-        let checkInterval = 5000; // 첫 체크는 5초
+        let checkInterval = 2000; // 첫 체크는 2초
         const maxInterval = 20000; // 최대 20초
         const maxAttempts = 30; // 최대 10분
         let attempts = 0;

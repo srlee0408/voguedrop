@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Google Fonts 웹폰트 import - 전역 적용 */
+@import '../styles/fonts.css';
+
 @layer base {
   :root {
     /* Font Families for Text Editor */

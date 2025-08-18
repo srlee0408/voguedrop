@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { TextClip, TextStyle, TextEffect } from '@/types/video-editor';
 import { TEXT_DEFAULTS, FONT_SIZE_PRESETS, pixelsToRatio } from '../../../constants/text-editor';
+import { FONT_FAMILIES } from '../../../constants/fonts';
 
 interface TextEditorModalProps {
   isOpen: boolean;
@@ -12,31 +13,8 @@ interface TextEditorModalProps {
   editingClip?: TextClip;
 }
 
-const fontFamilies = [
-  { value: 'default', label: 'Default' },
-  { value: 'Arial', label: 'Arial' },
-  { value: 'Helvetica', label: 'Helvetica' },
-  { value: 'Times New Roman', label: 'Times New Roman' },
-  { value: 'Georgia', label: 'Georgia' },
-  { value: 'Courier New', label: 'Courier New' },
-  // Modern Sans-Serif
-  { value: 'Roboto', label: 'Roboto' },
-  { value: 'Open Sans', label: 'Open Sans' },
-  { value: 'Montserrat', label: 'Montserrat' },
-  { value: 'Poppins', label: 'Poppins' },
-  // Serif
-  { value: 'Playfair Display', label: 'Playfair Display' },
-  { value: 'Merriweather', label: 'Merriweather' },
-  // Script & Casual
-  { value: 'Dancing Script', label: 'Dancing Script' },
-  { value: 'Pacifico', label: 'Pacifico' },
-  { value: 'Lobster', label: 'Lobster' },
-  // Display & Impact
-  { value: 'Bebas Neue', label: 'Bebas Neue' },
-  { value: 'Oswald', label: 'Oswald' },
-  // Korean
-  { value: 'Noto Sans KR', label: 'Noto Sans KR' },
-];
+// constants/fonts의 FONT_FAMILIES 사용
+const fontFamilies = FONT_FAMILIES;
 
 const presetColors = [
   '#000000',
@@ -97,7 +75,7 @@ export default function TextEditorModal({
       fontFamily: 'default',
       color: '#FFFFFF',
       alignment: 'center',
-      fontWeight: 'bold', // 기본 bold로 변경
+      fontWeight: 700, // 숫자로 통일 (bold = 700)
       verticalPosition: 'middle',
       backgroundColor: '',
       backgroundOpacity: 0.7,
@@ -106,7 +84,40 @@ export default function TextEditorModal({
   const [selectedEffect, setSelectedEffect] = useState<TextEffect>(
     editingClip?.effect || 'none'
   );
-  const [previewBackground, setPreviewBackground] = useState<'dark' | 'light' | 'checkerboard'>('checkerboard');
+
+  // 폰트 로딩 상태 확인 (디버깅용, 실제로는 CSS가 자동 로드)
+  useEffect(() => {
+    if (typeof window !== 'undefined' && isOpen) {
+      // fonts.ready promise를 통한 로딩 완료 확인
+      if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(() => {
+          // 폰트가 모두 로드된 후 체크
+          const fontFamilies = FONT_FAMILIES.filter(f => f.value !== 'default' && !f.value.includes('Arial') && !f.value.includes('Helvetica') && !f.value.includes('Times') && !f.value.includes('Georgia') && !f.value.includes('Courier'));
+          
+          let loadedCount = 0;
+          let notLoadedCount = 0;
+          
+          fontFamilies.forEach(font => {
+            if (document.fonts && document.fonts.check) {
+              // 다양한 weight로 체크
+              const loaded400 = document.fonts.check(`400 16px "${font.value}"`);
+              const loaded700 = document.fonts.check(`700 16px "${font.value}"`);
+              const loadedNormal = document.fonts.check(`16px "${font.value}"`);
+              
+              if (loaded400 || loaded700 || loadedNormal) {
+                loadedCount++;
+              } else {
+                notLoadedCount++;
+                console.warn(`Font not available: ${font.value}`);
+              }
+            }
+          });
+          
+          console.log(`Fonts status - Loaded: ${loadedCount}, Not loaded: ${notLoadedCount}`);
+        });
+      }
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -428,70 +439,26 @@ export default function TextEditorModal({
           {/* Right Panel - Preview (40%) */}
           <div className="w-2/5 p-6 bg-gray-900/50">
             <div className="h-full flex flex-col">
-              <div className="flex items-center justify-between mb-3">
+              <div className="mb-3">
                 <label className="text-sm font-medium text-gray-300">
                   Live Preview
                 </label>
-                {/* Background Toggle Buttons */}
-                <div className="flex gap-1 bg-gray-800 p-1 rounded-lg">
-                  <button
-                    onClick={() => setPreviewBackground('dark')}
-                    className={`p-1.5 rounded transition-colors ${
-                      previewBackground === 'dark' ? 'bg-gray-700' : 'hover:bg-gray-700/50'
-                    }`}
-                    title="Dark Background"
-                  >
-                    <div className="w-4 h-4 bg-black rounded border border-gray-600" />
-                  </button>
-                  <button
-                    onClick={() => setPreviewBackground('light')}
-                    className={`p-1.5 rounded transition-colors ${
-                      previewBackground === 'light' ? 'bg-gray-700' : 'hover:bg-gray-700/50'
-                    }`}
-                    title="Light Background"
-                  >
-                    <div className="w-4 h-4 bg-white rounded border border-gray-600" />
-                  </button>
-                  <button
-                    onClick={() => setPreviewBackground('checkerboard')}
-                    className={`p-1.5 rounded transition-colors ${
-                      previewBackground === 'checkerboard' ? 'bg-gray-700' : 'hover:bg-gray-700/50'
-                    }`}
-                    title="Checkerboard Background"
-                  >
-                    <div className="w-4 h-4 rounded border border-gray-600 overflow-hidden">
-                      <div className="h-full w-full" style={{
-                        backgroundImage: 'linear-gradient(45deg, #808080 25%, transparent 25%), linear-gradient(-45deg, #808080 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #808080 75%), linear-gradient(-45deg, transparent 75%, #808080 75%)',
-                        backgroundSize: '4px 4px',
-                        backgroundPosition: '0 0, 0 2px, 2px -2px, -2px 0px'
-                      }} />
-                    </div>
-                  </button>
-                </div>
               </div>
-              <div className={`flex-1 rounded-lg p-6 flex items-center relative overflow-hidden ${
-                previewBackground === 'dark' ? 'bg-black' :
-                previewBackground === 'light' ? 'bg-white' :
-                'bg-gray-500'
-              }`}>
-                {/* Checkerboard Pattern for checkerboard mode */}
-                {previewBackground === 'checkerboard' && (
-                  <div className="absolute inset-0">
-                    <div className="h-full w-full" style={{
-                      backgroundImage: 'linear-gradient(45deg, #606060 25%, transparent 25%), linear-gradient(-45deg, #606060 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #606060 75%), linear-gradient(-45deg, transparent 75%, #606060 75%)',
-                      backgroundSize: '20px 20px',
-                      backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px',
-                      backgroundColor: '#505050'
-                    }} />
-                  </div>
-                )}
+              <div className="flex-1 rounded-lg p-6 flex items-center relative overflow-hidden bg-gray-500">
+                {/* Checkerboard Pattern */}
+                <div className="absolute inset-0">
+                  <div className="h-full w-full" style={{
+                    backgroundImage: 'linear-gradient(45deg, #606060 25%, transparent 25%), linear-gradient(-45deg, #606060 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #606060 75%), linear-gradient(-45deg, transparent 75%, #606060 75%)',
+                    backgroundSize: '20px 20px',
+                    backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px',
+                    backgroundColor: '#505050'
+                  }} />
+                </div>
                 
                 {/* Grid overlay for better visibility */}
                 <div className="absolute inset-0 opacity-5 pointer-events-none">
                   <div className="h-full w-full" style={{
-                    backgroundImage: previewBackground === 'light' 
-                      ? 'linear-gradient(rgba(0,0,0,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.1) 1px, transparent 1px)'
-                      : 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)',
+                    backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)',
                     backgroundSize: '20px 20px'
                   }} />
                 </div>
@@ -506,20 +473,7 @@ export default function TextEditorModal({
                     className={`${getEffectClass(selectedEffect)} ${selectedEffect === 'typing' ? '' : 'w-full'}`}
                     style={{
                       fontSize: `${style.fontSize}px`,
-                      fontFamily: style.fontFamily === 'default' ? 'inherit' : 
-                        style.fontFamily === 'Roboto' ? 'var(--font-roboto)' :
-                        style.fontFamily === 'Open Sans' ? 'var(--font-open-sans)' :
-                        style.fontFamily === 'Montserrat' ? 'var(--font-montserrat)' :
-                        style.fontFamily === 'Poppins' ? 'var(--font-poppins)' :
-                        style.fontFamily === 'Playfair Display' ? 'var(--font-playfair)' :
-                        style.fontFamily === 'Merriweather' ? 'var(--font-merriweather)' :
-                        style.fontFamily === 'Dancing Script' ? 'var(--font-dancing-script)' :
-                        style.fontFamily === 'Pacifico' ? 'var(--font-pacifico)' :
-                        style.fontFamily === 'Lobster' ? 'var(--font-lobster)' :
-                        style.fontFamily === 'Bebas Neue' ? 'var(--font-bebas-neue)' :
-                        style.fontFamily === 'Oswald' ? 'var(--font-oswald)' :
-                        style.fontFamily === 'Noto Sans KR' ? 'var(--font-noto-sans-kr)' :
-                        style.fontFamily,
+                      fontFamily: style.fontFamily === 'default' ? 'sans-serif' : `"${style.fontFamily}", sans-serif`,
                       color: selectedEffect === 'gradient' || selectedEffect === 'rainbow' || selectedEffect === 'chrome' || selectedEffect === 'fire' || selectedEffect === 'ice' ? 'transparent' : style.color,
                       textAlign: style.alignment,
                       fontWeight: style.fontWeight,

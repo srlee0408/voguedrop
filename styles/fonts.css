@@ -1,0 +1,33 @@
+/**
+ * Google Fonts 웹폰트
+ * Lambda 환경에서 권장되는 방식 - CDN을 통한 폰트 로딩
+ * font-display: swap으로 빠른 렌더링과 폰트 교체
+ */
+
+/* Modern Sans-Serif */
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap');
+
+/* Serif */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&display=swap');
+
+/* Script & Casual */
+@import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Pacifico&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Lobster&display=swap');
+
+/* Display & Impact */
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&display=swap');
+
+/* Korean - Noto Sans KR */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap');
+
+/* 
+ * 폰트는 Google Fonts CDN에서 직접 로드됩니다.
+ * @remotion/fonts의 loadFont()가 각 폰트를 비동기로 로드하며,
+ * CSS @import는 브라우저 폴백으로 작동합니다.
+ */

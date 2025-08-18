@@ -39,7 +39,7 @@ export interface TextStyle {
   fontFamily: string;
   color: string;
   alignment: 'left' | 'center' | 'right';
-  fontWeight?: 'normal' | 'bold' | 'medium';
+  fontWeight?: number; // 400 (normal), 700 (bold), 500 (medium)
   verticalPosition?: 'top' | 'middle' | 'bottom';
   positionX?: number; // 0-100 (%) 커스텀 위치
   positionY?: number; // 0-100 (%) 커스텀 위치

@@ -5,7 +5,7 @@ export const TEXT_DEFAULTS = {
   fontSize: 48, // 기본 폰트 크기 (px) - 호환성을 위해 유지
   fontSizeRatio: 0.044, // 컨테이너 너비의 4.4% (1080px에서 48px)
   fontFamily: 'sans-serif',
-  fontWeight: 'bold',
+  fontWeight: 700, // 숫자로 통일 (bold = 700)
   color: 'white',
   maxWidthRatio: 0.8, // 컨테이너 너비의 80%
 } as const;
