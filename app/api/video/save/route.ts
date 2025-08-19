@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/service';
 import crypto from 'crypto';
 
 interface SaveRequest {
@@ -11,6 +12,16 @@ interface SaveRequest {
   durationInFrames: number;
   renderId?: string;
   renderOutputUrl?: string;
+}
+
+// 안전한 파일명 생성 함수
+function sanitizeFileName(fileName: string): string {
+  // 특수문자 제거, 공백을 언더스코어로 치환
+  return fileName
+    .replace(/[^a-zA-Z0-9가-힣.\-_]/g, '_')
+    .replace(/\s+/g, '_')
+    .replace(/_{2,}/g, '_')
+    .slice(0, 100); // 최대 100자로 제한
 }
 
 // 컨텐츠 해시 생성 함수
@@ -120,6 +131,22 @@ export async function POST(request: NextRequest) {
       renderOutputUrl = existingSave.content_snapshot?.video_url;
     }
 
+    // render_id가 제공된 경우, video_renders 테이블에 존재하는지 확인
+    let validRenderId: string | null = null;
+    if (renderId) {
+      const { data: renderExists } = await supabase
+        .from('video_renders')
+        .select('render_id')
+        .eq('render_id', renderId)
+        .single();
+      
+      if (renderExists) {
+        validRenderId = renderId;
+      } else {
+        console.warn(`Render ID ${renderId} not found in video_renders table`);
+      }
+    }
+
     if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 = no rows
       console.error('Error fetching existing save:', fetchError);
       throw fetchError;
@@ -130,12 +157,12 @@ export async function POST(request: NextRequest) {
 
     if (!hasChanges && existingSave) {
       // 변경사항 없음 - 기존 데이터 반환
-      // renderId가 제공되었으면 업데이트 (렌더링 완료 후 호출)
-      if (renderId && renderId !== existingSave.latest_render_id) {
+      // validRenderId가 있으면 업데이트 (렌더링 완료 후 호출)
+      if (validRenderId && validRenderId !== existingSave.latest_render_id) {
         await supabase
           .from('project_saves')
           .update({ 
-            latest_render_id: renderId,
+            latest_render_id: validRenderId,
             content_snapshot: {
               ...existingSave.content_snapshot,
               video_url: renderOutputUrl
@@ -151,7 +178,7 @@ export async function POST(request: NextRequest) {
         success: true,
         message: 'No changes detected',
         projectSaveId: existingSave.id,
-        renderId: existingSave.latest_render_id || renderId,
+        renderId: existingSave.latest_render_id || validRenderId,
         needsRender: false,
         videoUrl: existingVideoUrl,
         storageLocation: existingVideoUrl?.includes('supabase') ? 'supabase' : 's3'
@@ -176,7 +203,7 @@ export async function POST(request: NextRequest) {
       .insert({
         user_id: user.id,
         project_name: projectName,
-        latest_render_id: renderId || null,
+        latest_render_id: validRenderId || null,
         content_snapshot: contentSnapshot,
         content_hash: contentHash,
         version: newVersion,
@@ -190,12 +217,12 @@ export async function POST(request: NextRequest) {
       throw insertError;
     }
 
-    // 렌더링이 있으면 video_renders 업데이트
-    if (renderId) {
+    // validRenderId가 있으면 video_renders 업데이트
+    if (validRenderId) {
       await supabase
         .from('video_renders')
         .update({ project_save_id: newSave.id })
-        .eq('render_id', renderId);
+        .eq('render_id', validRenderId);
     }
 
     // Supabase Storage에 비디오와 메타데이터 저장
@@ -211,12 +238,23 @@ export async function POST(request: NextRequest) {
         }
         
         const videoBlob = await videoResponse.blob();
-        const videoFileName = `video-v${newVersion}.mp4`;
-        const videoPath = `video-projects/${user.id}/${projectName}/${videoFileName}`;
         
-        // 2. Supabase Storage에 비디오 업로드
-        console.log('Uploading video to Supabase Storage:', videoPath);
-        const { error: videoError } = await supabase.storage
+        // 파일 크기 검증 (최대 100MB)
+        const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
+        if (videoBlob.size > MAX_FILE_SIZE) {
+          throw new Error(`Video file too large: ${(videoBlob.size / 1024 / 1024).toFixed(2)}MB (max: 100MB)`);
+        }
+        
+        const videoFileName = `video-v${newVersion}.mp4`;
+        const safeProjectName = sanitizeFileName(projectName);
+        const videoPath = `video-projects/${user.id}/${safeProjectName}/${videoFileName}`;
+        
+        // 2. Service Client를 사용하여 Supabase Storage에 비디오 업로드
+        // 사용자 인증은 이미 위에서 확인했으므로, Service Client로 RLS 우회
+        console.log('Uploading video to Supabase Storage with Service Client:', videoPath);
+        const serviceSupabase = createServiceClient();
+        
+        const { error: videoError } = await serviceSupabase.storage
           .from('videos')
           .upload(videoPath, videoBlob, {
             contentType: 'video/mp4',
@@ -224,21 +262,27 @@ export async function POST(request: NextRequest) {
           });
 
         if (videoError) {
-          console.error('Error uploading video:', videoError);
-          throw videoError;
+          console.error('Storage upload error details:', {
+            error: videoError,
+            bucket: 'videos',
+            path: videoPath,
+            fileSize: videoBlob.size,
+            contentType: 'video/mp4'
+          });
+          throw new Error(`Storage upload failed: ${videoError.message || 'Unknown error'}`);
         }
 
-        // 3. 비디오 공개 URL 가져오기
-        const { data: { publicUrl } } = supabase.storage
+        // 3. 비디오 공개 URL 가져오기 (Service Client 사용)
+        const { data: { publicUrl } } = serviceSupabase.storage
           .from('videos')
           .getPublicUrl(videoPath);
         
         supabaseVideoUrl = publicUrl;
         console.log('Video uploaded to Supabase:', supabaseVideoUrl);
 
-        // 4. 메타데이터 저장
-        const metadataPath = `video-projects/${user.id}/${projectName}/metadata.json`;
-        const { error: metadataError } = await supabase.storage
+        // 4. 메타데이터 저장 (Service Client 사용)
+        const metadataPath = `video-projects/${user.id}/${safeProjectName}/metadata.json`;
+        const { error: metadataError } = await serviceSupabase.storage
           .from('videos')
           .upload(metadataPath, JSON.stringify({
             projectName,
@@ -261,7 +305,7 @@ export async function POST(request: NextRequest) {
         await supabase
           .from('project_saves')
           .update({ 
-            latest_render_id: renderId,
+            latest_render_id: validRenderId,
             content_snapshot: {
               ...contentSnapshot,
               video_url: supabaseVideoUrl
@@ -281,7 +325,7 @@ export async function POST(request: NextRequest) {
       message: hasChanges ? 'Project saved with new version' : 'New project saved',
       projectSaveId: newSave.id,
       version: newVersion,
-      needsRender: !renderId && !renderOutputUrl, // 렌더링이 전혀 없을 때만 true
+      needsRender: !validRenderId && !renderOutputUrl, // 렌더링이 전혀 없을 때만 true
       videoUrl: supabaseVideoUrl || renderOutputUrl,
       storageLocation: supabaseVideoUrl ? 'supabase' : renderOutputUrl ? 's3' : null
     });
