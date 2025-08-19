@@ -12,6 +12,7 @@ interface RenderRequest {
   durationInFrames: number;
   projectName?: string;
   contentHash?: string; // content hash 추가
+  projectSaveId?: number; // project save ID 추가
 }
 
 // 화면 비율에 따른 컴포지션 ID 매핑
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest) {
 
     // 요청 데이터 파싱
     const body: RenderRequest = await request.json();
-    const { videoClips, textClips, soundClips, aspectRatio, durationInFrames, projectName, contentHash } = body;
+    const { videoClips, textClips, soundClips, aspectRatio, durationInFrames, projectName, contentHash, projectSaveId } = body;
 
     // 유효성 검사
     if (!videoClips || videoClips.length === 0) {
@@ -147,8 +148,8 @@ export async function POST(request: NextRequest) {
       bucketName: result.bucketName,
     });
 
-    // 렌더링 기록 저장 (content_hash 포함)
-    const { error: dbError } = await supabase
+    // 렌더링 기록 저장 (content_hash와 project_save_id 포함)
+    const { data: renderRecord, error: dbError } = await supabase
       .from('video_renders')
       .insert({
         user_id: user.id,
@@ -159,15 +160,33 @@ export async function POST(request: NextRequest) {
         duration_frames: durationInFrames,
         output_url: null,
         content_hash: contentHash || null, // content hash 저장
+        project_save_id: projectSaveId || null, // project save ID 저장
         video_clips: videoClips,
         text_clips: textClips,
         sound_clips: soundClips,
         created_at: new Date().toISOString(),
-      });
+      })
+      .select()
+      .single();
 
     if (dbError) {
       console.error('Database insert error:', dbError);
       // DB 에러는 무시하고 계속 진행
+    } else if (renderRecord && projectSaveId) {
+      // video_renders 레코드가 성공적으로 생성되었고 projectSaveId가 있으면
+      // project_saves 테이블의 latest_render_id를 업데이트
+      const { error: updateError } = await supabase
+        .from('project_saves')
+        .update({ 
+          latest_render_id: result.renderId,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', projectSaveId)
+        .eq('user_id', user.id); // 추가 보안을 위해 user_id도 확인
+
+      if (updateError) {
+        console.error('Failed to update project_saves with render_id:', updateError);
+      }
     }
 
     // 즉시 renderId와 함께 응답 반환 (진행 상황은 클라이언트에서 확인)
