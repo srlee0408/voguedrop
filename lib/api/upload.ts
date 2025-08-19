@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/client';
+import type { UserUploadedVideo } from '@/types/database';
 
 interface UploadVideoOptions {
   file: File;
@@ -14,7 +15,7 @@ interface UploadVideoOptions {
 
 interface UploadResponse {
   success: boolean;
-  video?: any;
+  video?: UserUploadedVideo;
   error?: string;
 }
 

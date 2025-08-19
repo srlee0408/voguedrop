@@ -11,13 +11,33 @@
 
 ### 1. Supabase CLI 설치
 
+⚠️ **중요**: npm global 설치는 지원되지 않습니다!
+```bash
+# ❌ 이렇게 하지 마세요
+npm install -g supabase  # 에러 발생: "Installing Supabase CLI as a global module is not supported"
+```
+
+#### NPX 사용 (권장 - 설치 없이 실행)
+```bash
+# 설치 없이 직접 실행
+npx supabase@latest --version
+
+# 모든 명령어에 npx supabase@latest 사용
+npx supabase@latest functions deploy upload-video --project-ref YOUR_PROJECT_REF
+```
+
 #### macOS (Homebrew 사용)
 ```bash
-# Homebrew로 설치 (권장)
+# Homebrew로 설치
 brew install supabase/tap/supabase
 
 # 설치 확인
 supabase --version
+
+# 주의: Command Line Tools 업데이트 필요 시
+# Error: Your Command Line Tools (CLT) does not support macOS 15 발생 시
+sudo rm -rf /Library/Developer/CommandLineTools
+sudo xcode-select --install
 ```
 
 #### Windows (Scoop 사용)
@@ -38,33 +58,51 @@ curl -L https://github.com/supabase/cli/releases/latest/download/supabase_linux_
 sudo mv supabase /usr/local/bin/
 ```
 
-#### NPX (설치 없이 실행)
+### 2. Supabase 액세스 토큰 생성 및 설정
+
+터미널 환경에서는 브라우저 자동 로그인이 안 되므로 액세스 토큰이 필요합니다.
+
+#### 토큰 생성
+1. https://app.supabase.com/account/tokens 접속
+2. "Generate new token" 클릭
+3. 토큰 이름 입력 (예: "VogueDrop CLI")
+4. 생성된 토큰 복사 (⚠️ 한 번만 표시됨!)
+
+#### 토큰 설정
 ```bash
-# 설치 없이 직접 실행
-npx supabase@latest --version
+# 환경 변수로 설정 (권장)
+export SUPABASE_ACCESS_TOKEN="your-token-here"
+
+# 또는 .env.local에 추가
+echo "SUPABASE_ACCESS_TOKEN=your-token-here" >> .env.local
 ```
 
-### 2. Supabase 프로젝트 연결
+### 3. 프로젝트 연결
 ```bash
 # 프로젝트 루트 디렉토리에서 실행
-cd /Users/srlee/Desktop/커서개발/3. 서비스/voguedrop
+cd "/Users/srlee/Desktop/커서개발/3. 서비스/voguedrop"  # 경로에 공백이 있으면 따옴표 필수!
 
-# Supabase 로그인
-supabase login
-
-# 프로젝트 연결 (프로젝트 ID 사용)
-supabase link --project-ref snqyygrpybwhihektxxy
+# NPX로 실행 시
+npx supabase@latest link --project-ref YOUR_PROJECT_REF
 ```
 
 ## Edge Function 배포
 
-### 1. 함수 배포
+### 1. 함수 배포 (NPX 사용)
 ```bash
+# 환경 변수 설정 필수!
+export SUPABASE_ACCESS_TOKEN="your-token-here"
+
 # upload-video 함수 배포
-supabase functions deploy upload-video --project-ref snqyygrpybwhihektxxy
+npx supabase@latest functions deploy upload-video --project-ref YOUR_PROJECT_REF
 
 # 배포 확인
-supabase functions list --project-ref snqyygrpybwhihektxxy
+npx supabase@latest functions list --project-ref YOUR_PROJECT_REF
+
+# 실제 사용 예시
+cd "/Users/srlee/Desktop/커서개발/3. 서비스/voguedrop"
+export SUPABASE_ACCESS_TOKEN=""
+npx supabase@latest functions deploy upload-video --project-ref snqyygrpybwhihektxxy
 ```
 
 ### 2. 환경 변수 설정 (선택사항)
@@ -131,28 +169,79 @@ Supabase 대시보드에서 확인:
 2. Edge Functions 섹션으로 이동
 3. `upload-video` 함수 상태 확인
 
-## 트러블슈팅
+## 트러블슈팅 (실제 발생한 문제들)
 
-### 문제: 함수가 배포되지 않음
+### 🔴 문제 1: npm global 설치 실패
 ```bash
-# Supabase CLI 업데이트
-npm update -g supabase
-
-# 함수 디렉토리 확인
-ls -la supabase/functions/upload-video/
+npm install -g supabase
+# 에러: Installing Supabase CLI as a global module is not supported
 ```
 
-### 문제: CORS 에러
+**해결책**: NPX 사용 또는 Homebrew/Scoop으로 설치
+```bash
+npx supabase@latest --version  # NPX 사용 (권장)
+# 또는
+brew install supabase/tap/supabase  # macOS
+```
+
+### 🔴 문제 2: "로그인이 필요합니다" 에러
+Edge Function이 작동하지만 인증이 실패하는 경우
+
+**원인**: Edge Function에서 잘못된 방식으로 Supabase 클라이언트 생성
+```typescript
+// ❌ 잘못된 코드
+const token = authHeader.replace('Bearer ', '');
+const supabaseAuth = createClient(supabaseUrl, token);  // JWT를 키로 사용
+```
+
+**해결책**: anon key 사용 + Authorization 헤더
+```typescript
+// ✅ 올바른 코드
+const supabaseAnon = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+const supabaseAuth = createClient(supabaseUrl, supabaseAnon, {
+  global: {
+    headers: {
+      Authorization: `Bearer ${token}`,  // JWT는 헤더로 전달
+    },
+  },
+});
+```
+
+### 🔴 문제 3: 504 Gateway Timeout
+대용량 파일 업로드 시 타임아웃 발생
+
+**원인**: 
+- Edge Function이 전체 파일을 메모리에 로드
+- FormData 파싱 → ArrayBuffer 변환 → Storage 업로드 (3단계)
+- 네트워크 속도가 느린 경우 60초 제한 초과
+
+**해결책**:
+1. 작은 파일(5-10MB)부터 테스트
+2. 클라이언트 타임아웃 연장
+```typescript
+const controller = new AbortController();
+const timeoutId = setTimeout(() => controller.abort(), 120000); // 2분
+```
+3. 장기적으로는 Presigned URL 방식 고려
+
+### 🔴 문제 4: 터미널에서 로그인 실패
+```bash
+npx supabase@latest login
+# 에러: Cannot use automatic login flow inside non-TTY environments
+```
+
+**해결책**: 액세스 토큰 사용
+1. https://app.supabase.com/account/tokens 에서 토큰 생성
+2. 환경 변수 설정: `export SUPABASE_ACCESS_TOKEN="your-token"`
+
+### 🔴 문제 5: CORS 에러
 - `supabase/functions/_shared/cors.ts` 파일 확인
-- 클라이언트 origin이 허용되었는지 확인
-
-### 문제: 인증 실패
-- 클라이언트에서 올바른 access token을 전송하는지 확인
-- Supabase Auth 세션이 유효한지 확인
-
-### 문제: 파일 크기 제한
-- Edge Function은 최대 50MB까지 지원
-- 클라이언트 측에서도 파일 크기 검증 확인
+- OPTIONS 요청 처리 확인
+```typescript
+if (req.method === 'OPTIONS') {
+  return new Response('ok', { headers: corsHeaders });
+}
+```
 
 ## 롤백
 
