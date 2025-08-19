@@ -10,6 +10,7 @@ const initialModalState: ModalState = {
   camera: false,
   model: false,
   projectTitle: false,
+  imageBrush: false,
 }
 
 /**

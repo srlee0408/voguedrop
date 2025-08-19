@@ -8,7 +8,8 @@ import { PromptModal } from '@/components/modals/PromptModal'
 import { CameraModal } from '@/components/modals/CameraModal'
 import { ModelModal } from '@/components/modals/ModelModal'
 import { ProjectTitleModal } from '@/components/modals/ProjectTitleModal'
-import { useCanvas } from '../_context/CanvasContext'
+import { ImageBrushModal } from './ImageBrushModal'
+import { useCanvas, useSlotManager } from '../_context/CanvasContext'
 
 /**
  * Canvas 페이지의 모든 모달을 관리하는 컨테이너 컴포넌트
@@ -16,7 +17,8 @@ import { useCanvas } from '../_context/CanvasContext'
  */
 export function CanvasModals(): React.ReactElement {
   const router = useRouter()
-  const { modals, settings, favorites, effects } = useCanvas()
+  const { modals, settings, favorites, effects, currentGeneratingImage, setCurrentGeneratingImage } = useCanvas()
+  const slotManager = useSlotManager()
 
   return (
     <>
@@ -72,6 +74,24 @@ export function CanvasModals(): React.ReactElement {
           router.push(`/video-editor?title=${encodeURIComponent(title)}`)
         }}
       />
+
+      {currentGeneratingImage && (
+        <ImageBrushModal
+          isOpen={modals.modals.imageBrush}
+          onClose={() => modals.closeModal('imageBrush')}
+          imageUrl={currentGeneratingImage}
+          onComplete={(brushedImageUrl: string) => {
+            // 브러시 처리된 이미지로 업데이트
+            setCurrentGeneratingImage(brushedImageUrl)
+            // 현재 슬롯에도 업데이트
+            const firstSlot = slotManager.slotContents[0]
+            if (firstSlot?.type === 'image') {
+              slotManager.setSlotToImage(0, brushedImageUrl)
+            }
+            modals.closeModal('imageBrush')
+          }}
+        />
+      )}
     </>
   )
 }

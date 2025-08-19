@@ -145,6 +145,8 @@ export function CanvasLayout(): React.ReactElement {
           isDownloading={isDownloading}
           favoriteVideos={favorites.favoriteIds}
           onToggleFavorite={handleToggleFavorite}
+          onImageBrushOpen={() => modals.openModal('imageBrush')}
+          hasUploadedImage={!!currentGeneratingImage}
         />
       </div>
 

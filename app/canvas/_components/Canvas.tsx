@@ -29,6 +29,8 @@ interface CanvasProps {
   isDownloading?: boolean;
   favoriteVideos?: Set<string>;
   onToggleFavorite?: (videoId: string) => void;
+  onImageBrushOpen?: () => void;
+  hasUploadedImage?: boolean;
 }
 
 export function Canvas({
@@ -54,6 +56,8 @@ export function Canvas({
   isDownloading = false,
   favoriteVideos = new Set(),
   onToggleFavorite,
+  onImageBrushOpen,
+  hasUploadedImage = false,
 }: CanvasProps) {
   const {
     images,
@@ -198,6 +202,8 @@ export function Canvas({
               onDownloadClick={onDownloadClick}
               activeVideo={activeVideo}
               isDownloading={isDownloading}
+              onImageBrushOpen={onImageBrushOpen}
+              hasUploadedImage={hasUploadedImage}
             />
           </div>
         )}

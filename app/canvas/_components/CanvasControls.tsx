@@ -1,4 +1,4 @@
-import { Wand2, Download, ChevronDown, Loader2 } from "lucide-react"
+import { Wand2, Download, ChevronDown, Loader2, Brush } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type { GeneratedVideo } from "@/types/canvas"
 
@@ -13,11 +13,11 @@ interface CanvasControlsProps {
   onDownloadClick?: () => void
   activeVideo?: GeneratedVideo | null
   isDownloading?: boolean
+  onImageBrushOpen?: () => void
+  hasUploadedImage?: boolean
 }
 
 export function CanvasControls({
-  selectedResolution,
-  selectedSize,
   onPromptModalOpen,
   onGenerateClick,
   canGenerate = false,
@@ -26,6 +26,8 @@ export function CanvasControls({
   onDownloadClick,
   activeVideo,
   isDownloading = false,
+  onImageBrushOpen,
+  hasUploadedImage = false,
 }: CanvasControlsProps) {
   return (
     <div className="flex items-center gap-2 bg-surface-secondary p-2 rounded-lg border border-border">
@@ -54,9 +56,16 @@ export function CanvasControls({
 
       <div className="w-px h-6 bg-border"></div>
 
-      <button className="px-3 h-10 flex items-center justify-center text-text-secondary hover:text-text-primary rounded-button whitespace-nowrap text-sm">
-        {selectedResolution} ({selectedSize})
-      </button>
+      <Button
+        className="flex items-center gap-2 px-3 h-10 bg-surface-secondary hover:bg-surface-tertiary text-text-secondary hover:text-text-primary rounded-button text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        onClick={onImageBrushOpen}
+        disabled={!hasUploadedImage}
+        variant="ghost"
+        title={!hasUploadedImage ? "Upload an image first" : "Edit image with AI brush"}
+      >
+        <Brush className="w-4 h-4" />
+        <span>Image Brush</span>
+      </Button>
 
       <button 
         className="w-10 h-10 flex items-center justify-center text-text-secondary hover:text-text-primary rounded-button disabled:opacity-50 disabled:cursor-not-allowed"

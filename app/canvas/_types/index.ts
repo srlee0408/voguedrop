@@ -3,7 +3,7 @@ import type { GeneratedVideo } from '@/types/canvas'
 import type { EffectTemplateWithMedia } from '@/types/database'
 
 // 모달 관련 타입
-export type ModalName = 'library' | 'effect' | 'prompt' | 'camera' | 'model' | 'projectTitle'
+export type ModalName = 'library' | 'effect' | 'prompt' | 'camera' | 'model' | 'projectTitle' | 'imageBrush'
 
 export interface ModalState {
   library: boolean
@@ -12,6 +12,7 @@ export interface ModalState {
   camera: boolean
   model: boolean
   projectTitle: boolean
+  imageBrush: boolean
 }
 
 export interface ModalManagerReturn {

@@ -1,450 +1,397 @@
-# Image Brush (Inpainting) 기능 구현 계획
+# Image Brush 기능 구현 기획서
 
 ## 개요
-Canvas 페이지에서 이미지 편집을 위한 Brush 기능을 구현합니다. 사용자가 이미지의 특정 영역을 마스킹하고 AI를 통해 해당 영역을 수정할 수 있습니다.
+VogueDrop Canvas에서 업로드한 이미지를 AI로 편집할 수 있는 Image Brush 기능을 구현합니다. 사용자가 이미지의 특정 부분을 마스킹하고 프롬프트를 입력하면, AI가 해당 영역을 새로운 내용으로 채워줍니다.
 
-## 주요 변경사항
-- **해상도 설정 제거**: Canvas를 1024×1024 고정 크기로 변경
-- **Brush 버튼 추가**: Generate/Duration 버튼 옆의 해상도 표시를 Brush 버튼으로 교체
-- **자동 편집 모드**: 이미지 업로드 시 자동으로 Image Brush 모달이 열려 즉시 편집 가능
-- **Dual Provider 지원**: RunPod API와 BFL API 선택 가능
+## 핵심 기술
+- **BFL FLUX Fill API**: 프롬프트 기반 이미지 인페인팅
+- **RunPod I2I API**: 이미지 간 스타일 변환 (선택사항)
+- **Supabase Edge Function**: 이미지 처리 및 AI API 호출
+- **HTML Canvas API**: 마스크 그리기 인터페이스
 
-## 아키텍처
+## 기능 요구사항
 
-### 시스템 구조
-```
-┌─────────────┐     ┌─────────────────┐     ┌──────────────────┐
-│   Client    │────▶│  Vercel API     │────▶│ Supabase Edge    │
-│  (Next.js)  │     │  (초기 요청)     │     │ Functions        │
-│             │◀────│  (Job ID 반환)   │     │ (실제 처리)      │
-└─────────────┘     └─────────────────┘     └──────────────────┘
-       │                                              │
-       │                                              ▼
-       │                                     ┌──────────────────┐
-       │                                     │ RunPod/BFL API   │
-       │                                     └──────────────────┘
-       ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    Supabase Storage & Database              │
-└─────────────────────────────────────────────────────────────┘
-```
+### 1. 사용자 워크플로우
+1. Canvas 페이지에서 이미지 업로드
+2. "Image Brush" 버튼 클릭
+3. 모달에서 마스크 영역 그리기
+4. 프롬프트 입력 (예: "expand t-shirt part")
+5. Generate 버튼 클릭
+6. AI 처리 결과 확인 및 적용
 
-### 처리 흐름
-1. 사용자가 이미지를 업로드하면 자동으로 Image Brush 모달 열림
-2. 업로드된 이미지가 슬롯에 배치되고 자동 선택됨
-3. 사용자가 마스크를 그리고 프롬프트 입력 후 생성 요청
-4. Client에서 이미지와 마스크를 Supabase Storage에 업로드
-5. Vercel API에서 Job 생성 후 Edge Function 트리거
-6. Edge Function에서 RunPod/BFL API 호출 및 처리 (업로드된 이미지를 input-2로 사용)
-7. Client에서 3초 간격으로 Job 상태 polling
-8. 완료 시 자동으로 Canvas 슬롯에 업로드
+### 2. 주요 기능
+- **마스크 도구**
+  - Brush: 마스크 영역 그리기
+  - Eraser: 마스크 영역 지우기
+  - Clear: 전체 마스크 초기화
+  - 브러시 크기 조절 (5px ~ 100px)
 
-## 환경 변수 설정
+- **AI 처리**
+  - FLUX Fill: 마스크 영역을 프롬프트에 따라 재생성
+  - I2I 변환: 이미지 스타일 변환 (선택사항)
+  - 처리 진행률 표시
+  - 실패 시 재시도 옵션
 
-### Vercel (.env.local)
-```bash
-# Inpaint Provider 설정
-INPAINT_PROVIDER=RUNPOD  # 또는 BFL
-NEXT_PUBLIC_INPAINT_PROVIDER=RUNPOD
+- **결과 관리**
+  - 원본 이미지 보존
+  - 편집된 이미지 저장
+  - Canvas slot에 자동 적용
+  - 히스토리 관리
 
-# Supabase Edge Function
-SUPABASE_EDGE_FUNCTION_URL=https://[project-ref].supabase.co/functions/v1
-SUPABASE_SERVICE_KEY=your-service-key
-```
+## 기술 구현 상세
 
-### Supabase Edge Functions
-```bash
-# RunPod 설정
-RUNPOD_API_KEY=your-runpod-key
-RUNPOD_ENDPOINT_ID=your-endpoint-id
+### 1. 프론트엔드 구조
 
-# BFL 설정 (대체 옵션)
-BFL_API_KEY=your-bfl-key
-
-# Provider 선택
-INPAINT_PROVIDER=RUNPOD  # 또는 BFL
-```
-
-## API 구조
-
-### RunPod API 요청 형식
+#### 1.1 UI 컴포넌트 수정
 ```typescript
-interface RunPodInpaintRequest {
-  input: {
-    workflow: object;  // ComfyUI JSON
-    images: [
-      {
-        name: "input-1.png";  // 텍스처/패턴
-        image: string;        // base64
-      },
-      {
-        name: "input-2.png";  // 원본 이미지
-        image: string;        // base64
-      },
-      {
-        name: "mask.png";     // 마스크 (알파 0 = 수정 영역)
-        image: string;        // base64
-      }
-    ]
-  }
-}
-```
-
-### BFL API 요청 형식
-```typescript
-interface BFLInpaintRequest {
-  prompt: string;
-  image: string;      // base64 원본
-  mask: string;       // base64 마스크 (흰색 = 수정 영역)
-  guidance: number;
-  output_format: "png";
-  safety_tolerance: number;
-  prompt_upsampling: boolean;
-}
-```
-
-## 구현 세부사항
-
-### 1. UI 변경사항
-
-#### Canvas Controls 수정
-```typescript
-// 제거할 코드
-<button className="px-3 h-10 ...">
-  {selectedResolution} ({selectedSize})
-</button>
-
-// 추가할 코드
+// app/canvas/_components/CanvasControls.tsx
+// Resolution 버튼을 Image Brush 버튼으로 변경
 <Button
-  className="flex items-center gap-2 px-4 py-2"
-  onClick={onImageBrushClick}
-  disabled={!hasImageInSelectedSlot}
+  onClick={onImageBrushOpen}
+  disabled={!uploadedImage}
+  className="flex items-center gap-2"
 >
   <Brush className="w-4 h-4" />
-  <span>Brush</span>
+  <span>Image Brush</span>
 </Button>
 ```
 
-#### Canvas Settings 수정
+#### 1.2 Image Brush 모달 컴포넌트
 ```typescript
-// useCanvasSettings.ts에서 제거
-- selectedResolution: '1:1'
-- selectedSize: '1024×1024'
-
-// 고정값 사용
-const CANVAS_SIZE = 1024;
-```
-
-#### 이미지 업로드 시 자동 모달 열기
-```typescript
-// CanvasLayout.tsx의 handleImageUpload 수정
-const handleImageUpload = (imageUrl: string): void => {
-  setCurrentGeneratingImage(imageUrl)
-  slotManager.handleImageUpload(imageUrl, videoGeneration.isSlotGenerating)
-  
-  // 이미지가 슬롯에 배치된 후 자동으로 해당 슬롯 선택
-  const uploadedSlotIndex = slotManager.slotContents.findIndex(
-    slot => slot?.type === 'image' && slot.data === imageUrl
-  )
-  if (uploadedSlotIndex !== -1) {
-    slotManager.handleSlotSelect(uploadedSlotIndex)
-    // 약간의 지연 후 Image Brush 모달 자동 열기
-    setTimeout(() => {
-      modals.openModal('imageBrush')
-    }, 100)
-  }
+// app/canvas/_components/ImageBrushModal.tsx
+interface ImageBrushModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  imageUrl: string;
+  onComplete: (brushedImageUrl: string) => void;
 }
+
+// 주요 상태
+- canvasRef: HTMLCanvasElement 참조
+- maskCanvas: 마스크 레이어
+- brushSize: 브러시 크기
+- currentTool: 'brush' | 'eraser'
+- prompt: 사용자 입력 프롬프트
+- isProcessing: 처리 중 상태
 ```
 
-### 2. 브러시 모달 구조
-
-#### UI 레이아웃
-```
-┌─────────────────────────────────────────────────┐
-│              Image Brush Editor                  │
-├───────────┬──────────────────────┬───────────────┤
-│           │                      │               │
-│ [Brush]   │  ┌──────────────┐  │ Prompt:       │
-│ [Eraser]  │  │              │  │ [________]    │
-│           │  │   1024×1024  │  │               │
-│ Size: 20  │  │    Canvas    │  │ Texture:      │
-│ [====]    │  │              │  │ [Upload]      │
-│           │  └──────────────┘  │               │
-│ [Clear]   │                      │ [Generate]    │
-│ [Undo]    │                      │               │
-│ [Redo]    │                      │ Progress:     │
-│           │                      │ ▓▓▓░░ 40%    │
-└───────────┴──────────────────────┴───────────────┘
-```
-
-#### 기능 목록
-- **브러시 도구**
-  - 브러시/지우개 모드 전환
-  - 브러시 크기 조절 (5px ~ 100px)
-  - 실행 취소/다시 실행 (Ctrl+Z / Ctrl+Y)
-  - 마스크 초기화
-  
-- **마스크 처리**
-  - 빨간색 반투명 오버레이로 마스크 영역 표시
-  - RunPod: 알파 채널 0 = 수정 영역
-  - BFL: 흰색 = 수정 영역
-
-### 3. Supabase Edge Function
-
-#### 생성 및 배포
-```bash
-# Edge Function 생성
-supabase functions new inpaint-processor
-
-# 배포
-supabase functions deploy inpaint-processor
-```
-
-#### 핵심 로직
+#### 1.3 Canvas 그리기 로직
 ```typescript
-// supabase/functions/inpaint-processor/index.ts
+// 마스크 그리기 함수
+const drawMask = (x: number, y: number) => {
+  const ctx = maskCanvas.getContext('2d');
+  ctx.globalCompositeOperation = currentTool === 'brush' 
+    ? 'source-over' 
+    : 'destination-out';
+  ctx.fillStyle = 'white';
+  ctx.beginPath();
+  ctx.arc(x, y, brushSize / 2, 0, Math.PI * 2);
+  ctx.fill();
+};
+
+// 마스크를 이미지로 변환
+const getMaskImage = (): string => {
+  return maskCanvas.toDataURL('image/png');
+};
+```
+
+### 2. 백엔드 구조
+
+#### 2.1 Supabase Edge Function
+```typescript
+// supabase/functions/image-brush/index.ts
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.52.1';
+
+interface ImageBrushRequest {
+  image: string;      // Base64 인코딩된 원본 이미지
+  mask: string;       // Base64 인코딩된 마스크 이미지
+  prompt: string;     // 사용자 프롬프트
+  mode: 'flux' | 'i2i';  // 처리 모드
+  userId: string;
+}
+
 serve(async (req) => {
-  const { jobId, imageUrl, maskUrl, textureUrl, prompt } = await req.json()
-  
-  // Provider에 따라 다른 API 호출
-  if (PROVIDER === 'RUNPOD') {
-    result = await processWithRunPod(...)
-  } else {
-    result = await processWithBFL(...)
-  }
-  
-  // 결과 저장 및 DB 업데이트
-  await saveResultAndUpdateDB(result, jobId)
-})
+  // 1. 인증 확인
+  // 2. 요청 데이터 파싱
+  // 3. AI API 호출 (BFL 또는 RunPod)
+  // 4. 결과 이미지 Supabase Storage 저장
+  // 5. 응답 반환
+});
 ```
 
-### 4. Vercel API Routes
-
-#### 초기 요청 처리
+#### 2.2 BFL FLUX Fill API 통합
 ```typescript
-// app/api/canvas/inpaint/route.ts
-export async function POST(request: NextRequest) {
-  // 1. 이미지 업로드
-  const jobId = await uploadImagesAndCreateJob(formData)
+const callFluxFillAPI = async (
+  image: string, 
+  mask: string, 
+  prompt: string
+) => {
+  const BFL_TOKEN = Deno.env.get('BFL_TOKEN');
+  const FLUX_URL = "https://api.us1.bfl.ai/v1/flux-pro-1.0-fill";
   
-  // 2. Edge Function 트리거 (비동기)
-  triggerEdgeFunction(jobId)
+  const requestData = {
+    prompt: prompt,
+    seed: Math.floor(Math.random() * 999999),
+    image: image,
+    mask: mask,
+    guidance: 80,
+    output_format: "png",
+    safety_tolerance: 2,
+    prompt_upsampling: false,
+  };
   
-  // 3. Job ID 즉시 반환
-  return NextResponse.json({ jobId })
-}
-```
-
-#### 상태 확인 (Polling)
-```typescript
-// app/api/canvas/inpaint/[jobId]/status/route.ts
-export async function GET(request, { params }) {
-  const job = await getJobStatus(params.jobId)
-  
-  if (job.status === 'completed') {
-    return NextResponse.json({
-      status: 'completed',
-      imageUrl: job.output_url
-    })
-  }
-  
-  return NextResponse.json({ status: job.status })
-}
-```
-
-## 파일 구조
-
-```
-app/
-├── api/
-│   └── canvas/
-│       └── inpaint/
-│           ├── route.ts                    # 초기 요청
-│           └── [jobId]/
-│               └── status/
-│                   └── route.ts            # 상태 확인
-│
-├── canvas/
-│   ├── _components/
-│   │   ├── CanvasControls.tsx             # 수정: Brush 버튼 추가
-│   │   ├── Canvas.tsx                     # 수정: 해상도 제거
-│   │   └── CanvasLayout.tsx               # 수정: 브러시 모달 연동
-│   ├── _hooks/
-│   │   ├── useCanvasSettings.ts           # 수정: 해상도 설정 제거
-│   │   └── useModalManager.ts             # 수정: imageBrush 타입 추가
-│   └── _context/
-│       └── CanvasContext.tsx              # 수정: 브러시 상태 추가
-│
-components/
-└── modals/
-    └── image-brush/
-        ├── ImageBrushModal.tsx             # 새로 생성
-        ├── components/
-        │   ├── BrushCanvas.tsx
-        │   ├── BrushToolbar.tsx
-        │   └── TextureSelector.tsx
-        ├── hooks/
-        │   ├── useBrushCanvas.ts
-        │   ├── useImageCompression.ts
-        │   └── useInpaintGeneration.ts
-        └── utils/
-            ├── canvas-utils.ts
-            └── workflow-template.ts
-
-supabase/
-└── functions/
-    └── inpaint-processor/
-        ├── index.ts                        # Edge Function
-        └── workflow.json                    # RunPod 워크플로우
-
-types/
-└── image-brush.ts                          # 새로 생성
-```
-
-## 데이터베이스 스키마
-
-### video_generations 테이블 수정
-```sql
-ALTER TABLE video_generations
-ADD COLUMN generation_type VARCHAR(20) DEFAULT 'video',
-ADD COLUMN mask_url TEXT,
-ADD COLUMN texture_url TEXT,
-ADD COLUMN inpaint_provider VARCHAR(20);
-
--- 인덱스 추가
-CREATE INDEX idx_generation_type ON video_generations(generation_type);
-CREATE INDEX idx_job_status ON video_generations(job_id, status);
-```
-
-### Supabase Storage Buckets
-- `inpaint-inputs`: 원본, 마스크, 텍스처 이미지 저장
-- `inpaint-results`: 생성된 결과 이미지 저장
-
-## Vercel 배포 설정
-
-### vercel.json
-```json
-{
-  "functions": {
-    "app/api/canvas/inpaint/route.ts": {
-      "maxDuration": 10
+  const response = await fetch(FLUX_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Key': BFL_TOKEN,
     },
-    "app/api/canvas/inpaint/[jobId]/status/route.ts": {
-      "maxDuration": 5
+    body: JSON.stringify(requestData),
+  });
+  
+  // 결과 폴링 및 이미지 다운로드
+  return await pollForResult(response.json().id);
+};
+```
+
+#### 2.3 RunPod I2I API 통합 (선택사항)
+```typescript
+const callRunPodAPI = async (
+  input1: string,  // 인페인트될 텍스처
+  input2: string,  // 레퍼런스 이미지
+  mask: string     // 마스크
+) => {
+  const RUNPOD_API_KEY = Deno.env.get('RUNPOD_API_KEY');
+  const RUNPOD_ENDPOINT_ID = Deno.env.get('RUNPOD_ENDPOINT_ID');
+  
+  const requestData = {
+    input: {
+      workflow: loadWorkflowJson(),
+      images: [
+        { name: "input-1.png", image: input1 },
+        { name: "input-2.png", image: input2 },
+        { name: "mask.png", image: mask }
+      ]
     }
-  },
-  "env": {
-    "INPAINT_PROVIDER": "RUNPOD"
+  };
+  
+  // RunPod API 호출 및 결과 폴링
+};
+```
+
+### 3. API Route
+```typescript
+// app/api/canvas/image-brush/route.ts
+export async function POST(request: NextRequest) {
+  try {
+    // 1. 인증 확인
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    // 2. Edge Function 호출
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_SUPABASE_FUNCTIONS_URL}/image-brush`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          image,
+          mask,
+          prompt,
+          mode,
+          userId: user.id,
+        }),
+      }
+    );
+    
+    // 3. 응답 처리
+    const result = await response.json();
+    return NextResponse.json(result);
+  } catch (error) {
+    return NextResponse.json(
+      { error: '처리 중 오류가 발생했습니다.' },
+      { status: 500 }
+    );
   }
 }
 ```
 
-## 구현 순서
-
-### Phase 1: 기반 작업
-1. Supabase Edge Function 생성 및 배포
-2. 환경변수 설정 (Vercel, Supabase)
-3. 데이터베이스 스키마 수정
-
-### Phase 2: API 구현
-1. Vercel API Routes 구현
-   - 초기 요청 처리
-   - 상태 확인 엔드포인트
-2. Edge Function 로직 구현
-   - RunPod API 통합
-   - BFL API 통합 (옵션)
-
-### Phase 3: UI 구현
-1. Canvas Controls 수정
-   - 해상도 버튼 제거
-   - Brush 버튼 추가
-2. 브러시 캔버스 컴포넌트 구현
-   - 마스크 그리기 기능
-   - 도구 UI
-3. 브러시 모달 통합
-   - 전체 UI 구성
-   - API 연동
-
-### Phase 4: 테스트 및 배포
-1. 로컬 환경 테스트
-2. Vercel Preview 배포
-3. 프로덕션 배포
-
-## 성능 최적화
-
-### 이미지 압축
+### 4. 타입 정의
 ```typescript
-const compressImage = async (file: File): Promise<Blob> => {
-  // 1024x1024로 리사이즈 및 압축
-  const canvas = document.createElement('canvas')
-  canvas.width = 1024
-  canvas.height = 1024
-  // ... 압축 로직
-  return canvas.toBlob(blob => blob, 'image/png', 0.9)
+// types/image-brush.ts
+export interface ImageBrushRequest {
+  image: string;      // Base64 원본 이미지
+  mask: string;       // Base64 마스크 이미지
+  prompt: string;     // 사용자 프롬프트
+  mode: 'flux' | 'i2i';
 }
+
+export interface ImageBrushResponse {
+  success: boolean;
+  imageUrl?: string;  // 처리된 이미지 URL
+  error?: string;
+}
+
+export interface BrushSettings {
+  size: number;       // 5 ~ 100
+  opacity: number;    // 0.1 ~ 1.0
+  hardness: number;   // 0 ~ 1
+}
+
+export type BrushTool = 'brush' | 'eraser' | 'clear';
 ```
 
-### Polling 최적화
-- 3초 간격 polling
-- 최대 2분 타임아웃
-- 진행률 표시로 UX 개선
+### 5. Canvas Context 업데이트
+```typescript
+// app/canvas/_context/CanvasContext.tsx
+interface CanvasState {
+  // 기존 상태...
+  brushedImage: string | null;
+  imageBrushHistory: Array<{
+    original: string;
+    brushed: string;
+    prompt: string;
+    timestamp: number;
+  }>;
+}
+
+// Image Brush 완료 핸들러
+const handleImageBrushComplete = (brushedImageUrl: string) => {
+  // 현재 활성 슬롯에 적용
+  updateSlot(activeSlotId, { 
+    imageUrl: brushedImageUrl,
+    metadata: { brushed: true }
+  });
+  
+  // 히스토리에 추가
+  addToHistory({
+    original: currentImage,
+    brushed: brushedImageUrl,
+    prompt,
+    timestamp: Date.now()
+  });
+};
+```
+
+## 환경 변수 설정
+
+### 1. 로컬 개발 (.env.local)
+```env
+# BFL API
+BFL_TOKEN=your_bfl_api_token
+
+# RunPod API (선택사항)
+RUNPOD_API_KEY=your_runpod_api_key
+RUNPOD_ENDPOINT_ID=your_endpoint_id
+
+# Supabase Functions URL
+NEXT_PUBLIC_SUPABASE_FUNCTIONS_URL=https://your-project.supabase.co/functions/v1
+```
+
+### 2. Supabase Edge Function 환경 변수
+```bash
+# BFL API 토큰 설정
+npx supabase@latest secrets set BFL_TOKEN=your_token --project-ref YOUR_PROJECT_REF
+
+# RunPod API 설정 (선택사항)
+npx supabase@latest secrets set RUNPOD_API_KEY=your_key --project-ref YOUR_PROJECT_REF
+npx supabase@latest secrets set RUNPOD_ENDPOINT_ID=your_id --project-ref YOUR_PROJECT_REF
+```
+
+## 배포 전략
+
+### 1. Supabase Edge Function 배포
+```bash
+# Edge Function 배포
+cd /Users/srlee/Desktop/커서개발/3. 서비스/voguedrop
+npx supabase@latest functions deploy image-brush --project-ref YOUR_PROJECT_REF
+
+# 배포 확인
+npx supabase@latest functions list --project-ref YOUR_PROJECT_REF
+```
+
+### 2. Vercel 배포
+- 프론트엔드와 API Route는 기존 Vercel 배포 프로세스 사용
+- Edge Function URL을 환경 변수로 설정
+
+### 3. 모니터링
+```bash
+# Edge Function 로그 확인
+npx supabase@latest functions logs image-brush --project-ref YOUR_PROJECT_REF --tail 100
+```
+
+## UX 고려사항
+
+### 1. 모달 디자인
+- **크기**: 최소 800x600px, 반응형 지원
+- **레이아웃**: 좌측 캔버스, 우측 도구 패널
+- **피드백**: 실시간 마스크 미리보기, 처리 진행률 표시
+
+### 2. 사용성
+- **단축키 지원**
+  - B: Brush 도구
+  - E: Eraser 도구
+  - Ctrl+Z: 실행 취소
+  - [, ]: 브러시 크기 조절
+
+### 3. 성능 최적화
+- 이미지 리사이징: 최대 1024x1024로 제한
+- 디바운싱: 브러시 스트로크 최적화
+- 캐싱: 처리된 이미지 로컬 캐싱
 
 ## 에러 처리
 
-### 재시도 로직
-```typescript
-const MAX_RETRIES = 3
-const RETRY_DELAY = 5000
+### 1. 프론트엔드
+- 네트워크 오류: 재시도 옵션 제공
+- API 한도 초과: 사용자에게 알림
+- 이미지 로드 실패: 대체 이미지 표시
 
-async function retryableRequest(fn, retries = MAX_RETRIES) {
-  try {
-    return await fn()
-  } catch (error) {
-    if (retries > 0) {
-      await new Promise(r => setTimeout(r, RETRY_DELAY))
-      return retryableRequest(fn, retries - 1)
-    }
-    throw error
-  }
-}
-```
+### 2. 백엔드
+- API 키 만료: 관리자에게 알림
+- 타임아웃: 60초 제한, 사용자에게 피드백
+- 스토리지 오류: 롤백 처리
 
-### 사용자 피드백
-- 진행 상태 실시간 표시
-- 에러 발생 시 명확한 메시지
-- 재시도 옵션 제공
+## 테스트 계획
 
-## 보안 고려사항
+### 1. 단위 테스트
+- 마스크 그리기 함수
+- Base64 변환 함수
+- API 요청/응답 처리
 
-1. **인증**: 로그인한 사용자만 접근 가능
-2. **Rate Limiting**: 사용자별 일일 생성 제한
-3. **파일 검증**: 업로드 파일 타입 및 크기 제한
-4. **API Key 보호**: Service Key는 서버에서만 사용
+### 2. 통합 테스트
+- 전체 워크플로우 테스트
+- Edge Function 호출 테스트
+- 에러 시나리오 테스트
 
-## 예상 일정
+### 3. 사용자 테스트
+- 다양한 이미지 크기 테스트
+- 브라우저 호환성 테스트
+- 성능 테스트 (대용량 이미지)
 
-- **Phase 1**: 1일 (기반 작업)
-- **Phase 2**: 2일 (API 구현)
-- **Phase 3**: 3일 (UI 구현)
-- **Phase 4**: 1일 (테스트 및 배포)
-- **총 예상 기간**: 7일
+## 향후 개선사항
 
-## 참고 문서
+### Phase 2
+- 브러시 모양 다양화 (원형, 사각형, 커스텀)
+- 레이어 기능 추가
+- 히스토리 기반 실행 취소/다시 실행
 
-- [RunPod API Documentation](https://docs.runpod.io/api)
-- [BFL FLUX Fill API](https://docs.bfl.ai/flux-fill)
-- [Supabase Edge Functions](https://supabase.com/docs/guides/functions)
-- [Vercel Functions](https://vercel.com/docs/functions)
+### Phase 3
+- AI 자동 마스킹 (세그멘테이션)
+- 배치 처리 지원
+- 프리셋 저장/불러오기
 
-## 체크리스트
+## 참고 자료
+- [BFL FLUX Fill API 문서](https://docs.bfl.ai/flux-fill)
+- [RunPod API 문서](https://docs.runpod.io/api)
+- [Supabase Edge Functions 문서](https://supabase.com/docs/guides/functions)
+- [HTML Canvas API MDN](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API)
 
-- [ ] Supabase Edge Function 생성
-- [ ] 환경변수 설정 완료
-- [ ] DB 스키마 수정
-- [ ] API Routes 구현
-- [ ] Canvas UI 수정
-- [ ] 브러시 캔버스 구현
-- [ ] 모달 통합
-- [ ] 로컬 테스트
-- [ ] Preview 배포
-- [ ] 프로덕션 배포
+## 구현 일정
+- **1주차**: UI 컴포넌트 및 마스킹 도구 구현
+- **2주차**: Edge Function 및 AI API 통합
+- **3주차**: 테스트 및 버그 수정
+- **4주차**: 배포 및 모니터링 설정
