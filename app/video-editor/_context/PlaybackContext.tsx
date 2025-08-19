@@ -3,11 +3,13 @@
 import { createContext, useContext, useState, useCallback, useRef, useMemo, ReactNode, useEffect } from 'react';
 import { PlayerRef } from '@remotion/player';
 import { useClips } from './ClipContext';
+import { calculateTimelineDuration } from '../_utils/timeline-helpers';
 
 interface PlaybackContextType {
   // 재생 상태
   isPlaying: boolean;
   currentTime: number;
+  totalDuration: number;
   playerRef: React.MutableRefObject<PlayerRef | null>;
   prevFrameRef: React.MutableRefObject<number>;
   
@@ -26,8 +28,17 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
   // 재생 상태 관리 (page.tsx에서 그대로)
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
+  const [totalDuration, setTotalDuration] = useState(0);
   const playerRef = useRef<PlayerRef | null>(null);
   const prevFrameRef = useRef<number>(0);
+  // 마지막으로 seek한 프레임을 저장하여 중복 업데이트 방지
+  const lastSeekFrameRef = useRef<number>(-1);
+  
+  // isPlaying을 ref로도 저장하여 useCallback 의존성 문제 해결
+  const isPlayingRef = useRef(isPlaying);
+  useEffect(() => {
+    isPlayingRef.current = isPlaying;
+  }, [isPlaying]);
   
   // ClipContext에서 클립 정보 가져오기
   const { timelineClips, textClips, soundClips } = useClips();
@@ -64,12 +75,38 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
     setIsPlaying(!isPlaying);
   }, [isPlaying, currentTime, timelineClips, textClips, soundClips]);
   
-  // Seek 함수 (page.tsx의 handleSeek 그대로)
+  // Seek 함수 - 재생 중일 때도 재생 상태 유지
   const handleSeek = useCallback((time: number) => {
-    setCurrentTime(time);
+    // 음수 방지 및 프레임 단위로 중복 호출 차단
+    const clampedTime = Math.max(0, time);
+    const targetFrame = Math.round(clampedTime * 30); // 30fps 기준
+
+    // 동일 프레임으로의 반복 seek는 무시 (무한 업데이트 방지)
+    if (lastSeekFrameRef.current === targetFrame) {
+      return;
+    }
+    lastSeekFrameRef.current = targetFrame;
+
+    setCurrentTime(prev_time => {
+      // 같은 프레임(≈1/30초) 이내 변화면 상태 업데이트 생략
+      if (Math.abs(prev_time - clampedTime) < 1 / 30) {
+        return prev_time;
+      }
+      return clampedTime;
+    });
+
     if (playerRef.current) {
-      const frame = Math.round(time * 30); // 30fps 기준
-      playerRef.current.seekTo(frame);
+      playerRef.current.seekTo(targetFrame);
+
+      // ref를 사용하여 현재 재생 상태 확인 (의존성 없이)
+      if (isPlayingRef.current) {
+        // seekTo 후 약간의 딜레이를 주고 재생
+        setTimeout(() => {
+          if (playerRef.current && isPlayingRef.current) {
+            playerRef.current.play();
+          }
+        }, 10);
+      }
     }
   }, []);
   
@@ -131,17 +168,29 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(interval);
   }, [isPlaying, timelineClips, textClips, soundClips]);
   
+  // 전체 Duration 계산
+  useEffect(() => {
+    const duration = calculateTimelineDuration(
+      timelineClips,
+      textClips,
+      soundClips,
+      PIXELS_PER_SECOND
+    );
+    setTotalDuration(duration);
+  }, [timelineClips, textClips, soundClips]);
+  
   // Context value를 useMemo로 최적화
   const value = useMemo(() => ({
     isPlaying,
     currentTime,
+    totalDuration,
     playerRef,
     prevFrameRef,
     handlePlayPause,
     handleSeek,
     setIsPlaying,
     setCurrentTime,
-  }), [isPlaying, currentTime, handlePlayPause, handleSeek]);
+  }), [isPlaying, currentTime, totalDuration, handlePlayPause, handleSeek]);
   
   return (
     <PlaybackContext.Provider value={value}>

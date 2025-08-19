@@ -45,6 +45,7 @@ interface TimelineProps {
   onUpdateSoundFade?: (id: string, fadeType: 'fadeIn' | 'fadeOut', duration: number) => void;
   pixelsPerSecond?: number;
   currentTime?: number;
+  totalDuration?: number;
   isPlaying?: boolean;
   onSeek?: (time: number) => void;
   onPlayPause?: () => void;
@@ -85,6 +86,7 @@ export default function Timeline({
   onUpdateSoundFade,
   pixelsPerSecond: initialPixelsPerSecond = 40,
   currentTime = 0,
+  totalDuration: propTotalDuration,
   isPlaying = false,
   onSeek,
   onPlayPause,
@@ -194,8 +196,8 @@ export default function Timeline({
   // Calculate timeline duration with zoom
   const basePixelsPerSecond = 40;
   
-  // 기본 스케일로 총 시간 계산 (초 단위)
-  const totalDurationInSeconds = calculateTimelineDuration(clips, textClips, soundClips, basePixelsPerSecond) / basePixelsPerSecond;
+  // 기본 스케일로 총 시간 계산 (초 단위) - props로 받거나 직접 계산
+  const totalDurationInSeconds = propTotalDuration ?? calculateTimelineDuration(clips, textClips, soundClips, basePixelsPerSecond);
   const minimumDuration = 120; // 120초 (2분) - 기본 표시 시간
   const bufferTime = 10; // 10초 버퍼
   const timelineLengthInSeconds = Math.max(minimumDuration, Math.ceil(totalDurationInSeconds + bufferTime));
@@ -668,12 +670,13 @@ export default function Timeline({
       const rect = scrollContainer.getBoundingClientRect();
       const scrollLeft = scrollContainer.scrollLeft;
       const x = e.clientX - rect.left - 192 + scrollLeft;
-      // 직접 계산하여 클로저 이슈 방지
+      // 직접 계산하여 클로저 이슈 방지 + 초당 과도한 onSeek 호출 제한
       const basePixelsPerSecond = 40;
-      const totalDurationInSec = calculateTimelineDuration(clips, textClips, soundClips, basePixelsPerSecond) / basePixelsPerSecond;
-      const maxDuration = Math.max(120, Math.ceil(totalDurationInSec + 10)); // 최소 2분
-      const time = Math.max(0, Math.min(x / pixelsPerSecond, maxDuration));
-      onSeek(time);
+      const time = Math.max(0, x / basePixelsPerSecond);
+
+      // 프레임 단위(1/30초)로 스로틀링하여 setState 연쇄 방지
+      const quantizedTime = Math.round(time * 30) / 30;
+      onSeek(quantizedTime);
     };
 
     const handlePlayheadMouseUp = () => {
@@ -688,8 +691,7 @@ export default function Timeline({
         document.removeEventListener('mouseup', handlePlayheadMouseUp);
       };
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isDraggingPlayhead, onSeek, pixelsPerSecond, clips, textClips, soundClips]);
+  }, [isDraggingPlayhead, onSeek, setIsDraggingPlayhead]);
 
   // Mouse move effect for cursor feedback near playhead
   useEffect(() => {
