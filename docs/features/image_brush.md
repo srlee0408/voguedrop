@@ -15,7 +15,7 @@ import concurrent.futures
 from datetime import datetime
 
 # API 키 설정
-BFL_TOKEN = '852cd1bd-6d00-4b03-b67b-10ddcf22a635'
+BFL_TOKEN = ''
 
 # FLUX API 엔드포인트
 FLUX_URL = "https://api.us1.bfl.ai/v1/flux-pro-1.0-fill"

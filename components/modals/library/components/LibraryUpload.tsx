@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Upload, Loader2 } from 'lucide-react';
 import { UserUploadedVideo } from '@/types/video-editor';
 import { extractVideoMetadata, extractVideoThumbnail } from '@/app/video-editor/_utils/video-metadata';
+import { uploadVideo } from '@/lib/api/upload';
 
 interface LibraryUploadProps {
   onUploadComplete: (video: UserUploadedVideo) => void;
@@ -18,10 +19,10 @@ export function LibraryUpload({ onUploadComplete }: LibraryUploadProps) {
     const file = event.target.files?.[0];
     if (!file) return;
     
-    // 파일 크기 체크 (20MB)
-    const MAX_SIZE = 20 * 1024 * 1024;
+    // 파일 크기 체크 (50MB for Edge Function)
+    const MAX_SIZE = 50 * 1024 * 1024;
     if (file.size > MAX_SIZE) {
-      setError(`File size exceeds 20MB limit (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
+      setError(`File size exceeds 50MB limit (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
       setTimeout(() => setError(null), 5000);
       return;
     }
@@ -52,46 +53,37 @@ export function LibraryUpload({ onUploadComplete }: LibraryUploadProps) {
         console.warn('Failed to extract thumbnail:', thumbnailError);
       }
       
-      const formData = new FormData();
-      formData.append('file', file);
+      // Convert thumbnail blob to File if exists
+      const thumbnailFile = thumbnailBlob 
+        ? new File([thumbnailBlob], 'thumbnail.jpg', { type: 'image/jpeg' })
+        : null;
       
-      // 썸네일이 있으면 추가
-      if (thumbnailBlob) {
-        const thumbnailFile = new File([thumbnailBlob], 'thumbnail.jpg', { type: 'image/jpeg' });
-        formData.append('thumbnail', thumbnailFile);
-      }
-      
-      // 메타데이터가 있으면 추가
-      if (metadata) {
-        formData.append('duration', metadata.duration.toString());
-        formData.append('aspectRatio', metadata.aspectRatio);
-        formData.append('width', metadata.width.toString());
-        formData.append('height', metadata.height.toString());
-      }
-      
-      // Upload progress simulation
-      const progressInterval = setInterval(() => {
-        setUploadProgress(prev => Math.min(prev + 10, 90));
-      }, 200);
-      
-      const response = await fetch('/api/upload/video', {
-        method: 'POST',
-        body: formData,
+      // Use Edge Function for upload
+      const result = await uploadVideo({
+        file,
+        thumbnail: thumbnailFile,
+        metadata: metadata ? {
+          duration: metadata.duration,
+          aspectRatio: metadata.aspectRatio,
+          width: metadata.width,
+          height: metadata.height
+        } : undefined,
+        onProgress: (progress) => {
+          // Map progress from upload function (10-90) to UI progress (30-90)
+          const mappedProgress = 30 + (progress * 0.6);
+          setUploadProgress(Math.round(mappedProgress));
+        }
       });
       
-      clearInterval(progressInterval);
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Upload failed');
+      if (!result.success) {
+        throw new Error(result.error || 'Upload failed');
       }
       
-      const data = await response.json();
       setUploadProgress(100);
       
       // Notify parent component
-      if (data.video) {
-        onUploadComplete(data.video);
+      if (result.video) {
+        onUploadComplete(result.video);
       }
       
       // Reset after success

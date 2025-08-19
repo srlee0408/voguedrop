@@ -82,15 +82,21 @@ npm run remotion:lambda:sites
    - 5분 후 webhook 미수신 시 fal.ai 직접 polling (fallback)
    - 완료된 영상 Supabase Storage 저장 및 메타데이터 업데이트
 
-2. **비디오 편집 (Remotion)**:
+2. **영상 업로드 (Supabase Edge Function)**:
+   - 대용량 파일 지원: 최대 50MB (Vercel 4.5MB 제한 우회)
+   - 클라이언트 → Edge Function → Supabase Storage 직접 저장
+   - 자동 썸네일 생성 및 메타데이터 추출
+   - `lib/api/upload.ts`의 uploadVideo 함수 사용
+
+3. **비디오 편집 (Remotion)**:
    - Video Editor에서 클립 타임라인 관리
    - Remotion Player로 실시간 프리뷰
    - AWS Lambda 또는 서버 사이드 렌더링으로 최종 영상 생성
    - 생성된 영상 Supabase Storage 저장
 
-3. **사용자 인증**: Supabase Auth로 이메일/비밀번호 인증
-4. **데이터 저장**: 생성된 영상과 메타데이터를 Supabase에 저장
-5. **슬롯 기반 UI**: Canvas에서 4개 슬롯으로 컨텐츠 관리
+4. **사용자 인증**: Supabase Auth로 이메일/비밀번호 인증
+5. **데이터 저장**: 생성된 영상과 메타데이터를 Supabase에 저장
+6. **슬롯 기반 UI**: Canvas에서 4개 슬롯으로 컨텐츠 관리
 
 ## 프로젝트 구조 패턴
 
