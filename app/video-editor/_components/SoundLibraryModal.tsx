@@ -151,6 +151,13 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, historyFilter]); // isLoadingHistory와 loadSoundHistory는 의도적으로 제외
 
+  // Upload 탭으로 전환 시 업로드된 음악 목록 불러오기
+  useEffect(() => {
+    if (activeTab === 'upload') {
+      loadUploadedMusic();
+    }
+  }, [activeTab]); // loadUploadedMusic는 의도적으로 제외
+
   // Duration 드롭다운 외부 클릭 감지
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -208,6 +215,43 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
     }
   };
 
+  const loadUploadedMusic = async () => {
+    try {
+      const response = await fetch('/api/upload/music', {
+        method: 'GET',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to load uploaded music');
+      }
+
+      const data = await response.json();
+      
+      if (data.success && data.music) {
+        // 서버에서 조회한 음악 파일들을 UploadedAudio 형식으로 변환
+        const uploadedMusic: UploadedAudio[] = data.music.map((music: {
+          id: number;
+          file_name: string;
+          url: string;
+          duration: number | null;
+          file_size: number;
+        }) => ({
+          id: music.id.toString(),
+          name: music.file_name,
+          url: music.url,
+          duration: music.duration || 0,
+          size: music.file_size,
+        }));
+        
+        setUploadedAudios(uploadedMusic);
+      }
+    } catch (error) {
+      console.error('Failed to load uploaded music:', error);
+      // 에러 발생 시 빈 배열로 초기화
+      setUploadedAudios([]);
+    }
+  };
+
   const getAudioDuration = (file: File): Promise<number> => {
     return new Promise((resolve, reject) => {
       const audio = new Audio();
@@ -227,15 +271,6 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
     });
   };
 
-  // 파일을 data URL로 변환하는 함수
-  const fileToDataUrl = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -251,16 +286,34 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
           continue;
         }
 
+        // 파일 메타데이터 추출
         const duration = await getAudioDuration(file);
-        // blob URL 대신 data URL 사용
-        const dataUrl = await fileToDataUrl(file);
         
+        // FormData 생성
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('duration', duration.toString());
+        
+        // 서버에 업로드
+        const response = await fetch('/api/upload/music', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Upload failed');
+        }
+
+        const data = await response.json();
+        
+        // 서버에서 반환된 데이터로 UploadedAudio 생성
         const newAudio: UploadedAudio = {
-          id: `audio-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          name: file.name,
-          url: dataUrl,  // data URL 사용
-          duration: duration,
-          size: file.size,
+          id: data.music.id.toString(),
+          name: data.music.file_name,
+          url: data.music.url,
+          duration: data.music.duration || duration,
+          size: data.music.file_size,
         };
         
         setUploadedAudios(prev => [...prev, newAudio]);
@@ -273,9 +326,16 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
         newAudioIds.forEach(id => newSet.add(id));
         return newSet;
       });
+      
+      // 업로드 성공 알림 (선택사항)
+      if (newAudioIds.length > 0) {
+        console.log(`Successfully uploaded ${newAudioIds.length} audio file(s)`);
+        // 업로드 후 전체 목록 다시 로드
+        await loadUploadedMusic();
+      }
     } catch (error) {
       console.error('Error uploading audio:', error);
-      alert('Error uploading audio file.');
+      alert(error instanceof Error ? error.message : 'Error uploading audio file.');
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) {

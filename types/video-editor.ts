@@ -104,6 +104,7 @@ export interface LibraryVideo {
   output_video_url: string;
   created_at: string;
   is_favorite: boolean;
+  aspect_ratio?: string;
   selected_effects: Array<{
     id: number;
     name: string;
@@ -116,6 +117,7 @@ export interface LibraryProject {
   project_name: string;
   updated_at: string;
   latest_video_url?: string;  // project_saves에서 직접 가져옴
+  thumbnail_url?: string;  // 프로젝트 썸네일 URL
   latest_render?: {
     render_id: string;
     output_url: string;

@@ -105,6 +105,15 @@ export async function POST(request: NextRequest) {
       aspectRatio
     });
 
+    // 첫 번째 비디오 클립의 썸네일 URL 추출
+    let thumbnailUrl: string | null = null;
+    if (videoClips && videoClips.length > 0) {
+      const firstClip = videoClips[0] as Record<string, unknown>;
+      // thumbnail이 있으면 사용, 없으면 null
+      thumbnailUrl = (firstClip.thumbnail as string) || null;
+      console.log('Extracted thumbnail from first clip:', thumbnailUrl);
+    }
+
     // 컨텐츠 스냅샷 생성
     const contentSnapshot = {
       version: '1.0',
@@ -140,6 +149,7 @@ export async function POST(request: NextRequest) {
         project_name: projectName,
         latest_render_id: validRenderId || null,
         latest_video_url: null, // 렌더링 후 업데이트 예정
+        thumbnail_url: thumbnailUrl, // 첫 번째 클립의 썸네일 저장
         content_snapshot: contentSnapshot,
         content_hash: contentHash,
         updated_at: new Date().toISOString()
@@ -193,7 +203,7 @@ export async function POST(request: NextRequest) {
         const serviceSupabase = createServiceClient();
         
         const { error: videoError } = await serviceSupabase.storage
-          .from('videos')
+          .from('user-uploads')
           .upload(videoPath, videoBlob, {
             contentType: 'video/mp4',
             upsert: true
@@ -202,7 +212,7 @@ export async function POST(request: NextRequest) {
         if (videoError) {
           console.error('Storage upload error details:', {
             error: videoError,
-            bucket: 'videos',
+            bucket: 'user-uploads',
             path: videoPath,
             fileSize: videoBlob.size,
             contentType: 'video/mp4'
@@ -212,7 +222,7 @@ export async function POST(request: NextRequest) {
 
         // 3. 비디오 공개 URL 가져오기 (Service Client 사용)
         const { data: { publicUrl } } = serviceSupabase.storage
-          .from('videos')
+          .from('user-uploads')
           .getPublicUrl(videoPath);
         
         supabaseVideoUrl = publicUrl;
@@ -221,7 +231,7 @@ export async function POST(request: NextRequest) {
         // 4. 메타데이터 저장 (Service Client 사용)
         const metadataPath = `video-projects/${user.id}/${safeProjectName}/metadata.json`;
         const { error: metadataError } = await serviceSupabase.storage
-          .from('videos')
+          .from('user-uploads')
           .upload(metadataPath, JSON.stringify({
             projectName,
             savedAt: new Date().toISOString(),

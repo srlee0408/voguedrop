@@ -4,11 +4,32 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { LibraryVideo, LibraryProject, UserUploadedVideo, LibraryItem } from '@/types/video-editor';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { extractVideoMetadata, extractVideoThumbnail } from '../_utils/video-metadata';
 
 interface VideoLibraryModalProps {
   onClose: () => void;
   onAddToTimeline: (items: LibraryItem[]) => void;
 }
+
+// 모든 카드를 9:16 비율로 고정
+const CARD_CONTAINER_CLASS = 'w-full aspect-[9/16]';
+
+// 콘텐츠의 object-fit 스타일 결정
+const getContentFitStyle = (aspectRatio?: string) => {
+  switch(aspectRatio) {
+    case '9:16':
+      // 컨테이너와 동일한 비율 - 꽉 채움
+      return 'object-cover';
+    case '1:1':
+      // 정사각형 콘텐츠 - 레터박스 처리
+      return 'object-contain bg-black';
+    case '16:9':
+      // 가로형 콘텐츠 - 레터박스 처리
+      return 'object-contain bg-black';
+    default:
+      return 'object-cover';
+  }
+};
 
 export default function VideoLibraryModal({ onClose, onAddToTimeline }: VideoLibraryModalProps) {
   const [activeCategory, setActiveCategory] = useState<'clips' | 'projects' | 'uploads'>('clips');
@@ -160,8 +181,45 @@ export default function VideoLibraryModal({ onClose, onAddToTimeline }: VideoLib
     setError(null);
     
     try {
+      // 비디오 메타데이터 추출
+      setUploadProgress(10);
+      let metadata;
+      try {
+        metadata = await extractVideoMetadata(file);
+        console.log('Extracted video metadata:', metadata);
+      } catch (metadataError) {
+        console.warn('Failed to extract video metadata:', metadataError);
+        // 메타데이터 추출 실패해도 업로드는 계속 진행
+        metadata = null;
+      }
+      
+      // 썸네일 추출
+      setUploadProgress(20);
+      let thumbnailBlob: Blob | null = null;
+      try {
+        thumbnailBlob = await extractVideoThumbnail(file);
+        console.log('Extracted thumbnail:', thumbnailBlob);
+      } catch (thumbnailError) {
+        console.warn('Failed to extract thumbnail:', thumbnailError);
+        // 썸네일 추출 실패해도 업로드는 계속 진행
+      }
+      
       const formData = new FormData();
       formData.append('file', file);
+      
+      // 썸네일이 있으면 추가
+      if (thumbnailBlob) {
+        const thumbnailFile = new File([thumbnailBlob], 'thumbnail.jpg', { type: 'image/jpeg' });
+        formData.append('thumbnail', thumbnailFile);
+      }
+      
+      // 메타데이터가 있으면 추가
+      if (metadata) {
+        formData.append('duration', metadata.duration.toString());
+        formData.append('aspectRatio', metadata.aspectRatio);
+        formData.append('width', metadata.width.toString());
+        formData.append('height', metadata.height.toString());
+      }
       
       // Upload progress simulation
       const progressInterval = setInterval(() => {
@@ -210,11 +268,14 @@ export default function VideoLibraryModal({ onClose, onAddToTimeline }: VideoLib
     const isSelected = selectedItems.has(clip.id);
     const selectionOrder = selectedItems.get(clip.id);
     
+    // 콘텐츠 fit 스타일 결정
+    const contentFitClass = getContentFitStyle(clip.aspect_ratio || '9:16');
+    
     return (
       <div 
         key={clip.id}
         onClick={() => handleItemSelect(clip.id)}
-        className={`aspect-[9/16] bg-gray-900 rounded-lg overflow-hidden cursor-pointer relative transition-all
+        className={`${CARD_CONTAINER_CLASS} bg-gray-900 rounded-lg overflow-hidden cursor-pointer relative transition-all
           ${isSelected 
             ? 'ring-2 ring-[#38f47cf9] scale-[0.98]' 
             : 'hover:ring-2 hover:ring-[#38f47cf9]/50'}`}
@@ -225,7 +286,7 @@ export default function VideoLibraryModal({ onClose, onAddToTimeline }: VideoLib
             <Image 
               src={clip.input_image_url} 
               alt="Video thumbnail" 
-              className="w-full h-full object-cover"
+              className={`w-full h-full ${contentFitClass}`}
               fill
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             />
@@ -242,41 +303,63 @@ export default function VideoLibraryModal({ onClose, onAddToTimeline }: VideoLib
             </div>
           )}
           
-          {/* Overlay with video info */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-            <div className="absolute bottom-0 left-0 right-0 p-3">
-              {/* Effects */}
-              {clip.selected_effects.length > 0 && (
-                <div className="flex flex-wrap gap-1 mb-2">
-                  {clip.selected_effects.map((effect) => (
-                    <span 
-                      key={effect.id}
-                      className="text-[10px] px-2 py-1 bg-black/50 rounded backdrop-blur-sm"
-                    >
-                      {effect.name}
-                    </span>
-                  ))}
-                </div>
-              )}
-              
-              {/* Date */}
-              <div className="text-xs text-gray-400">
-                {new Date(clip.created_at).toLocaleDateString()}
-              </div>
-            </div>
+          {/* Hover 시 play/download 버튼 */}
+          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+            {clip.output_video_url && (
+              <>
+                <a 
+                  href={clip.output_video_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center text-white"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <i className="ri-play-fill text-white"></i>
+                </a>
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    // TODO: Add download handler
+                  }}
+                  className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center text-white"
+                >
+                  <i className="ri-download-line text-white"></i>
+                </button>
+              </>
+            )}
           </div>
           
-          {/* Favorite indicator */}
+          {/* 즐겨찾기 버튼 */}
           {clip.is_favorite && (
-            <div className={`absolute top-2 ${isSelected ? 'right-12' : 'right-2'}`}>
-              <i className="ri-star-fill text-yellow-500"></i>
+            <div className="absolute top-2 right-2">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // TODO: Add favorite toggle handler
+                }}
+                className="bg-black/60 p-1.5 rounded-full hover:bg-black/80 transition-colors"
+              >
+                <i className="ri-star-fill text-yellow-400 text-xl drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]"></i>
+              </button>
             </div>
           )}
           
-          {/* Play icon overlay */}
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="w-12 h-12 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-              <i className="ri-play-fill text-white text-xl ml-1"></i>
+          {/* Video info overlay - hover 시에만 표시 */}
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3 opacity-0 group-hover:opacity-100 transition-opacity">
+            {clip.selected_effects.length > 0 && (
+              <div className="flex flex-wrap gap-1 mb-1">
+                {clip.selected_effects.map((effect) => (
+                  <span 
+                    key={effect.id}
+                    className="text-[10px] px-2 py-0.5 bg-black/50 rounded backdrop-blur-sm text-white"
+                  >
+                    {effect.name}
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="text-xs text-gray-300">
+              {new Date(clip.created_at).toLocaleDateString()}
             </div>
           </div>
         </div>
@@ -288,17 +371,14 @@ export default function VideoLibraryModal({ onClose, onAddToTimeline }: VideoLib
     const isSelected = selectedItems.has(project.id.toString());
     const selectionOrder = selectedItems.get(project.id.toString());
     
-    // aspect_ratio에 따른 클래스 결정
-    const aspectRatio = project.content_snapshot?.aspect_ratio || '16:9';
-    const aspectClass = aspectRatio === '9:16' ? 'aspect-[9/16]' : 
-                        aspectRatio === '1:1' ? 'aspect-square' : 
-                        'aspect-[16/9]';
+    // 콘텐츠 fit 스타일 결정
+    const contentFitClass = getContentFitStyle(project.content_snapshot?.aspect_ratio || '16:9');
     
     return (
       <div 
         key={project.id}
         onClick={() => handleItemSelect(project.id.toString())}
-        className={`${aspectClass} bg-gray-900 rounded-lg overflow-hidden cursor-pointer relative transition-all
+        className={`${CARD_CONTAINER_CLASS} bg-gray-900 rounded-lg overflow-hidden cursor-pointer relative transition-all
           ${isSelected 
             ? 'ring-2 ring-[#38f47cf9] scale-[0.98]' 
             : 'hover:ring-2 hover:ring-[#38f47cf9]/50'}`}
@@ -308,7 +388,7 @@ export default function VideoLibraryModal({ onClose, onAddToTimeline }: VideoLib
           {project.latest_video_url ? (
             <video 
               src={project.latest_video_url}
-              className="w-full h-full object-cover"
+              className={`w-full h-full ${contentFitClass}`}
               muted
               playsInline
               preload="metadata"
@@ -331,39 +411,55 @@ export default function VideoLibraryModal({ onClose, onAddToTimeline }: VideoLib
             </div>
           )}
           
-          {/* Project info overlay */}
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/80 to-transparent p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <h3 className="text-sm font-medium text-white truncate">
-                  {project.project_name}
-                </h3>
-                <div className="flex items-center gap-3 mt-1">
-                  {project.content_snapshot && (
-                    <span className="text-[10px] text-gray-400">
-                      {project.content_snapshot.aspect_ratio}
-                    </span>
-                  )}
-                  {project.latest_render?.status && (
-                    <span className={`text-[10px] px-2 py-0.5 rounded ${
-                      project.latest_render.status === 'completed' 
-                        ? 'bg-green-500/20 text-green-400' 
-                        : project.latest_render.status === 'processing'
-                        ? 'bg-yellow-500/20 text-yellow-400'
-                        : 'bg-red-500/20 text-red-400'
-                    }`}>
-                      {project.latest_render.status}
-                    </span>
-                  )}
-                  <span className="text-[10px] text-gray-400">
-                    {new Date(project.updated_at).toLocaleDateString()}
-                  </span>
-                </div>
-              </div>
-              {/* Play icon */}
-              <div className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <i className="ri-play-fill text-white text-sm ml-0.5"></i>
-              </div>
+          {/* Hover 시 play/download 버튼 */}
+          {project.latest_video_url && (
+            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+              <a 
+                href={project.latest_video_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center text-white"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <i className="ri-play-fill text-white"></i>
+              </a>
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // TODO: Add download handler for project
+                }}
+                className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center text-white"
+              >
+                <i className="ri-download-line text-white"></i>
+              </button>
+            </div>
+          )}
+          
+          {/* Project info - 항상 표시 */}
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/80 to-transparent p-3">
+            <h4 className="text-sm font-medium text-white truncate">
+              {project.project_name}
+            </h4>
+            <div className="flex items-center gap-2 mt-1">
+              {project.content_snapshot && (
+                <span className="text-[10px] text-gray-400">
+                  {project.content_snapshot.aspect_ratio}
+                </span>
+              )}
+              {project.latest_render?.status && (
+                <span className={`text-[10px] px-2 py-0.5 rounded ${
+                  project.latest_render.status === 'completed' 
+                    ? 'bg-green-500/20 text-green-400' 
+                    : project.latest_render.status === 'processing'
+                    ? 'bg-yellow-500/20 text-yellow-400'
+                    : 'bg-red-500/20 text-red-400'
+                }`}>
+                  {project.latest_render.status}
+                </span>
+              )}
+              <span className="text-[10px] text-gray-400">
+                {new Date(project.updated_at).toLocaleDateString()}
+              </span>
             </div>
           </div>
         </div>
@@ -375,27 +471,34 @@ export default function VideoLibraryModal({ onClose, onAddToTimeline }: VideoLib
     const isSelected = selectedItems.has(upload.id.toString());
     const selectionOrder = selectedItems.get(upload.id.toString());
     
-    // aspect_ratio에 따른 클래스 결정
-    const aspectRatio = upload.aspect_ratio || '16:9';
-    const aspectClass = aspectRatio === '9:16' ? 'aspect-[9/16]' : 
-                        aspectRatio === '1:1' ? 'aspect-square' : 
-                        'aspect-[16/9]';
+    // 콘텐츠 fit 스타일 결정
+    const contentFitClass = getContentFitStyle(upload.aspect_ratio || '16:9');
     
     return (
       <div 
         key={upload.id}
         onClick={() => handleItemSelect(upload.id.toString())}
-        className={`${aspectClass} bg-gray-900 rounded-lg overflow-hidden cursor-pointer relative transition-all
+        className={`${CARD_CONTAINER_CLASS} bg-gray-900 rounded-lg overflow-hidden cursor-pointer relative transition-all
           ${isSelected 
             ? 'ring-2 ring-[#38f47cf9] scale-[0.98]' 
             : 'hover:ring-2 hover:ring-[#38f47cf9]/50'}`}
       >
         <div className="relative h-full group">
-          {/* Video Thumbnail - 첫 프레임 사용 */}
-          {upload.url ? (
+          {/* Thumbnail 또는 Video Preview */}
+          {upload.thumbnail_url ? (
+            // 썸네일이 있으면 이미지로 표시
+            <Image 
+              src={upload.thumbnail_url} 
+              alt={upload.file_name} 
+              className={`w-full h-full ${contentFitClass}`}
+              fill
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            />
+          ) : upload.url ? (
+            // 썸네일이 없으면 비디오의 첫 프레임 표시
             <video 
               src={upload.url}
-              className="w-full h-full object-cover"
+              className={`w-full h-full ${contentFitClass}`}
               muted
               playsInline
               preload="metadata"
@@ -417,31 +520,47 @@ export default function VideoLibraryModal({ onClose, onAddToTimeline }: VideoLib
             </div>
           )}
           
-          {/* Upload info overlay */}
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/80 to-transparent p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <h3 className="text-sm font-medium text-white truncate">
-                  {upload.file_name}
-                </h3>
-                <div className="flex items-center gap-3 mt-1">
-                  <span className="text-[10px] text-gray-400">
-                    {(upload.file_size / (1024 * 1024)).toFixed(2)} MB
-                  </span>
-                  {upload.aspect_ratio && (
-                    <span className="text-[10px] text-gray-400">
-                      {upload.aspect_ratio}
-                    </span>
-                  )}
-                  <span className="text-[10px] text-gray-400">
-                    {new Date(upload.uploaded_at).toLocaleDateString()}
-                  </span>
-                </div>
-              </div>
-              {/* Play icon */}
-              <div className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <i className="ri-play-fill text-white text-sm ml-0.5"></i>
-              </div>
+          {/* Hover 시 play/download 버튼 */}
+          {upload.url && (
+            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+              <a 
+                href={upload.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center text-white"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <i className="ri-play-fill text-white"></i>
+              </a>
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // TODO: Add download handler for upload
+                }}
+                className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center text-white"
+              >
+                <i className="ri-download-line text-white"></i>
+              </button>
+            </div>
+          )}
+          
+          {/* Upload info - 항상 표시 */}
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/80 to-transparent p-3">
+            <h4 className="text-sm font-medium text-white truncate">
+              {upload.file_name}
+            </h4>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-[10px] text-gray-400">
+                {(upload.file_size / (1024 * 1024)).toFixed(2)} MB
+              </span>
+              {upload.aspect_ratio && (
+                <span className="text-[10px] text-gray-400">
+                  {upload.aspect_ratio}
+                </span>
+              )}
+              <span className="text-[10px] text-gray-400">
+                {new Date(upload.uploaded_at).toLocaleDateString()}
+              </span>
             </div>
           </div>
         </div>
@@ -524,15 +643,15 @@ export default function VideoLibraryModal({ onClose, onAddToTimeline }: VideoLib
             
             {/* Upload Button */}
             {activeCategory === 'uploads' && (
-              <div className="mt-4 px-4">
+              <div className="mt-4">
                 <button
                   onClick={() => document.getElementById('video-upload-input')?.click()}
                   disabled={isUploading}
-                  className="w-full py-3 bg-[#38f47cf9] text-black rounded-lg hover:bg-[#38f47cf9]/80 transition-colors flex items-center justify-center gap-2 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full py-3 bg-[#38f47cf9] text-black rounded-lg hover:bg-[#38f47cf9]/80 transition-colors flex items-center justify-center gap-2 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isUploading ? (
                     <>
-                      <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
+                      <i className="ri-loader-4-line animate-spin"></i>
                       <span>Uploading... {uploadProgress}%</span>
                     </>
                   ) : (
@@ -609,7 +728,7 @@ export default function VideoLibraryModal({ onClose, onAddToTimeline }: VideoLib
                       </div>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 auto-rows-min">
+                    <div className="grid grid-cols-4 gap-4">
                       {projectItems.map(renderProjectCard)}
                     </div>
                   )
@@ -623,7 +742,7 @@ export default function VideoLibraryModal({ onClose, onAddToTimeline }: VideoLib
                       </div>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 auto-rows-min">
+                    <div className="grid grid-cols-4 gap-4">
                       {uploadItems.map(renderUploadCard)}
                     </div>
                   )

@@ -2,8 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createServiceClient } from '@/lib/supabase/service';
 
-const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
-const ALLOWED_TYPES = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo'];
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const ALLOWED_TYPES = [
+  'audio/mpeg',       // .mp3
+  'audio/mp3',        // .mp3 (alternative)
+  'audio/wav',        // .wav
+  'audio/x-wav',      // .wav (alternative)
+  'audio/mp4',        // .m4a
+  'audio/x-m4a',      // .m4a (alternative)
+  'audio/ogg',        // .ogg
+  'audio/webm',       // .webm
+  'audio/flac',       // .flac
+  'audio/x-flac'      // .flac (alternative)
+];
 
 // 파일명 sanitize
 function sanitizeFileName(fileName: string): string {
@@ -13,7 +24,6 @@ function sanitizeFileName(fileName: string): string {
     .replace(/_{2,}/g, '_')
     .slice(0, 100);
 }
-
 
 export async function POST(request: NextRequest) {
   try {
@@ -29,13 +39,9 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData();
     const file = formData.get('file') as File;
-    const thumbnail = formData.get('thumbnail') as File | null;
     
     // 클라이언트에서 전송한 메타데이터 추출
     const duration = formData.get('duration') as string | null;
-    const aspectRatio = formData.get('aspectRatio') as string | null;
-    const width = formData.get('width') as string | null;
-    const height = formData.get('height') as string | null;
 
     if (!file) {
       return NextResponse.json(
@@ -47,7 +53,7 @@ export async function POST(request: NextRequest) {
     // 파일 크기 검증
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
-        { error: `파일 크기는 20MB를 초과할 수 없습니다. (현재: ${(file.size / 1024 / 1024).toFixed(2)}MB)` },
+        { error: `파일 크기는 10MB를 초과할 수 없습니다. (현재: ${(file.size / 1024 / 1024).toFixed(2)}MB)` },
         { status: 400 }
       );
     }
@@ -55,7 +61,7 @@ export async function POST(request: NextRequest) {
     // 파일 타입 검증
     if (!ALLOWED_TYPES.includes(file.type)) {
       return NextResponse.json(
-        { error: '지원하지 않는 파일 형식입니다. MP4, WebM, MOV 파일만 업로드 가능합니다.' },
+        { error: '지원하지 않는 파일 형식입니다. MP3, WAV, M4A, OGG, WebM, FLAC 파일만 업로드 가능합니다.' },
         { status: 400 }
       );
     }
@@ -65,10 +71,9 @@ export async function POST(request: NextRequest) {
     const sanitizedName = sanitizeFileName(originalName);
     const timestamp = Date.now();
     const fileName = `${timestamp}_${sanitizedName}`;
-    // 새로운 경로 구조: video/{user_id}/{filename}
-    const storagePath = `video/${user.id}/${fileName}`;
+    const storagePath = `music/${user.id}/${fileName}`;
 
-    // Service Client로 Storage에 업로드 (user-upload 버킷으로 통일)
+    // Service Client로 Storage에 업로드
     const serviceSupabase = createServiceClient();
     const fileBuffer = await file.arrayBuffer();
     const { error: uploadError } = await serviceSupabase.storage
@@ -91,51 +96,18 @@ export async function POST(request: NextRequest) {
       .from('user-uploads')
       .getPublicUrl(storagePath);
 
-    // 썸네일 업로드 처리
-    let thumbnailUrl: string | null = null;
-    if (thumbnail) {
-      try {
-        // 새로운 썸네일 경로 구조: video/{user_id}/thumbnails/{filename}
-        const thumbnailPath = `video/${user.id}/thumbnails/${timestamp}_thumbnail.jpg`;
-        const thumbnailBuffer = await thumbnail.arrayBuffer();
-        
-        const { error: thumbnailError } = await serviceSupabase.storage
-          .from('user-uploads')
-          .upload(thumbnailPath, thumbnailBuffer, {
-            contentType: 'image/jpeg',
-            upsert: false
-          });
-        
-        if (!thumbnailError) {
-          const { data: { publicUrl: thumbUrl } } = serviceSupabase.storage
-            .from('user-uploads')
-            .getPublicUrl(thumbnailPath);
-          thumbnailUrl = thumbUrl;
-        } else {
-          console.warn('Thumbnail upload failed:', thumbnailError);
-        }
-      } catch (err) {
-        console.warn('Thumbnail processing error:', err);
-        // 썸네일 업로드 실패해도 계속 진행
-      }
-    }
-
     // DB에 저장 (클라이언트에서 전송한 메타데이터 사용)
-    const { data: savedVideo, error: dbError } = await supabase
-      .from('user_uploaded_videos')
+    const { data: savedMusic, error: dbError } = await supabase
+      .from('user_uploaded_music')
       .insert({
         user_id: user.id,
         file_name: originalName,
         storage_path: storagePath,
         file_size: file.size,
         duration: duration ? parseFloat(duration) : null,
-        aspect_ratio: aspectRatio || null,
-        thumbnail_url: thumbnailUrl,
         metadata: {
           mime_type: file.type,
-          original_name: originalName,
-          width: width ? parseInt(width) : null,
-          height: height ? parseInt(height) : null
+          original_name: originalName
         },
         uploaded_at: new Date().toISOString()
       })
@@ -157,8 +129,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      video: {
-        ...savedVideo,
+      music: {
+        ...savedMusic,
         url: publicUrl
       }
     });
@@ -172,7 +144,75 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// 업로드된 영상 삭제
+// 업로드된 음악 조회
+export async function GET(request: NextRequest) {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json(
+        { error: '로그인이 필요합니다.' },
+        { status: 401 }
+      );
+    }
+
+    const { searchParams } = new URL(request.url);
+    const genre = searchParams.get('genre');
+    const limit = parseInt(searchParams.get('limit') || '50');
+    const offset = parseInt(searchParams.get('offset') || '0');
+
+    let query = supabase
+      .from('user_uploaded_music')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('is_deleted', false)
+      .order('uploaded_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (genre) {
+      query = query.eq('genre', genre);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('Query error:', error);
+      return NextResponse.json(
+        { error: '음악 목록을 불러오는데 실패했습니다.' },
+        { status: 500 }
+      );
+    }
+
+    // Storage URL 추가
+    const serviceSupabase = createServiceClient();
+    const musicWithUrls = data?.map(music => {
+      const { data: { publicUrl } } = serviceSupabase.storage
+        .from('user-uploads')
+        .getPublicUrl(music.storage_path);
+      
+      return {
+        ...music,
+        url: publicUrl
+      };
+    }) || [];
+
+    return NextResponse.json({
+      success: true,
+      music: musicWithUrls,
+      total: musicWithUrls.length
+    });
+
+  } catch (error) {
+    console.error('Get API error:', error);
+    return NextResponse.json(
+      { error: '음악 목록 조회 중 오류가 발생했습니다.' },
+      { status: 500 }
+    );
+  }
+}
+
+// 업로드된 음악 삭제
 export async function DELETE(request: NextRequest) {
   try {
     const supabase = await createClient();
@@ -186,20 +226,20 @@ export async function DELETE(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const videoId = searchParams.get('id');
+    const musicId = searchParams.get('id');
 
-    if (!videoId) {
+    if (!musicId) {
       return NextResponse.json(
-        { error: '비디오 ID가 필요합니다.' },
+        { error: '음악 ID가 필요합니다.' },
         { status: 400 }
       );
     }
 
     // 소프트 삭제
     const { error } = await supabase
-      .from('user_uploaded_videos')
+      .from('user_uploaded_music')
       .update({ is_deleted: true })
-      .eq('id', videoId)
+      .eq('id', musicId)
       .eq('user_id', user.id);
 
     if (error) {

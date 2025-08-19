@@ -55,6 +55,7 @@ export async function GET(request: NextRequest) {
         updated_at,
         latest_video_url,
         latest_render_id,
+        thumbnail_url,
         content_snapshot,
         video_renders!project_saves_latest_render_id_fkey (
           render_id,
@@ -101,7 +102,7 @@ export async function GET(request: NextRequest) {
     const serviceSupabase = createServiceClient();
     const sanitizedUploads = (uploads || []).map(upload => {
       const { data: { publicUrl } } = serviceSupabase.storage
-        .from('videos')
+        .from('user-uploads')
         .getPublicUrl(upload.storage_path);
       
       return {
@@ -137,6 +138,7 @@ export async function GET(request: NextRequest) {
         project_name: project.project_name,
         updated_at: project.updated_at,
         latest_video_url: project.latest_video_url,
+        thumbnail_url: project.thumbnail_url, // 프로젝트 썸네일 URL 추가
         latest_render: videoRender ? {
           render_id: videoRender.render_id,
           output_url: videoRender.output_url,

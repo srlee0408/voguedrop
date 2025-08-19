@@ -4,6 +4,7 @@ import Image from "next/image"
 import { useEffect, useState, useCallback } from "react"
 import { useAuth } from "@/lib/auth/AuthContext"
 import { LibraryVideo, LibraryProject, UserUploadedVideo } from '@/types/video-editor'
+import { extractVideoMetadata } from '@/app/video-editor/_utils/video-metadata'
 
 interface LibraryClip {
   title: string
@@ -101,8 +102,28 @@ export function LibraryModal({ isOpen, onClose, favoriteVideos = new Set(), onTo
     setUploadProgress(0)
     
     try {
+      // 비디오 메타데이터 추출
+      setUploadProgress(10)
+      let metadata
+      try {
+        metadata = await extractVideoMetadata(file)
+        console.log('Extracted video metadata:', metadata)
+      } catch (metadataError) {
+        console.warn('Failed to extract video metadata:', metadataError)
+        // 메타데이터 추출 실패해도 업로드는 계속 진행
+        metadata = null
+      }
+      
       const formData = new FormData()
       formData.append('file', file)
+      
+      // 메타데이터가 있으면 추가
+      if (metadata) {
+        formData.append('duration', metadata.duration.toString())
+        formData.append('aspectRatio', metadata.aspectRatio)
+        formData.append('width', metadata.width.toString())
+        formData.append('height', metadata.height.toString())
+      }
       
       // Upload progress simulation
       const progressInterval = setInterval(() => {
@@ -411,23 +432,23 @@ export function LibraryModal({ isOpen, onClose, favoriteVideos = new Set(), onTo
     const uploadId = String(upload.id)
     const hasVideo = !!upload.url
     
-    // aspect_ratio에 따른 클래스 결정
+    // 비율에 따른 object-fit 스타일 결정
     const aspectRatio = upload.aspect_ratio || '16:9';
-    const aspectClass = aspectRatio === '9:16' ? 'aspect-[9/16]' : 
-                        aspectRatio === '1:1' ? 'aspect-square' : 
-                        'aspect-[16/9]';
+    const objectFitClass = aspectRatio === '9:16' ? 'object-cover' : 
+                           aspectRatio === '1:1' ? 'object-contain bg-black' : 
+                           'object-contain bg-black';
     
     return (
       <div
         key={upload.id}
-        className={`bg-gray-700 rounded-lg overflow-hidden ${aspectClass} relative`}
+        className="bg-gray-700 rounded-lg overflow-hidden aspect-[9/16] relative"
       >
         <div className="relative group w-full h-full">
           {/* Video Thumbnail - 첫 프레임 사용 */}
           {upload.url ? (
             <video 
               src={upload.url}
-              className="w-full h-full object-cover"
+              className={`w-full h-full ${objectFitClass}`}
               muted
               playsInline
               preload="metadata"
@@ -495,23 +516,23 @@ export function LibraryModal({ isOpen, onClose, favoriteVideos = new Set(), onTo
     const projectId = String(project.id)
     const hasVideo = !!project.latest_video_url
     
-    // aspect_ratio에 따른 클래스 결정
+    // 비율에 따른 object-fit 스타일 결정
     const aspectRatio = project.content_snapshot?.aspect_ratio || '16:9';
-    const aspectClass = aspectRatio === '9:16' ? 'aspect-[9/16]' : 
-                        aspectRatio === '1:1' ? 'aspect-square' : 
-                        'aspect-[16/9]';
+    const objectFitClass = aspectRatio === '9:16' ? 'object-cover' : 
+                           aspectRatio === '1:1' ? 'object-contain bg-black' : 
+                           'object-contain bg-black';
     
     return (
       <div
         key={project.id}
-        className={`bg-gray-700 rounded-lg overflow-hidden ${aspectClass} relative`}
+        className="bg-gray-700 rounded-lg overflow-hidden aspect-[9/16] relative"
       >
         <div className="relative group w-full h-full">
           {/* Video Thumbnail - 첫 프레임 사용 */}
           {project.latest_video_url ? (
             <video 
               src={project.latest_video_url}
-              className="w-full h-full object-cover"
+              className={`w-full h-full ${objectFitClass}`}
               muted
               playsInline
               preload="metadata"
@@ -664,7 +685,7 @@ export function LibraryModal({ isOpen, onClose, favoriteVideos = new Set(), onTo
                 <button
                   onClick={() => document.getElementById('header-video-upload-input')?.click()}
                   disabled={isUploading}
-                  className="w-full py-3 bg-primary text-white rounded-lg hover:bg-primary/80 transition-colors flex items-center justify-center gap-2 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full py-3 bg-primary text-black rounded-lg hover:bg-primary/80 transition-colors flex items-center justify-center gap-2 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isUploading ? (
                     <>

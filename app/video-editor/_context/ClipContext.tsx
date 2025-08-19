@@ -204,14 +204,16 @@ export function ClipProvider({ children }: ClipProviderProps) {
         // 프로젝트는 render_id 또는 project_id 사용
         clipId = `project-${project.id}-${Date.now()}-${index}`;
         url = project.latest_video_url || '';
-        thumbnail = undefined; // 프로젝트는 비디오 첫 프레임을 썸네일로 사용
+        thumbnail = project.thumbnail_url || undefined; // 프로젝트 썸네일 사용
         title = project.project_name || 'Project';
         
         // 디버깅 로그
         console.log('Creating VideoClip from project:', {
           projectId: project.id,
           newClipId: clipId,
-          hasVideo: !!url
+          hasVideo: !!url,
+          hasThumbnail: !!project.thumbnail_url,
+          thumbnailUrl: project.thumbnail_url
         });
         
         if (!url) {
@@ -223,14 +225,16 @@ export function ClipProvider({ children }: ClipProviderProps) {
         // 업로드된 비디오 처리
         clipId = `upload-${upload.id}-${Date.now()}-${index}`;
         url = upload.url || '';
-        thumbnail = undefined; // 비디오 첫 프레임을 썸네일로 사용
+        thumbnail = upload.thumbnail_url || undefined; // 업로드 시 생성된 썸네일 사용
         title = upload.file_name || 'Uploaded Video';
         
         // 디버깅 로그
         console.log('Creating VideoClip from upload:', {
           uploadId: upload.id,
           newClipId: clipId,
-          hasVideo: !!url
+          hasVideo: !!url,
+          hasThumbnail: !!upload.thumbnail_url,
+          thumbnailUrl: upload.thumbnail_url
         });
         
         if (!url) {
