@@ -40,11 +40,23 @@ npm run test
 # 테스트 실행 (단일 실행)
 npm run test:run
 
+# 폰트 렌더링 테스트
+npm run test:font-render
+
 # Remotion Studio 실행 (비디오 편집 개발)
 npm run remotion:studio
 
 # Remotion 비디오 렌더링
 npm run remotion:render
+
+# Remotion Lambda 배포
+npm run remotion:lambda:deploy
+
+# Remotion Lambda 사이트 생성
+npm run remotion:lambda:sites
+
+# 모든 폰트 다운로드 (초기 설정)
+./scripts/download-all-fonts.sh
 ```
 
 ### 빌드 전 필수 체크
@@ -478,6 +490,11 @@ FAL_API_KEY=your-fal-api-key
 WEBHOOK_SECRET=your-webhook-secret
 REMOTION_AWS_ACCESS_KEY_ID=your-aws-access-key
 REMOTION_AWS_SECRET_ACCESS_KEY=your-aws-secret
+
+# AWS Lambda 관련 (선택사항)
+AWS_S3_BUCKET_NAME=voguedrop-renders
+AWS_REGION=us-east-1
+LAMBDA_FUNCTION_NAME=voguedrop-render
 ```
 
 ### Vercel 배포 설정
@@ -535,6 +552,21 @@ REMOTION_AWS_SECRET_ACCESS_KEY=your-aws-secret
    - 타입 에러: 정확한 타입 정의 추가
    - ESLint 에러: 코드 스타일 수정
    - 의존성 에러: package.json 확인
+
+### 테스트 실행
+```bash
+# Vitest를 사용한 테스트
+npm run test         # Watch 모드로 테스트 실행
+npm run test:run     # 단일 실행 (CI/CD용)
+
+# 특정 파일만 테스트
+npm run test -- path/to/test.test.ts
+
+# 커버리지 확인
+npm run test -- --coverage
+```
+
+테스트 파일은 `*.test.ts` 또는 `*.test.tsx` 형식으로 작성하며, `@testing-library/react`를 사용합니다.
 
 ### 흔한 에러 및 해결 방법
 
@@ -655,9 +687,17 @@ try {
 
 ### Remotion 렌더링 이슈
 - Remotion Studio에서 컴포지션 미리보기: `npm run remotion:studio`
-- 프레임 레이트 확인: 기본 30fps 설정
+- 프레임 레이트 확인: 기본 30fps 설정 (`remotion.config.ts`에서 조정 가능)
 - 메모리 사용량 모니터링: 긴 영상 렌더링 시 주의
 - AWS Lambda 설정: `docs/video-render-setup-guide.md` 참조
+- 폰트 로딩 이슈: `./scripts/download-all-fonts.sh` 실행하여 필요한 폰트 다운로드
+- Lambda 함수 메모리: 3008MB (최대), 타임아웃: 15분 설정
+
+## 추가 설정 파일
+- `remotion.config.ts` - Remotion 렌더링 설정 (코덱, 비트레이트, Lambda 설정)
+- `vitest.config.ts` - 테스트 환경 설정 (jsdom, React Testing Library)
+- `eslint.config.mjs` - ESLint 설정 (Next.js 코어 웹 바이탈 규칙)
+- `scripts/download-all-fonts.sh` - Google Fonts에서 프로젝트 폰트 다운로드
 
 ## Cursor Rules 통합
 프로젝트는 다음 Cursor Rules를 포함합니다:
