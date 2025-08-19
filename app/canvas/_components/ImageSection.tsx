@@ -73,6 +73,8 @@ export function ImageSection({
     if (file) {
       uploadFile(file);
     }
+    // input value를 초기화하여 동일한 파일도 다시 선택 가능하도록 함
+    e.target.value = '';
   };
 
 

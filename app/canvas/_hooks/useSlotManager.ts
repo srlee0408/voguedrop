@@ -32,33 +32,52 @@ export function useSlotManager() {
 
   /**
    * 이미지 업로드 시 슬롯 배치 로직
-   * - 1) 빈 슬롯 → 2) 이미지 슬롯(진행 중 제외) → 3) 가장 오래된 완료 비디오
+   * - 1) 현재 이미지(currentImage)가 있는 슬롯이 generate 중이 아니면 교체
+   * - 2) 빈 슬롯 
+   * - 3) 다른 이미지 슬롯(진행 중 제외) 
+   * - 4) 가장 오래된 완료 비디오
    * - 대상 슬롯을 이미지로 채우고, 상태는 empty 유지, 완료시점은 리셋
    */
   const handleImageUpload = useCallback(
-    (imageUrl: string, isSlotGenerating: (slotIndex: number) => boolean) => {
+    (imageUrl: string, isSlotGenerating: (slotIndex: number) => boolean, currentImage?: string | null) => {
       setSlotContents(prev => {
         let target = -1;
 
-        // 1) 빈 슬롯 우선
-        for (let i = 0; i < 4; i++) {
-          if (!prev[i]) {
-            target = i;
-            break;
-          }
-        }
-
-        // 2) 이미지 슬롯 교체 (진행 중 제외)
-        if (target === -1) {
+        // 1) 현재 이미지가 있는 슬롯을 찾아서 generate 중이 아니면 우선 교체
+        if (currentImage) {
           for (let i = 0; i < 4; i++) {
-            if (prev[i]?.type === "image" && !isSlotGenerating(i)) {
+            if (prev[i]?.type === "image" && 
+                prev[i]?.data === currentImage && 
+                !isSlotGenerating(i)) {
               target = i;
               break;
             }
           }
         }
 
-        // 3) 비디오 슬롯 중 가장 오래된 완료를 교체
+        // 2) 빈 슬롯 우선
+        if (target === -1) {
+          for (let i = 0; i < 4; i++) {
+            if (!prev[i]) {
+              target = i;
+              break;
+            }
+          }
+        }
+
+        // 3) 다른 이미지 슬롯 교체 (진행 중 제외)
+        if (target === -1) {
+          for (let i = 0; i < 4; i++) {
+            if (prev[i]?.type === "image" && 
+                !isSlotGenerating(i) && 
+                prev[i]?.data !== currentImage) {
+              target = i;
+              break;
+            }
+          }
+        }
+
+        // 4) 비디오 슬롯 중 가장 오래된 완료를 교체
         if (target === -1) {
           const videoIndices: number[] = [];
           for (let i = 0; i < 4; i++) {

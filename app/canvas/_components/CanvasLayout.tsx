@@ -73,8 +73,10 @@ export function CanvasLayout(): React.ReactElement {
   }
 
   const handleImageUpload = (imageUrl: string): void => {
+    // 현재 이미지를 먼저 저장하여 슬롯 교체 판단에 사용
+    const prevImage = currentGeneratingImage
     setCurrentGeneratingImage(imageUrl)
-    slotManager.handleImageUpload(imageUrl, videoGeneration.isSlotGenerating)
+    slotManager.handleImageUpload(imageUrl, videoGeneration.isSlotGenerating, prevImage)
   }
 
   const handleImageRemove = (): void => {
