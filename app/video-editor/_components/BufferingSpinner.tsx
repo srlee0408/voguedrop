@@ -5,17 +5,23 @@ interface BufferingSpinnerProps {
   message?: string;
   submessage?: string;
   isOverlay?: boolean;
+  overlayOpacity?: 'light' | 'medium' | 'dark';
 }
 
 export function BufferingSpinner({ 
-  message = 'Rendering...', 
-  submessage = 'Loading video, text, and audio',
-  isOverlay = false 
+  message = 'Loading', 
+  submessage = 'Please wait...',
+  isOverlay = false,
+  overlayOpacity = 'dark'
 }: BufferingSpinnerProps) {
   if (isOverlay) {
-    // 오버레이 스타일 - 완전히 검은 화면으로 덮기
+    // Overlay style with configurable opacity
+    const bgClass = overlayOpacity === 'light' ? 'bg-black/30' : 
+                    overlayOpacity === 'medium' ? 'bg-black/50' : 
+                    'bg-black';
+    
     return (
-      <div className="absolute inset-0 flex items-center justify-center bg-black rounded-lg z-50">
+      <div className={`absolute inset-0 flex items-center justify-center ${bgClass} rounded-lg z-50`}>
         <div className="flex flex-col items-center gap-4">
           <div className="relative">
             <div className="w-16 h-16 border-4 border-gray-600 rounded-full"></div>
