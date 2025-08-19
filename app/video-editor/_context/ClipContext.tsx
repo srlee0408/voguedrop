@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useCallback, useMemo, useEffect, ReactNode } from 'react';
-import { VideoClip, TextClip, SoundClip, LibraryVideo, LibraryProject, LibraryItem } from '@/types/video-editor';
+import { VideoClip, TextClip, SoundClip, LibraryVideo, LibraryProject, UserUploadedVideo, LibraryItem } from '@/types/video-editor';
 import { toast } from 'sonner';
 import {
   duplicateVideoClip,
@@ -199,7 +199,7 @@ export function ClipProvider({ children }: ClipProviderProps) {
           originalJobId: video.job_id,
           newClipId: clipId
         });
-      } else {
+      } else if (item.type === 'project') {
         const project = item.data as LibraryProject;
         // 프로젝트는 render_id 또는 project_id 사용
         clipId = `project-${project.id}-${Date.now()}-${index}`;
@@ -216,6 +216,25 @@ export function ClipProvider({ children }: ClipProviderProps) {
         
         if (!url) {
           toast.error(`Project "${title}" doesn't have a rendered video`);
+          continue;
+        }
+      } else {
+        const upload = item.data as UserUploadedVideo & { url?: string };
+        // 업로드된 비디오 처리
+        clipId = `upload-${upload.id}-${Date.now()}-${index}`;
+        url = upload.url || '';
+        thumbnail = undefined; // 비디오 첫 프레임을 썸네일로 사용
+        title = upload.file_name || 'Uploaded Video';
+        
+        // 디버깅 로그
+        console.log('Creating VideoClip from upload:', {
+          uploadId: upload.id,
+          newClipId: clipId,
+          hasVideo: !!url
+        });
+        
+        if (!url) {
+          toast.error(`Upload "${title}" doesn't have a valid video URL`);
           continue;
         }
       }

@@ -128,7 +128,23 @@ export interface LibraryProject {
   };
 }
 
+// 사용자 업로드 영상 타입
+export interface UserUploadedVideo {
+  id: number;
+  user_id: string;
+  file_name: string;
+  storage_path: string;
+  file_size: number;
+  duration?: number;
+  aspect_ratio?: string;
+  thumbnail_url?: string;
+  metadata?: any;
+  uploaded_at: string;
+  is_deleted?: boolean;
+}
+
 // 통합 라이브러리 아이템 타입
 export type LibraryItem = 
   | { type: 'clip'; data: LibraryVideo }
-  | { type: 'project'; data: LibraryProject };
+  | { type: 'project'; data: LibraryProject }
+  | { type: 'upload'; data: UserUploadedVideo };

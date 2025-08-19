@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/service';
 
 export async function GET(request: NextRequest) {
   try {
@@ -71,6 +72,44 @@ export async function GET(request: NextRequest) {
       // 프로젝트 조회 실패는 치명적이지 않으므로 빈 배열로 처리
     }
 
+    // 3. user_uploaded_videos 가져오기 (uploads)
+    const { data: uploads, error: uploadsError } = await supabase
+      .from('user_uploaded_videos')
+      .select(`
+        id,
+        user_id,
+        file_name,
+        storage_path,
+        file_size,
+        duration,
+        aspect_ratio,
+        thumbnail_url,
+        metadata,
+        uploaded_at
+      `)
+      .eq('user_id', user.id)
+      .eq('is_deleted', false)
+      .order('uploaded_at', { ascending: false })
+      .limit(limit);
+
+    if (uploadsError) {
+      console.error('Error fetching uploads:', uploadsError);
+      // 업로드 조회 실패는 치명적이지 않으므로 빈 배열로 처리
+    }
+
+    // Service Client로 공개 URL 가져오기
+    const serviceSupabase = createServiceClient();
+    const sanitizedUploads = (uploads || []).map(upload => {
+      const { data: { publicUrl } } = serviceSupabase.storage
+        .from('videos')
+        .getPublicUrl(upload.storage_path);
+      
+      return {
+        ...upload,
+        url: publicUrl
+      };
+    });
+
     // selected_effects에서 name만 추출하여 반환
     const sanitizedVideos = (videos || []).map(video => ({
       id: video.id,
@@ -115,9 +154,11 @@ export async function GET(request: NextRequest) {
       videos: sanitizedVideos,  // backward compatibility
       clips: sanitizedVideos,
       projects: sanitizedProjects,
+      uploads: sanitizedUploads,
       counts: {
         clips: sanitizedVideos.length,
-        projects: sanitizedProjects.length
+        projects: sanitizedProjects.length,
+        uploads: sanitizedUploads.length
       },
       count: sanitizedVideos.length  // backward compatibility
     });

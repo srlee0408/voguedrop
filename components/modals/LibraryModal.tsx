@@ -1,9 +1,9 @@
-import { X, Info, Play, Download, Loader2, Star, Video, Folder } from "lucide-react"
+import { X, Info, Play, Download, Loader2, Star, Video, Folder, Upload } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import Image from "next/image"
 import { useEffect, useState, useCallback } from "react"
 import { useAuth } from "@/lib/auth/AuthContext"
-import { LibraryVideo, LibraryProject } from '@/types/video-editor'
+import { LibraryVideo, LibraryProject, UserUploadedVideo } from '@/types/video-editor'
 
 interface LibraryClip {
   title: string
@@ -21,14 +21,17 @@ interface LibraryModalProps {
 }
 
 export function LibraryModal({ isOpen, onClose, favoriteVideos = new Set(), onToggleFavorite }: LibraryModalProps) {
-  const [activeCategory, setActiveCategory] = useState<'clips' | 'projects'>('clips')
+  const [activeCategory, setActiveCategory] = useState<'clips' | 'projects' | 'uploads'>('clips')
   const [clipItems, setClipItems] = useState<LibraryVideo[]>([])
   const [projectItems, setProjectItems] = useState<LibraryProject[]>([])
+  const [uploadItems, setUploadItems] = useState<UserUploadedVideo[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
   const [downloadingVideos, setDownloadingVideos] = useState<Set<string>>(new Set())
-  const [counts, setCounts] = useState({ clips: 0, projects: 0 })
+  const [counts, setCounts] = useState({ clips: 0, projects: 0, uploads: 0 })
+  const [isUploading, setIsUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
   const { user } = useAuth()
 
   const fetchLibraryData = useCallback(async () => {
@@ -37,6 +40,7 @@ export function LibraryModal({ isOpen, onClose, favoriteVideos = new Set(), onTo
       if (!user) {
         setClipItems([])
         setProjectItems([])
+        setUploadItems([])
         return
       }
       
@@ -51,9 +55,12 @@ export function LibraryModal({ isOpen, onClose, favoriteVideos = new Set(), onTo
       // 새로운 응답 형식 처리
       setClipItems(data.clips || data.videos || [])
       setProjectItems(data.projects || [])
+      // uploads already have url from API
+      setUploadItems(data.uploads || [])
       setCounts(data.counts || { 
         clips: (data.clips || data.videos || []).length, 
-        projects: (data.projects || []).length 
+        projects: (data.projects || []).length,
+        uploads: (data.uploads || []).length
       })
     } catch (error) {
       console.error('Failed to fetch library data:', error)
@@ -68,13 +75,76 @@ export function LibraryModal({ isOpen, onClose, favoriteVideos = new Set(), onTo
     } else if (isOpen && !user) {
       setClipItems([])
       setProjectItems([])
+      setUploadItems([])
       setIsLoading(false)
     }
   }, [isOpen, user, fetchLibraryData])
 
   // 카테고리 변경 핸들러
-  const handleCategoryChange = (category: 'clips' | 'projects') => {
+  const handleCategoryChange = (category: 'clips' | 'projects' | 'uploads') => {
     setActiveCategory(category)
+  }
+  
+  // 파일 업로드 핸들러
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    
+    // 파일 크기 체크 (20MB)
+    const MAX_SIZE = 20 * 1024 * 1024
+    if (file.size > MAX_SIZE) {
+      alert(`File size exceeds 20MB limit (${(file.size / 1024 / 1024).toFixed(2)}MB)`)
+      return
+    }
+    
+    setIsUploading(true)
+    setUploadProgress(0)
+    
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      
+      // Upload progress simulation
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => Math.min(prev + 10, 90))
+      }, 200)
+      
+      const response = await fetch('/api/upload/video', {
+        method: 'POST',
+        body: formData,
+      })
+      
+      clearInterval(progressInterval)
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Upload failed')
+      }
+      
+      const data = await response.json()
+      setUploadProgress(100)
+      
+      // Add to upload items
+      if (data.video) {
+        setUploadItems(prev => [data.video, ...prev])
+        setCounts(prev => ({ ...prev, uploads: prev.uploads + 1 }))
+      }
+      
+      // Reset after success
+      setTimeout(() => {
+        setUploadProgress(0)
+        setIsUploading(false)
+      }, 500)
+      
+      // Reset file input
+      event.target.value = ''
+      
+    } catch (err) {
+      console.error('Upload error:', err)
+      alert(err instanceof Error ? err.message : 'Failed to upload video')
+      setIsUploading(false)
+      setUploadProgress(0)
+    }
   }
 
   // 즐겨찾기 토글 핸들러
@@ -121,6 +191,50 @@ export function LibraryModal({ isOpen, onClose, favoriteVideos = new Set(), onTo
       setDownloadingVideos(prev => {
         const newSet = new Set(prev)
         newSet.delete(videoId)
+        return newSet
+      })
+    }
+  }
+
+  // 다운로드 핸들러 (업로드용)
+  const handleDownloadUpload = async (upload: UserUploadedVideo & { url?: string }) => {
+    const url = upload.url
+    if (!url) return
+    
+    const uploadId = String(upload.id)
+    
+    if (downloadingVideos.has(uploadId)) return
+    
+    const date = new Date(upload.uploaded_at).toISOString().split('T')[0]
+    const fileName = upload.file_name.toLowerCase().replace(/\s+/g, '-')
+    const filename = `voguedrop_upload_${date}_${fileName}`
+    
+    setDownloadingVideos(prev => new Set(prev).add(uploadId))
+    
+    try {
+      const response = await fetch(url)
+      if (!response.ok) throw new Error('Download failed')
+      
+      const blob = await response.blob()
+      const blobUrl = window.URL.createObjectURL(blob)
+      
+      const a = document.createElement('a')
+      a.style.display = 'none'
+      a.href = blobUrl
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      
+      window.URL.revokeObjectURL(blobUrl)
+      document.body.removeChild(a)
+      
+    } catch (error) {
+      console.error('Download failed:', error)
+      alert('다운로드에 실패했습니다. 다시 시도해주세요.')
+    } finally {
+      setDownloadingVideos(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(uploadId)
         return newSet
       })
     }
@@ -202,6 +316,19 @@ export function LibraryModal({ isOpen, onClose, favoriteVideos = new Set(), onTo
       return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
     })
 
+  // Filter and sort uploads
+  const filteredUploads = uploadItems
+    .filter(upload => {
+      const uploadDate = new Date(upload.uploaded_at)
+      const matchesStartDate = !startDate || uploadDate >= new Date(startDate)
+      const matchesEndDate = !endDate || uploadDate <= new Date(endDate + 'T23:59:59')
+      
+      return matchesStartDate && matchesEndDate
+    })
+    .sort((a, b) => {
+      return new Date(b.uploaded_at).getTime() - new Date(a.uploaded_at).getTime()
+    })
+
   if (!isOpen) return null
 
   const renderClipCard = (video: LibraryVideo) => {
@@ -273,6 +400,90 @@ export function LibraryModal({ isOpen, onClose, favoriteVideos = new Set(), onTo
             )}
             <div className="text-xs text-gray-300">
               {new Date(video.created_at).toLocaleDateString()}
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  const renderUploadCard = (upload: UserUploadedVideo & { url?: string }) => {
+    const uploadId = String(upload.id)
+    const hasVideo = !!upload.url
+    
+    // aspect_ratio에 따른 클래스 결정
+    const aspectRatio = upload.aspect_ratio || '16:9';
+    const aspectClass = aspectRatio === '9:16' ? 'aspect-[9/16]' : 
+                        aspectRatio === '1:1' ? 'aspect-square' : 
+                        'aspect-[16/9]';
+    
+    return (
+      <div
+        key={upload.id}
+        className={`bg-gray-700 rounded-lg overflow-hidden ${aspectClass} relative`}
+      >
+        <div className="relative group w-full h-full">
+          {/* Video Thumbnail - 첫 프레임 사용 */}
+          {upload.url ? (
+            <video 
+              src={upload.url}
+              className="w-full h-full object-cover"
+              muted
+              playsInline
+              preload="metadata"
+              onError={(e) => {
+                // 비디오 로드 실패 시 폴백
+                const target = e.target as HTMLVideoElement;
+                target.style.display = 'none';
+              }}
+            />
+          ) : (
+            <div className="w-full h-full bg-gray-800 flex items-center justify-center">
+              <i className="ri-upload-cloud-line text-4xl text-gray-600"></i>
+            </div>
+          )}
+          
+          {hasVideo && (
+            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+              <a 
+                href={upload.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center text-white"
+              >
+                <Play className="w-4 h-4" />
+              </a>
+              <button 
+                onClick={() => handleDownloadUpload(upload)}
+                disabled={downloadingVideos.has(uploadId)}
+                className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center text-white disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {downloadingVideos.has(uploadId) ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4" />
+                )}
+              </button>
+            </div>
+          )}
+          
+          {/* Upload info overlay */}
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/80 to-transparent p-3">
+            <h4 className="text-sm font-medium text-white truncate">
+              {upload.file_name}
+            </h4>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-[10px] text-gray-400">
+                {(upload.file_size / (1024 * 1024)).toFixed(2)} MB
+              </span>
+              {upload.aspect_ratio && (
+                <span className="text-[10px] text-gray-400">
+                  {upload.aspect_ratio}
+                </span>
+              )}
+              <span className="text-[10px] text-gray-400">
+                {new Date(upload.uploaded_at).toLocaleDateString()}
+              </span>
             </div>
           </div>
         </div>
@@ -387,7 +598,9 @@ export function LibraryModal({ isOpen, onClose, favoriteVideos = new Set(), onTo
           <p className="text-sm text-gray-400">
             {activeCategory === 'clips' 
               ? "Only favorited videos are permanently stored. Other videos will be automatically deleted after 7 days."
-              : "Your saved video projects with render history."
+              : activeCategory === 'projects'
+              ? "Your saved video projects with render history."
+              : "Your uploaded videos (max 20MB per file)."
             }
           </p>
         </div>
@@ -427,7 +640,67 @@ export function LibraryModal({ isOpen, onClose, favoriteVideos = new Set(), onTo
                   {counts.projects}
                 </span>
               </button>
+              
+              <button
+                onClick={() => handleCategoryChange('uploads')}
+                className={`w-full px-4 py-3 rounded-lg text-left transition-colors flex items-center justify-between
+                  ${activeCategory === 'uploads' 
+                    ? 'bg-primary/20 text-primary' 
+                    : 'hover:bg-gray-800 text-gray-400 hover:text-white'}`}
+              >
+                <div className="flex items-center gap-3">
+                  <Upload className="w-5 h-5" />
+                  <span className="text-sm font-medium">Uploads</span>
+                </div>
+                <span className="text-xs bg-gray-700 px-2 py-1 rounded">
+                  {counts.uploads}
+                </span>
+              </button>
             </div>
+            
+            {/* Upload Button */}
+            {activeCategory === 'uploads' && (
+              <div className="mt-4">
+                <button
+                  onClick={() => document.getElementById('header-video-upload-input')?.click()}
+                  disabled={isUploading}
+                  className="w-full py-3 bg-primary text-white rounded-lg hover:bg-primary/80 transition-colors flex items-center justify-center gap-2 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isUploading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Uploading... {uploadProgress}%</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-4 h-4" />
+                      <span>Upload Video</span>
+                    </>
+                  )}
+                </button>
+                {isUploading && (
+                  <div className="mt-2">
+                    <div className="w-full bg-gray-700 rounded-full h-2">
+                      <div 
+                        className="bg-primary h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${uploadProgress}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+                <input
+                  id="header-video-upload-input"
+                  type="file"
+                  accept="video/mp4,video/webm,video/quicktime,video/x-msvideo"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                  disabled={isUploading}
+                />
+                <p className="text-xs text-gray-500 mt-2 text-center">
+                  Max file size: 20MB
+                </p>
+              </div>
+            )}
 
             {/* Date Filter */}
             <div className="mt-6 pt-6 border-t border-gray-700">
@@ -477,7 +750,7 @@ export function LibraryModal({ isOpen, onClose, favoriteVideos = new Set(), onTo
                       {filteredClips.map(renderClipCard)}
                     </div>
                   )
-                ) : (
+                ) : activeCategory === 'projects' ? (
                   filteredProjects.length === 0 ? (
                     <div className="flex items-center justify-center py-20">
                       <div className="text-center">
@@ -491,7 +764,21 @@ export function LibraryModal({ isOpen, onClose, favoriteVideos = new Set(), onTo
                       {filteredProjects.map(renderProjectCard)}
                     </div>
                   )
-                )}
+                ) : activeCategory === 'uploads' ? (
+                  filteredUploads.length === 0 ? (
+                    <div className="flex items-center justify-center py-20">
+                      <div className="text-center">
+                        <Upload className="w-12 h-12 text-gray-500 mx-auto mb-4" />
+                        <p className="text-gray-400">No uploaded videos found</p>
+                        <p className="text-sm text-gray-500 mt-2">Upload your own videos to use them here</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 auto-rows-min">
+                      {filteredUploads.map(renderUploadCard)}
+                    </div>
+                  )
+                ) : null}
               </>
             )}
           </div>

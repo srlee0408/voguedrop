@@ -69,3 +69,17 @@ export interface VideoRender {
   created_at: string
   completed_at: string | null
 }
+
+export interface UserUploadedVideo {
+  id: number
+  user_id: string
+  file_name: string
+  storage_path: string
+  file_size: number
+  duration?: number
+  aspect_ratio?: string
+  thumbnail_url?: string
+  metadata?: any
+  uploaded_at: string
+  is_deleted?: boolean
+}
