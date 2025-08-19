@@ -109,3 +109,26 @@ export interface LibraryVideo {
     name: string;
   }>;
 }
+
+// 프로젝트 저장 타입 추가
+export interface LibraryProject {
+  id: number;
+  project_name: string;
+  updated_at: string;
+  latest_video_url?: string;  // project_saves에서 직접 가져옴
+  latest_render?: {
+    render_id: string;
+    output_url: string;
+    thumbnail_url: string | null;
+    status: string;
+  };
+  content_snapshot?: {
+    aspect_ratio: string;
+    duration_frames: number;
+  };
+}
+
+// 통합 라이브러리 아이템 타입
+export type LibraryItem = 
+  | { type: 'clip'; data: LibraryVideo }
+  | { type: 'project'; data: LibraryProject };

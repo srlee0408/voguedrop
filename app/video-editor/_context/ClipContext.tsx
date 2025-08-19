@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useCallback, useMemo, useEffect, ReactNode } from 'react';
-import { VideoClip, TextClip, SoundClip, LibraryVideo } from '@/types/video-editor';
+import { VideoClip, TextClip, SoundClip, LibraryVideo, LibraryProject, LibraryItem } from '@/types/video-editor';
 import { toast } from 'sonner';
 import {
   duplicateVideoClip,
@@ -29,7 +29,7 @@ interface ClipContextType {
   setSelectedTextClip: React.Dispatch<React.SetStateAction<string | null>>;
   
   // 비디오 클립 관련 함수
-  handleAddToTimeline: (videos: LibraryVideo[]) => Promise<void>;
+  handleAddToTimeline: (items: LibraryItem[]) => Promise<void>;
   handleDeleteVideoClip: (id: string) => void;
   handleDuplicateVideoClip: (id: string) => void;
   handleSplitVideoClip: (id: string, currentTime: number, pixelsPerSecond: number) => void;
@@ -170,41 +170,74 @@ export function ClipProvider({ children }: ClipProviderProps) {
     }
   }, []);
   
-  // 비디오 클립 추가 (page.tsx의 handleAddToTimeline 그대로)
-  const handleAddToTimeline = useCallback(async (videos: LibraryVideo[]) => {
+  // 비디오 클립 추가 (LibraryItem 처리)
+  const handleAddToTimeline = useCallback(async (items: LibraryItem[]) => {
     const { getTimelineEnd } = await import('../_utils/timeline-utils');
     
     const default_px = 240;
     const startPosition = getTimelineEnd(timelineClips);
     
     let currentPosition = startPosition;
-    const newClips = videos.map((video, index) => {
-      // job_id를 포함한 clipId 생성 (비디오 기반 음악 생성을 위해)
-      const clipId = `clip-${video.job_id}-${Date.now()}-${index}`;
+    const newClips: VideoClip[] = [];
+    
+    for (const [index, item] of items.entries()) {
+      let clipId: string;
+      let url: string;
+      let thumbnail: string | undefined;
+      let title: string;
       
-      // 디버깅 로그
-      console.log('Creating VideoClip with job_id:', {
-        originalJobId: video.job_id,
-        newClipId: clipId
-      });
+      if (item.type === 'clip') {
+        const video = item.data as LibraryVideo;
+        // job_id를 포함한 clipId 생성 (비디오 기반 음악 생성을 위해)
+        clipId = `clip-${video.job_id}-${Date.now()}-${index}`;
+        url = video.output_video_url;
+        thumbnail = video.input_image_url;
+        title = video.selected_effects?.[0]?.name || extractTitleFromUrl(video.output_video_url) || 'Video Clip';
+        
+        // 디버깅 로그
+        console.log('Creating VideoClip from library video:', {
+          originalJobId: video.job_id,
+          newClipId: clipId
+        });
+      } else {
+        const project = item.data as LibraryProject;
+        // 프로젝트는 render_id 또는 project_id 사용
+        clipId = `project-${project.id}-${Date.now()}-${index}`;
+        url = project.latest_video_url || '';
+        thumbnail = undefined; // 프로젝트는 비디오 첫 프레임을 썸네일로 사용
+        title = project.project_name || 'Project';
+        
+        // 디버깅 로그
+        console.log('Creating VideoClip from project:', {
+          projectId: project.id,
+          newClipId: clipId,
+          hasVideo: !!url
+        });
+        
+        if (!url) {
+          toast.error(`Project "${title}" doesn't have a rendered video`);
+          continue;
+        }
+      }
       
       const newClip: VideoClip = {
         id: clipId,
         duration: default_px,
         position: currentPosition,
         thumbnails: 1,
-        url: video.output_video_url,
-        thumbnail: video.input_image_url,
-        title: video.selected_effects?.[0]?.name || extractTitleFromUrl(video.output_video_url) || 'Video Clip',
+        url,
+        thumbnail,
+        title,
         maxDuration: default_px,
         startTime: 0,
         endTime: undefined,
       };
       
+      newClips.push(newClip);
       currentPosition += default_px;
       
       // 백그라운드에서 실제 duration 계산
-      getVideoDurationSeconds(video.output_video_url).then((duration_seconds) => {
+      getVideoDurationSeconds(url).then((duration_seconds) => {
         const min_px = 80;
         const computed_px = Math.max(min_px, Math.round((duration_seconds || 0) * PIXELS_PER_SECOND));
         
@@ -225,9 +258,7 @@ export function ClipProvider({ children }: ClipProviderProps) {
           });
         });
       });
-      
-      return newClip;
-    });
+    }
     
     setTimelineClips(prev => [...prev, ...newClips]);
     saveToHistory();

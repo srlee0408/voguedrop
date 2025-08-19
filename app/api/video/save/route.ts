@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
       durationInFrames
     } = body;
     
-    let { renderId, renderOutputUrl } = body;
+    const { renderId, renderOutputUrl } = body;
 
     // 컨텐츠 해시 생성
     const contentHash = generateContentHash({
@@ -116,21 +116,6 @@ export async function POST(request: NextRequest) {
       content_hash: contentHash
     };
 
-    // 기존 저장 확인
-    const { data: existingSave, error: fetchError } = await supabase
-      .from('project_saves')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('project_name', projectName)
-      .eq('is_latest', true)
-      .single();
-    
-    // 클라이언트가 renderId를 모르는 경우, 기존 저장에서 가져오기
-    if (!renderId && !renderOutputUrl && existingSave) {
-      renderId = existingSave.latest_render_id;
-      renderOutputUrl = existingSave.content_snapshot?.video_url;
-    }
-
     // render_id가 제공된 경우, video_renders 테이블에 존재하는지 확인
     let validRenderId: string | null = null;
     if (renderId) {
@@ -147,81 +132,34 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 = no rows
-      console.error('Error fetching existing save:', fetchError);
-      throw fetchError;
-    }
-
-    // 변경사항 체크
-    const hasChanges = !existingSave || existingSave.content_hash !== contentHash;
-
-    if (!hasChanges && existingSave) {
-      // 변경사항 없음 - 기존 데이터 반환
-      // validRenderId가 있으면 업데이트 (렌더링 완료 후 호출)
-      if (validRenderId && validRenderId !== existingSave.latest_render_id) {
-        await supabase
-          .from('project_saves')
-          .update({ 
-            latest_render_id: validRenderId,
-            content_snapshot: {
-              ...existingSave.content_snapshot,
-              video_url: renderOutputUrl
-            }
-          })
-          .eq('id', existingSave.id);
-      }
-      
-      // 기존 저장된 비디오 URL 가져오기
-      const existingVideoUrl = existingSave.content_snapshot?.video_url || renderOutputUrl;
-      
-      return NextResponse.json({
-        success: true,
-        message: 'No changes detected',
-        projectSaveId: existingSave.id,
-        renderId: existingSave.latest_render_id || validRenderId,
-        needsRender: false,
-        videoUrl: existingVideoUrl,
-        storageLocation: existingVideoUrl?.includes('supabase') ? 'supabase' : 's3'
-      });
-    }
-
-    // 변경사항 있음 또는 새 프로젝트
-    if (existingSave) {
-      // 기존 버전을 is_latest = false로 업데이트
-      await supabase
-        .from('project_saves')
-        .update({ is_latest: false })
-        .eq('user_id', user.id)
-        .eq('project_name', projectName);
-    }
-
-    // 새 버전 생성
-    const newVersion = existingSave ? existingSave.version + 1 : 1;
-    
-    const { data: newSave, error: insertError } = await supabase
+    // UPSERT 방식으로 단순화 - 있으면 UPDATE, 없으면 INSERT
+    const { data: savedProject, error: saveError } = await supabase
       .from('project_saves')
-      .insert({
+      .upsert({
         user_id: user.id,
         project_name: projectName,
         latest_render_id: validRenderId || null,
+        latest_video_url: null, // 렌더링 후 업데이트 예정
         content_snapshot: contentSnapshot,
         content_hash: contentHash,
-        version: newVersion,
-        is_latest: true
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'user_id,project_name', // 복합 유니크 키
+        ignoreDuplicates: false // 항상 덮어쓰기
       })
       .select()
       .single();
 
-    if (insertError) {
-      console.error('Error creating project save:', insertError);
-      throw insertError;
+    if (saveError) {
+      console.error('Error saving project:', saveError);
+      throw saveError;
     }
 
     // validRenderId가 있으면 video_renders 업데이트
     if (validRenderId) {
       await supabase
         .from('video_renders')
-        .update({ project_save_id: newSave.id })
+        .update({ project_save_id: savedProject.id })
         .eq('render_id', validRenderId);
     }
 
@@ -245,7 +183,7 @@ export async function POST(request: NextRequest) {
           throw new Error(`Video file too large: ${(videoBlob.size / 1024 / 1024).toFixed(2)}MB (max: 100MB)`);
         }
         
-        const videoFileName = `video-v${newVersion}.mp4`;
+        const videoFileName = `video-${Date.now()}.mp4`;
         const safeProjectName = sanitizeFileName(projectName);
         const videoPath = `video-projects/${user.id}/${safeProjectName}/${videoFileName}`;
         
@@ -286,7 +224,6 @@ export async function POST(request: NextRequest) {
           .from('videos')
           .upload(metadataPath, JSON.stringify({
             projectName,
-            version: newVersion,
             savedAt: new Date().toISOString(),
             s3Url: renderOutputUrl,
             supabaseUrl: supabaseVideoUrl,
@@ -306,12 +243,13 @@ export async function POST(request: NextRequest) {
           .from('project_saves')
           .update({ 
             latest_render_id: validRenderId,
+            latest_video_url: supabaseVideoUrl,  // latest_video_url 코럼에 저장
             content_snapshot: {
               ...contentSnapshot,
-              video_url: supabaseVideoUrl
+              video_url: supabaseVideoUrl  // 호환성을 위해 여기도 유지
             }
           })
-          .eq('id', newSave.id);
+          .eq('id', savedProject.id);
 
       } catch (error) {
         console.error('Error saving video to Supabase:', error);
@@ -322,10 +260,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: hasChanges ? 'Project saved with new version' : 'New project saved',
-      projectSaveId: newSave.id,
-      version: newVersion,
-      needsRender: !validRenderId && !renderOutputUrl, // 렌더링이 전혀 없을 때만 true
+      message: 'Project saved successfully',
+      projectSaveId: savedProject.id,
+      needsRender: !validRenderId && !renderOutputUrl, // 렌더링이 전현 없을 때만 true
       videoUrl: supabaseVideoUrl || renderOutputUrl,
       storageLocation: supabaseVideoUrl ? 'supabase' : renderOutputUrl ? 's3' : null
     });
@@ -365,13 +302,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 최신 저장 조회
+    // 프로젝트 조회 (단일 레코드)
     const { data: projectSave, error } = await supabase
       .from('project_saves')
       .select('*')
       .eq('user_id', user.id)
       .eq('project_name', projectName)
-      .eq('is_latest', true)
       .single();
 
     if (error) {
