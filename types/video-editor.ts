@@ -9,6 +9,7 @@ export interface VideoClip {
   maxDuration?: number; // Maximum duration in pixels (actual video length)
   startTime?: number; // Start time in seconds within the original video
   endTime?: number; // End time in seconds within the original video
+  sourceType?: 'clip' | 'upload' | 'project'; // Source of the video (AI-generated clip, user upload, or project)
 }
 
 export interface TextClip {

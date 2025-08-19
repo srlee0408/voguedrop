@@ -185,6 +185,7 @@ export function ClipProvider({ children }: ClipProviderProps) {
       let url: string;
       let thumbnail: string | undefined;
       let title: string;
+      let sourceType: 'clip' | 'upload' | 'project' = 'clip';
       
       if (item.type === 'clip') {
         const video = item.data as LibraryVideo;
@@ -193,11 +194,13 @@ export function ClipProvider({ children }: ClipProviderProps) {
         url = video.output_video_url;
         thumbnail = video.input_image_url;
         title = video.selected_effects?.[0]?.name || extractTitleFromUrl(video.output_video_url) || 'Video Clip';
+        sourceType = 'clip'; // AI generated clip
         
         // 디버깅 로그
         console.log('Creating VideoClip from library video:', {
           originalJobId: video.job_id,
-          newClipId: clipId
+          newClipId: clipId,
+          sourceType
         });
       } else if (item.type === 'project') {
         const project = item.data as LibraryProject;
@@ -206,6 +209,7 @@ export function ClipProvider({ children }: ClipProviderProps) {
         url = project.latest_video_url || '';
         thumbnail = project.thumbnail_url || undefined; // 프로젝트 썸네일 사용
         title = project.project_name || 'Project';
+        sourceType = 'project'; // Project-based video
         
         // 디버깅 로그
         console.log('Creating VideoClip from project:', {
@@ -227,6 +231,7 @@ export function ClipProvider({ children }: ClipProviderProps) {
         url = upload.url || '';
         thumbnail = upload.thumbnail_url || undefined; // 업로드 시 생성된 썸네일 사용
         title = upload.file_name || 'Uploaded Video';
+        sourceType = 'upload'; // User uploaded video
         
         // 디버깅 로그
         console.log('Creating VideoClip from upload:', {
@@ -249,6 +254,7 @@ export function ClipProvider({ children }: ClipProviderProps) {
         position: currentPosition,
         thumbnails: 1,
         url,
+        sourceType,
         thumbnail,
         title,
         maxDuration: default_px,

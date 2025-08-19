@@ -77,6 +77,7 @@ function VideoEditorContent() {
   const {
     isPlaying,
     currentTime,
+    totalDuration,
     playerRef,
     handlePlayPause,
     handleSeek,
@@ -232,6 +233,7 @@ function VideoEditorContent() {
           onUpdateSoundFade={handleUpdateSoundFade}
           pixelsPerSecond={PIXELS_PER_SECOND}
           currentTime={currentTime}
+          totalDuration={totalDuration}
           isPlaying={isPlaying}
           onSeek={handleSeek}
           onPlayPause={handlePlayPause}
