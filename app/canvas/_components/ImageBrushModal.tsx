@@ -1,9 +1,8 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
+import Image from 'next/image'
 import { X, Brush, Eraser, RotateCcw, Loader2, Sliders, ArrowRight } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Slider } from '@/components/ui/slider'
 import type { ImageBrushModalState, BrushTool, CanvasMouseEvent } from '@/types/image-brush'
 
 interface ImageBrushModalProps {
@@ -48,7 +47,7 @@ export function ImageBrushModal({
   useEffect(() => {
     if (!isOpen || !imageUrl) return
 
-    const img = new Image()
+    const img = new window.Image()
     img.crossOrigin = 'anonymous'
     img.onload = () => {
       imageRef.current = img
@@ -371,20 +370,38 @@ export function ImageBrushModal({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black">
+    <>
+      <style jsx>{`
+        input[type="range"]::-webkit-slider-thumb {
+          appearance: none;
+          width: 16px;
+          height: 16px;
+          background: #38f47cf9;
+          cursor: pointer;
+          border-radius: 50%;
+        }
+        input[type="range"]::-moz-range-thumb {
+          width: 16px;
+          height: 16px;
+          background: #38f47cf9;
+          cursor: pointer;
+          border: none;
+          border-radius: 50%;
+        }
+      `}</style>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       {/* Main Modal with integrated Before/After */}
-      <div className="bg-surface-primary rounded-lg w-[95vw] max-w-7xl h-[90vh] flex flex-col shadow-2xl">
+      <div className="bg-gray-800 rounded-xl w-full max-w-[1400px] max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-border">
-          <h2 className="text-xl font-semibold">Image Brush - AI Image Editor</h2>
-          <Button
-            variant="ghost"
-            size="icon"
+        <div className="flex items-center justify-between p-6 pb-2 border-b border-gray-700">
+          <h2 className="text-xl font-medium text-white">Image Brush - AI Image Editor</h2>
+          <button
+            className="text-gray-400 hover:text-gray-300 transition-colors"
             onClick={onClose}
             disabled={state.isProcessing}
           >
-            <X className="w-5 h-5" />
-          </Button>
+            <X className="w-6 h-6" />
+          </button>
         </div>
 
         {/* Main Content */}
@@ -392,15 +409,15 @@ export function ImageBrushModal({
           {/* Before/After Container */}
           <div className="flex-1 flex">
             {/* Before Section */}
-            <div className="flex-1 flex flex-col border-r border-border">
-              <div className="px-4 py-2 bg-surface-secondary border-b border-border">
-                <h3 className="text-sm font-medium text-center">Before (Edit Mask)</h3>
+            <div className="flex-1 flex flex-col border-r border-gray-700">
+              <div className="px-4 py-2 bg-gray-700 border-b border-gray-600">
+                <h3 className="text-sm font-medium text-gray-300 text-center">Before (Edit Mask)</h3>
               </div>
-              <div className="flex-1 p-4 flex items-center justify-center bg-surface-secondary/50">
+              <div className="flex-1 p-4 flex items-center justify-center bg-gray-900/50">
                 <div className="relative">
                   <canvas
                     ref={canvasRef}
-                    className="border border-border rounded cursor-crosshair"
+                    className="border border-gray-600 rounded cursor-crosshair"
                     onMouseDown={handleMouseDown}
                     onMouseMove={handleMouseMove}
                     onMouseUp={handleMouseUp}
@@ -419,25 +436,36 @@ export function ImageBrushModal({
             </div>
 
             {/* Arrow Indicator */}
-            <div className="flex items-center justify-center px-2 bg-surface-secondary/30">
-              <ArrowRight className="w-6 h-6 text-text-secondary" />
+            <div className="flex items-center justify-center px-2 bg-gray-900/30">
+              <ArrowRight className="w-6 h-6 text-gray-400" />
             </div>
 
             {/* After Section */}
             <div className="flex-1 flex flex-col">
-              <div className="px-4 py-2 bg-surface-secondary border-b border-border">
-                <h3 className="text-sm font-medium text-center">After (AI Result)</h3>
+              <div className="px-4 py-2 bg-gray-700 border-b border-gray-600">
+                <h3 className="text-sm font-medium text-gray-300 text-center">After (AI Result)</h3>
               </div>
-              <div className="flex-1 p-4 flex items-center justify-center bg-surface-secondary/50">
+              <div className="flex-1 p-4 flex items-center justify-center bg-gray-900/50">
                 {resultImage ? (
-                  <img 
-                    src={resultImage} 
-                    alt="AI Generated Result" 
-                    className="max-w-full max-h-[calc(90vh-250px)] object-contain rounded border border-border"
-                  />
+                  <div className="relative max-w-full max-h-[calc(90vh-250px)]">
+                    <Image 
+                      src={resultImage} 
+                      alt="AI Generated Result" 
+                      width={512}
+                      height={512}
+                      className="object-contain rounded border border-gray-600"
+                      style={{
+                        maxWidth: '100%',
+                        maxHeight: 'calc(90vh - 250px)',
+                        width: 'auto',
+                        height: 'auto'
+                      }}
+                      unoptimized // AI 생성 이미지는 최적화 스킵
+                    />
+                  </div>
                 ) : (
-                  <div className="flex flex-col items-center justify-center text-text-secondary">
-                    <div className="w-32 h-32 rounded-lg border-2 border-dashed border-border flex items-center justify-center mb-3">
+                  <div className="flex flex-col items-center justify-center text-gray-400">
+                    <div className="w-32 h-32 rounded-lg border-2 border-dashed border-gray-600 flex items-center justify-center mb-3">
                       <Loader2 className="w-8 h-8 opacity-50" />
                     </div>
                     <p className="text-sm">AI result will appear here</p>
@@ -449,56 +477,67 @@ export function ImageBrushModal({
           </div>
 
           {/* Tools Panel */}
-          <div className="w-80 p-4 border-l border-border flex flex-col gap-4">
+          <div className="w-80 p-4 bg-gray-800 border-l border-gray-700 flex flex-col gap-4">
             {/* Tool Selection */}
             <div className="space-y-2">
-              <h3 className="text-sm font-medium text-text-secondary">Tools</h3>
+              <h3 className="text-sm font-medium text-gray-400">Tools</h3>
               <div className="flex gap-2">
-                <Button
-                  variant={state.currentTool === 'brush' ? 'default' : 'outline'}
-                  size="sm"
+                <button
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center ${
+                    state.currentTool === 'brush' 
+                      ? 'text-black hover:opacity-90' 
+                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  }`}
+                  style={state.currentTool === 'brush' ? { backgroundColor: '#38f47cf9' } : {}}
                   onClick={() => selectTool('brush')}
                   disabled={state.isProcessing}
                 >
                   <Brush className="w-4 h-4 mr-1" />
                   Brush
-                </Button>
-                <Button
-                  variant={state.currentTool === 'eraser' ? 'default' : 'outline'}
-                  size="sm"
+                </button>
+                <button
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center ${
+                    state.currentTool === 'eraser' 
+                      ? 'text-black hover:opacity-90' 
+                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  }`}
+                  style={state.currentTool === 'eraser' ? { backgroundColor: '#38f47cf9' } : {}}
                   onClick={() => selectTool('eraser')}
                   disabled={state.isProcessing}
                 >
                   <Eraser className="w-4 h-4 mr-1" />
                   Eraser
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
+                </button>
+                <button
+                  className="px-3 py-1.5 bg-gray-700 text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                   onClick={() => selectTool('clear')}
                   disabled={state.isProcessing}
                 >
                   <RotateCcw className="w-4 h-4 mr-1" />
                   Clear
-                </Button>
+                </button>
               </div>
             </div>
 
             {/* Brush Settings */}
             <div className="space-y-2">
-              <h3 className="text-sm font-medium text-text-secondary">Brush Size</h3>
+              <h3 className="text-sm font-medium text-gray-400">Brush Size</h3>
               <div className="flex items-center gap-3">
-                <Sliders className="w-4 h-4 text-text-secondary" />
-                <Slider
-                  value={[state.brushSettings.size]}
-                  onValueChange={handleBrushSizeChange}
+                <Sliders className="w-4 h-4 text-gray-400" />
+                <input
+                  type="range"
+                  value={state.brushSettings.size}
+                  onChange={(e) => handleBrushSizeChange([parseInt(e.target.value)])}
                   min={5}
                   max={100}
                   step={5}
                   disabled={state.isProcessing}
-                  className="flex-1"
+                  className="flex-1 h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer slider"
+                  style={{
+                    background: `linear-gradient(to right, #38f47cf9 0%, #38f47cf9 ${((state.brushSettings.size - 5) / 95) * 100}%, #374151 ${((state.brushSettings.size - 5) / 95) * 100}%, #374151 100%)`
+                  }}
                 />
-                <span className="text-sm text-text-secondary w-10 text-right">
+                <span className="text-sm text-gray-400 w-10 text-right">
                   {state.brushSettings.size}px
                 </span>
               </div>
@@ -506,9 +545,9 @@ export function ImageBrushModal({
 
             {/* Prompt Input */}
             <div className="space-y-2">
-              <h3 className="text-sm font-medium text-text-secondary">Prompt</h3>
+              <h3 className="text-sm font-medium text-gray-400">Prompt</h3>
               <textarea
-                className="w-full h-24 px-3 py-2 bg-surface-secondary border border-border rounded text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full h-24 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors"
                 placeholder="Describe how to modify the masked area.\nExample: expand t-shirt part, add floral pattern"
                 value={state.prompt}
                 onChange={(e) => setState(prev => ({ ...prev, prompt: e.target.value }))}
@@ -518,9 +557,9 @@ export function ImageBrushModal({
 
             {/* Mode Selection */}
             <div className="space-y-2">
-              <h3 className="text-sm font-medium text-text-secondary">Processing Mode</h3>
+              <h3 className="text-sm font-medium text-gray-400">Processing Mode</h3>
               <select
-                className="w-full px-3 py-2 bg-surface-secondary border border-border rounded text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors"
                 value={state.mode}
                 onChange={(e) => setState(prev => ({ ...prev, mode: e.target.value as 'flux' | 'i2i' }))}
                 disabled={state.isProcessing}
@@ -532,7 +571,7 @@ export function ImageBrushModal({
 
             {/* Error Message */}
             {state.error && (
-              <div className="p-3 bg-red-500/10 border border-red-500/20 rounded text-sm text-red-500">
+              <div className="p-3 bg-red-900/20 border border-red-800 rounded-lg text-sm text-red-400">
                 {state.error}
               </div>
             )}
@@ -540,14 +579,14 @@ export function ImageBrushModal({
             {/* Progress Bar */}
             {state.isProcessing && (
               <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm text-text-secondary">
+                <div className="flex items-center justify-between text-sm text-gray-400">
                   <span>Processing...</span>
                   <span>{state.progress}%</span>
                 </div>
-                <div className="w-full bg-surface-secondary rounded-full h-2">
+                <div className="w-full bg-gray-700 rounded-full h-2">
                   <div 
-                    className="bg-primary h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${state.progress}%` }}
+                    className="h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${state.progress}%`, backgroundColor: '#38f47cf9' }}
                   />
                 </div>
               </div>
@@ -556,8 +595,9 @@ export function ImageBrushModal({
             {/* Action Buttons */}
             <div className="space-y-2">
               {/* Generate Button */}
-              <Button
-                className="w-full"
+              <button
+                className="w-full px-4 py-2.5 text-black rounded-lg font-medium hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                style={{ backgroundColor: '#38f47cf9' }}
                 onClick={handleGenerate}
                 disabled={state.isProcessing || !state.prompt.trim()}
               >
@@ -569,31 +609,30 @@ export function ImageBrushModal({
                 ) : (
                   'Generate with AI'
                 )}
-              </Button>
+              </button>
 
               {/* Apply/Reset Buttons (show when result exists) */}
               {resultImage && (
                 <div className="flex gap-2">
-                  <Button
+                  <button
                     onClick={handleApplyResult}
-                    variant="default"
-                    className="flex-1"
+                    className="flex-1 px-4 py-2 text-black rounded-lg font-medium hover:opacity-90 transition-all"
+                    style={{ backgroundColor: '#38f47cf9' }}
                   >
                     Apply Result
-                  </Button>
-                  <Button
+                  </button>
+                  <button
                     onClick={handleReset}
-                    variant="outline"
-                    className="flex-1"
+                    className="flex-1 px-4 py-2 bg-gray-700 text-gray-300 rounded-lg font-medium hover:bg-gray-600 transition-colors"
                   >
                     Reset
-                  </Button>
+                  </button>
                 </div>
               )}
             </div>
 
             {/* Instructions */}
-            <div className="text-xs text-text-secondary space-y-1 mt-auto">
+            <div className="text-xs text-gray-500 space-y-1 mt-auto">
               <p>• Mark the areas to modify with the brush</p>
               <p>• Red areas indicate where AI will make changes</p>
               <p>• English prompts provide more accurate results</p>
@@ -602,5 +641,6 @@ export function ImageBrushModal({
         </div>
       </div>
     </div>
+    </>
   )
 }

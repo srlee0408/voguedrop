@@ -83,11 +83,25 @@ export function CanvasModals(): React.ReactElement {
           onComplete={(brushedImageUrl: string) => {
             // 브러시 처리된 이미지로 업데이트
             setCurrentGeneratingImage(brushedImageUrl)
-            // 현재 슬롯에도 업데이트
-            const firstSlot = slotManager.slotContents[0]
-            if (firstSlot?.type === 'image') {
-              slotManager.setSlotToImage(0, brushedImageUrl)
+            
+            // 현재 선택된 슬롯 또는 이미지가 있는 슬롯을 찾아서 업데이트
+            const selectedIndex = slotManager.selectedSlotIndex
+            
+            // 선택된 슬롯이 있고 이미지 타입이면 해당 슬롯 업데이트
+            if (selectedIndex !== null) {
+              const selectedSlotContent = slotManager.slotContents[selectedIndex]
+              if (selectedSlotContent?.type === 'image') {
+                slotManager.setSlotToImage(selectedIndex, brushedImageUrl)
+              }
+            } else {
+              // 선택된 슬롯이 없으면 현재 이미지와 일치하는 슬롯 찾아서 업데이트
+              slotManager.slotContents.forEach((slot, index) => {
+                if (slot?.type === 'image' && slot.data === currentGeneratingImage) {
+                  slotManager.setSlotToImage(index, brushedImageUrl)
+                }
+              })
             }
+            
             modals.closeModal('imageBrush')
           }}
         />
