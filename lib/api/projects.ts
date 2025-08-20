@@ -1,4 +1,5 @@
 import { ProjectSave } from '@/types/database';
+import { VideoClip, TextClip, SoundClip } from '@/types/video-editor';
 
 export interface ProjectListItem {
   id: number;
@@ -7,6 +8,76 @@ export interface ProjectListItem {
   latest_video_url: string | null;
   updated_at: string;
   duration_frames?: number;
+}
+
+// 프로젝트 저장 응답 타입
+export interface SaveProjectResponse {
+  success: boolean;
+  message?: string;
+  error?: string;
+  projectSaveId?: number;
+  needsRender?: boolean;
+  videoUrl?: string | null;
+  storageLocation?: string | null;
+}
+
+// 프로젝트 저장 파라미터 타입
+export interface SaveProjectParams {
+  projectName: string;
+  videoClips: VideoClip[];
+  textClips: TextClip[];
+  soundClips: SoundClip[];
+  aspectRatio: '9:16' | '1:1' | '16:9';
+  durationInFrames: number;
+  renderId?: string;
+  renderOutputUrl?: string;
+}
+
+// 프로젝트 저장
+export async function saveProject(params: SaveProjectParams): Promise<SaveProjectResponse> {
+  try {
+    const response = await fetch('/api/video/save', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include', // 쿠키 포함
+      body: JSON.stringify({
+        projectName: params.projectName,
+        videoClips: params.videoClips,
+        textClips: params.textClips,
+        soundClips: params.soundClips,
+        aspectRatio: params.aspectRatio,
+        durationInFrames: params.durationInFrames,
+        renderId: params.renderId,
+        renderOutputUrl: params.renderOutputUrl,
+      }),
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        error: errorData.error || errorData.details || `Failed to save project: ${response.status}`,
+      };
+    }
+    
+    const data = await response.json();
+    return {
+      success: true,
+      message: data.message || 'Project saved successfully',
+      projectSaveId: data.projectSaveId,
+      needsRender: data.needsRender,
+      videoUrl: data.videoUrl,
+      storageLocation: data.storageLocation,
+    };
+  } catch (error) {
+    console.error('Error saving project:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to save project',
+    };
+  }
 }
 
 // 사용자의 모든 프로젝트 목록 가져오기

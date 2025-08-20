@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useCallback, useMemo, ReactNode, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { loadProject } from '@/lib/api/projects';
+import type { AutoSaveStatus } from '../_hooks/useAutoSave';
 
 interface ProjectContextType {
   // 프로젝트 메타데이터
@@ -13,6 +14,12 @@ interface ProjectContextType {
   isLoadingProject: boolean;
   projectLoadError: string | null;
   loadProjectData: (projectName: string) => Promise<void>;
+  
+  // 자동 저장 상태
+  autoSaveStatus: AutoSaveStatus;
+  setAutoSaveStatus: React.Dispatch<React.SetStateAction<AutoSaveStatus>>;
+  autoSaveError: string | null;
+  setAutoSaveError: React.Dispatch<React.SetStateAction<string | null>>;
   
   // 타임라인 UI 상태
   timelineHeight: number;
@@ -55,6 +62,10 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const [isLoadingProject, setIsLoadingProject] = useState(false);
   const [projectLoadError, setProjectLoadError] = useState<string | null>(null);
   const [projectLoaded, setProjectLoaded] = useState(false);
+  
+  // 자동 저장 상태
+  const [autoSaveStatus, setAutoSaveStatus] = useState<AutoSaveStatus>('idle');
+  const [autoSaveError, setAutoSaveError] = useState<string | null>(null);
   
   // 타임라인 높이 관리 (page.tsx에서 그대로)
   const maxTimelineHeight = 240;
@@ -177,6 +188,12 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     projectLoadError,
     loadProjectData,
     
+    // 자동 저장 상태
+    autoSaveStatus,
+    setAutoSaveStatus,
+    autoSaveError,
+    setAutoSaveError,
+    
     // 타임라인 UI 상태
     timelineHeight,
     isResizing,
@@ -210,6 +227,8 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     isLoadingProject,
     projectLoadError,
     loadProjectData,
+    autoSaveStatus,
+    autoSaveError,
     timelineHeight,
     isResizing,
     dragStartY,

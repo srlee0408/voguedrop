@@ -23,7 +23,6 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
     clipItems, 
     projectItems, 
     uploadItems, 
-    counts, 
     isLoading, 
     error,
     updateUploadItems,

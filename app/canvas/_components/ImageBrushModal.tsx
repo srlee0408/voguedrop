@@ -457,7 +457,7 @@ export function ImageBrushModal({
         try {
           const errorData = await response.json()
           errorMessage = errorData.error || errorMessage
-        } catch (parseError) {
+        } catch {
           // JSON 파싱 실패 시 상태 코드로 에러 메시지 결정
           if (response.status === 504) {
             errorMessage = 'Processing timeout. The service took too long to respond.'
@@ -772,7 +772,7 @@ export function ImageBrushModal({
                 disabled={state.isProcessing}
               >
                 <option value="flux">Image Modification</option>
-                <option value="i2i">Style Transfer</option>
+                <option value="i2i" disabled>Style Transfer (Coming Soon)</option>
               </select>
             </div>
 

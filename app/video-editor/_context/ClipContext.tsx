@@ -21,12 +21,15 @@ interface ClipContextType {
   textClips: TextClip[];
   soundClips: SoundClip[];
   selectedTextClip: string | null;
+  hasUnsavedChanges: boolean;
+  lastModifiedAt: Date | null;
   
   // Setter 함수들
   setTimelineClips: React.Dispatch<React.SetStateAction<VideoClip[]>>;
   setTextClips: React.Dispatch<React.SetStateAction<TextClip[]>>;
   setSoundClips: React.Dispatch<React.SetStateAction<SoundClip[]>>;
   setSelectedTextClip: React.Dispatch<React.SetStateAction<string | null>>;
+  setHasUnsavedChanges: React.Dispatch<React.SetStateAction<boolean>>;
   
   // 비디오 클립 관련 함수
   handleAddToTimeline: (items: LibraryItem[]) => Promise<void>;
@@ -89,6 +92,16 @@ export function ClipProvider({ children }: ClipProviderProps) {
   const [soundClips, setSoundClips] = useState<SoundClip[]>([]);
   const [selectedTextClip, setSelectedTextClip] = useState<string | null>(null);
   const [editingTextClip, setEditingTextClip] = useState<TextClip | undefined>(undefined);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [lastModifiedAt, setLastModifiedAt] = useState<Date | null>(null);
+  
+  // 변경사항이 있을 때 자동으로 추적
+  useEffect(() => {
+    if (timelineClips.length > 0 || textClips.length > 0 || soundClips.length > 0) {
+      setHasUnsavedChanges(true);
+      setLastModifiedAt(new Date());
+    }
+  }, [timelineClips, textClips, soundClips]);
   
   // 기본 saveToHistory 함수 (나중에 HistoryContext와 연결)
   const [saveToHistoryCallback, setSaveToHistoryCallback] = useState<(() => void) | null>(null);
@@ -712,6 +725,8 @@ export function ClipProvider({ children }: ClipProviderProps) {
     soundClips,
     selectedTextClip,
     editingTextClip,
+    hasUnsavedChanges,
+    lastModifiedAt,
     
     // Setter 함수
     setTimelineClips,
@@ -719,6 +734,7 @@ export function ClipProvider({ children }: ClipProviderProps) {
     setSoundClips,
     setSelectedTextClip,
     setEditingTextClip,
+    setHasUnsavedChanges,
     
     // 비디오 클립 함수
     handleAddToTimeline,
@@ -765,6 +781,8 @@ export function ClipProvider({ children }: ClipProviderProps) {
     soundClips,
     selectedTextClip,
     editingTextClip,
+    hasUnsavedChanges,
+    lastModifiedAt,
     handleAddToTimeline,
     handleDeleteVideoClip,
     handleDuplicateVideoClip,
