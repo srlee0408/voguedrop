@@ -45,7 +45,7 @@ function ProjectCard({ project, isNew, onClick, onDelete }: ProjectCardProps) {
         <div className="flex flex-col items-center justify-center h-full gap-2">
           <Plus className="w-12 h-12 text-gray-400 group-hover:text-blue-500" />
           <span className="text-gray-400 group-hover:text-blue-500 font-medium">
-            새 프로젝트
+            New Project
           </span>
         </div>
       </button>
@@ -81,7 +81,7 @@ function ProjectCard({ project, isNew, onClick, onDelete }: ProjectCardProps) {
         {isHovered && (
           <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
             <div className="text-white text-center">
-              <p className="text-sm font-medium mb-1">클릭하여 편집</p>
+              <p className="text-sm font-medium mb-1">Click to edit</p>
               {project.duration_frames && (
                 <p className="text-xs opacity-75">
                   {formatDuration(project.duration_frames)}
@@ -105,12 +105,12 @@ function ProjectCard({ project, isNew, onClick, onDelete }: ProjectCardProps) {
         {showDeleteConfirm && (
           <div className="absolute inset-0 bg-red-500/90 flex items-center justify-center">
             <div className="text-white text-center">
-              <p className="text-sm font-medium mb-2">정말 삭제하시겠습니까?</p>
+              <p className="text-sm font-medium mb-2">Are you sure you want to delete?</p>
               <button
                 onClick={handleDelete}
                 className="px-3 py-1 bg-white text-red-500 rounded text-xs font-medium"
               >
-                삭제
+                Delete
               </button>
             </div>
           </div>
@@ -218,10 +218,10 @@ export function ProjectSelectorModal({ isOpen, onClose, onNewProject }: ProjectS
         <div className="flex items-center justify-between p-6 border-b border-gray-800">
           <div>
             <h2 className="text-xl font-semibold text-gray-100">
-              프로젝트 선택
+              Select Project
             </h2>
             <p className="text-sm text-gray-400 mt-1">
-              편집할 프로젝트를 선택하거나 새로 시작하세요
+              Choose a project to edit or start a new one
             </p>
           </div>
           <button
@@ -245,7 +245,7 @@ export function ProjectSelectorModal({ isOpen, onClose, onNewProject }: ProjectS
                 onClick={loadProjects}
                 className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
               >
-                다시 시도
+                Retry
               </button>
             </div>
           ) : (
@@ -271,10 +271,10 @@ export function ProjectSelectorModal({ isOpen, onClose, onNewProject }: ProjectS
                 <div className="col-span-full text-center py-8">
                   <Film className="w-16 h-16 text-gray-600 mx-auto mb-4" />
                   <p className="text-gray-400">
-                    아직 저장된 프로젝트가 없습니다
+                    No saved projects yet
                   </p>
                   <p className="text-sm text-gray-500 mt-2">
-                    새 프로젝트를 시작하여 비디오를 편집해보세요
+                    Start a new project to edit videos
                   </p>
                 </div>
               )}
