@@ -16,14 +16,6 @@ export function PrompterSection({
 }: PrompterSectionProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Auto-resize textarea
-  useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
-    }
-  }, [promptText]);
-
 
   return (
     <div className="mb-4">
