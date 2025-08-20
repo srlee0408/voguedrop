@@ -2,8 +2,7 @@
 
 import { createContext, useContext, useState, useCallback, useMemo, ReactNode, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { loadProject, saveProject } from '@/lib/api/projects';
-import type { AutoSaveStatus } from '../_hooks/useAutoSave';
+import { loadProject } from '@/lib/api/projects';
 
 interface ProjectContextType {
   // 프로젝트 메타데이터
@@ -14,12 +13,6 @@ interface ProjectContextType {
   isLoadingProject: boolean;
   projectLoadError: string | null;
   loadProjectData: (projectName: string) => Promise<void>;
-  
-  // 자동 저장 상태
-  autoSaveStatus: AutoSaveStatus;
-  setAutoSaveStatus: React.Dispatch<React.SetStateAction<AutoSaveStatus>>;
-  autoSaveError: string | null;
-  setAutoSaveError: React.Dispatch<React.SetStateAction<string | null>>;
   
   // 타임라인 UI 상태
   timelineHeight: number;
@@ -62,10 +55,6 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const [isLoadingProject, setIsLoadingProject] = useState(false);
   const [projectLoadError, setProjectLoadError] = useState<string | null>(null);
   const [projectLoaded, setProjectLoaded] = useState(false);
-  
-  // 자동 저장 상태
-  const [autoSaveStatus, setAutoSaveStatus] = useState<AutoSaveStatus>('idle');
-  const [autoSaveError, setAutoSaveError] = useState<string | null>(null);
   
   // 타임라인 높이 관리 (page.tsx에서 그대로)
   const maxTimelineHeight = 240;
@@ -117,41 +106,9 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     if (projectName && !projectLoaded && !isLoadingProject) {
       loadProjectData(decodeURIComponent(projectName));
     }
-    // title 파라미터만 있다면 (이전 방식 호환) - 새 프로젝트 생성
+    // title 파라미터만 있다면 (이전 방식 호환)
     else if (title && !projectName) {
-      const newTitle = decodeURIComponent(title);
-      setProjectTitle(newTitle);
-      
-      // 새 프로젝트를 자동으로 DB에 저장 (빈 프로젝트로)
-      saveProject({
-        projectName: newTitle,
-        videoClips: [],
-        textClips: [],
-        soundClips: [],
-        aspectRatio: '9:16',
-        durationInFrames: 0
-      }).then(result => {
-        if (result.success) {
-          console.log('New project created and saved:', newTitle);
-        }
-      });
-    }
-    // 아무 파라미터도 없으면 기본 Untitled Project로 생성
-    else if (!title && !projectName && !projectLoaded && !isLoadingProject) {
-      // Untitled Project도 자동 저장
-      const defaultTitle = 'Untitled Project';
-      saveProject({
-        projectName: defaultTitle,
-        videoClips: [],
-        textClips: [],
-        soundClips: [],
-        aspectRatio: '9:16',
-        durationInFrames: 0
-      }).then(result => {
-        if (result.success) {
-          console.log('Default project created and saved:', defaultTitle);
-        }
-      });
+      setProjectTitle(decodeURIComponent(title));
     }
   }, [searchParams, projectLoaded, isLoadingProject, loadProjectData]);
   
@@ -220,12 +177,6 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     projectLoadError,
     loadProjectData,
     
-    // 자동 저장 상태
-    autoSaveStatus,
-    setAutoSaveStatus,
-    autoSaveError,
-    setAutoSaveError,
-    
     // 타임라인 UI 상태
     timelineHeight,
     isResizing,
@@ -259,8 +210,6 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     isLoadingProject,
     projectLoadError,
     loadProjectData,
-    autoSaveStatus,
-    autoSaveError,
     timelineHeight,
     isResizing,
     dragStartY,
