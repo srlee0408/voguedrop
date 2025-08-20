@@ -22,6 +22,7 @@ interface ClipContextType {
   soundClips: SoundClip[];
   selectedTextClip: string | null;
   hasUnsavedChanges: boolean;
+  lastModifiedAt: Date | null;
   
   // Setter 함수들
   setTimelineClips: React.Dispatch<React.SetStateAction<VideoClip[]>>;
@@ -29,6 +30,7 @@ interface ClipContextType {
   setSoundClips: React.Dispatch<React.SetStateAction<SoundClip[]>>;
   setSelectedTextClip: React.Dispatch<React.SetStateAction<string | null>>;
   setHasUnsavedChanges: React.Dispatch<React.SetStateAction<boolean>>;
+  setLastModifiedAt: React.Dispatch<React.SetStateAction<Date | null>>;
   
   // 비디오 클립 관련 함수
   handleAddToTimeline: (items: LibraryItem[]) => Promise<void>;
@@ -92,6 +94,7 @@ export function ClipProvider({ children }: ClipProviderProps) {
   const [selectedTextClip, setSelectedTextClip] = useState<string | null>(null);
   const [editingTextClip, setEditingTextClip] = useState<TextClip | undefined>(undefined);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [lastModifiedAt, setLastModifiedAt] = useState<Date | null>(null);
   
   // 기본 saveToHistory 함수 (나중에 HistoryContext와 연결)
   const [saveToHistoryCallback, setSaveToHistoryCallback] = useState<(() => void) | null>(null);
@@ -100,6 +103,8 @@ export function ClipProvider({ children }: ClipProviderProps) {
     if (saveToHistoryCallback) {
       saveToHistoryCallback();
     }
+    // Update last modified timestamp when saving to history
+    setLastModifiedAt(new Date());
   }, [saveToHistoryCallback]);
   
   // 프로젝트 데이터 복원 함수
@@ -715,6 +720,7 @@ export function ClipProvider({ children }: ClipProviderProps) {
     // 초기 로드 시에는 변경사항으로 간주하지 않음
     if (timelineClips.length > 0 || textClips.length > 0 || soundClips.length > 0) {
       setHasUnsavedChanges(true);
+      setLastModifiedAt(new Date());
     }
   }, [timelineClips, textClips, soundClips]);
 
@@ -727,6 +733,7 @@ export function ClipProvider({ children }: ClipProviderProps) {
     selectedTextClip,
     editingTextClip,
     hasUnsavedChanges,
+    lastModifiedAt,
     
     // Setter 함수
     setTimelineClips,
@@ -735,6 +742,7 @@ export function ClipProvider({ children }: ClipProviderProps) {
     setSelectedTextClip,
     setEditingTextClip,
     setHasUnsavedChanges,
+    setLastModifiedAt,
     
     // 비디오 클립 함수
     handleAddToTimeline,
@@ -782,6 +790,7 @@ export function ClipProvider({ children }: ClipProviderProps) {
     selectedTextClip,
     editingTextClip,
     hasUnsavedChanges,
+    lastModifiedAt,
     handleAddToTimeline,
     handleDeleteVideoClip,
     handleDuplicateVideoClip,

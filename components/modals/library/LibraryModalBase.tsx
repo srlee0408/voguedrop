@@ -215,8 +215,16 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
 
   // 프로젝트 네비게이션 핸들러
   const handleProjectNavigate = useCallback((project: LibraryProject) => {
-    // 현재 video-editor에 있고 config에 onProjectSwitch가 있으면 호출
-    if (pathname === '/video-editor' && config.onProjectSwitch) {
+    // openProject가 활성화되지 않았으면 동작하지 않음
+    if (!config.openProject?.enabled) return;
+    
+    // openProject에 onProjectNavigate가 있으면 사용
+    if (config.openProject.onProjectNavigate) {
+      config.openProject.onProjectNavigate(project.project_name);
+      onClose();
+    } 
+    // 레거시 지원: onProjectSwitch가 있으면 사용
+    else if (pathname === '/video-editor' && config.onProjectSwitch) {
       config.onProjectSwitch(project.project_name);
       onClose();
     } else {
@@ -225,7 +233,7 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
       window.location.href = targetUrl;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname, onClose, config.onProjectSwitch]);
+  }, [pathname, onClose, config.onProjectSwitch, config.openProject]);
 
   // Info 메시지
   const getInfoMessage = () => {
@@ -364,7 +372,7 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
                           isCurrentProject={config.currentProjectName === project.project_name}
                           onSelect={config.selection?.enabled ? () => handleItemSelect(project.id.toString()) : undefined}
                           onDownload={config.download?.enabled ? () => handleDownload(project, 'project') : undefined}
-                          onProjectNavigate={handleProjectNavigate}
+                          onProjectNavigate={config.openProject?.enabled ? handleProjectNavigate : undefined}
                           theme={config.theme}
                         />
                       ))}

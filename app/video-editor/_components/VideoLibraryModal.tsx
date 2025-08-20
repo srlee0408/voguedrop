@@ -17,6 +17,10 @@ export default function VideoLibraryModal({ onClose, onAddToTimeline }: VideoLib
       maxItems: 10,
       onSelect: onAddToTimeline
     },
+    openProject: {
+      enabled: false,  // Add Clip 모드에서는 프로젝트 열기 버튼 비활성화
+      onProjectNavigate: () => {}
+    },
     theme: {
       primaryColor: '#38f47cf9',
       buttonStyle: 'success',

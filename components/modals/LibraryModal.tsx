@@ -28,6 +28,12 @@ export function LibraryModal({
     download: {
       enabled: true
     },
+    openProject: {
+      enabled: true,  // 일반 Library 모달에서는 프로젝트 열기 버튼 활성화
+      onProjectNavigate: onProjectSwitch || ((projectName: string) => {
+        window.location.href = `/video-editor?projectName=${encodeURIComponent(projectName)}`;
+      })
+    },
     dateFilter: {
       enabled: true
     },
@@ -36,7 +42,7 @@ export function LibraryModal({
       buttonStyle: 'success',
       selectionColor: '#38f47cf9'
     },
-    onProjectSwitch,
+    onProjectSwitch,  // 레거시 지원을 위해 유지
     currentProjectName
   };
 

@@ -26,6 +26,11 @@ export interface LibraryModalConfig {
   download?: {
     enabled: boolean;
   };
+
+  openProject?: {
+    enabled: boolean;
+    onProjectNavigate: (projectName: string) => void;
+  };
   
   /** 날짜 필터 설정 */
   dateFilter?: {

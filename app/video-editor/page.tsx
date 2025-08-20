@@ -10,8 +10,7 @@ import Timeline from './_components/Timeline';
 import VideoLibraryModal from './_components/VideoLibraryModal';
 import SoundLibraryModal from './_components/SoundLibraryModal';
 import TextEditorModal from './_components/TextEditorModal';
-import { saveProject } from '@/lib/api/projects';
-import { toast } from 'sonner';
+import { useAutoSave } from './_hooks/useAutoSave';
 
 // 실제 Video Editor 컴포넌트 (Context 사용)
 function VideoEditorContent() {
@@ -39,6 +38,12 @@ function VideoEditorContent() {
     handleAddClip,
     handleAddSound,
     handleAddText: handleAddTextButton,
+    autoSaveStatus,
+    setAutoSaveStatus,
+    lastAutoSavedAt,
+    setLastAutoSavedAt,
+    autoSaveError,
+    setAutoSaveError,
   } = useProject();
   
   // ClipContext에서 가져오기
@@ -152,6 +157,31 @@ function VideoEditorContent() {
     return Math.ceil(maxEndTime * 30); // 30fps 기준
   }, [timelineClips, textClips, soundClips]);
   
+  // 자동 저장 설정
+  const {
+    status: autoSaveStatusLocal,
+    lastSavedAt: lastSavedAtLocal,
+    errorMessage: autoSaveErrorLocal,
+    triggerSave,
+  } = useAutoSave({
+    projectTitle,
+    videoClips: timelineClips,
+    textClips,
+    soundClips,
+    aspectRatio: '9:16', // TODO: Get from VideoPreview component
+    durationInFrames: calculateTotalFrames,
+    enabled: true,
+    debounceMs: 2000, // 2초 후 저장
+    maxWaitMs: 30000, // 최대 30초 대기
+  });
+  
+  // 자동 저장 상태를 ProjectContext와 동기화
+  useEffect(() => {
+    setAutoSaveStatus(autoSaveStatusLocal);
+    setLastAutoSavedAt(lastSavedAtLocal);
+    setAutoSaveError(autoSaveErrorLocal);
+  }, [autoSaveStatusLocal, lastSavedAtLocal, autoSaveErrorLocal, setAutoSaveStatus, setLastAutoSavedAt, setAutoSaveError]);
+  
   // Favorites 상태 관리 (간단한 로컬 상태로 처리)
   const [favoriteVideos, setFavoriteVideos] = useState<Set<string>>(new Set());
   
@@ -186,22 +216,14 @@ function VideoEditorContent() {
     }
   }, [hasUnsavedChanges, projectTitle]);
 
-  // 프로젝트 저장 핸들러
+  // 프로젝트 저장 핸들러 (자동 저장 훅 활용)
   const handleSaveProject = useCallback(async () => {
-    const params = {
-      projectName: projectTitle,
-      videoClips: timelineClips,
-      textClips: textClips,
-      soundClips: soundClips,
-      aspectRatio: '9:16' as const, // TODO: Get from VideoPreview component
-      durationInFrames: calculateTotalFrames
-    };
-
-    const result = await saveProject(params);
+    // 자동 저장 훅의 triggerSave 사용
+    await triggerSave();
     
-    if (result.success) {
+    // 저장 성공 시 처리
+    if (autoSaveStatus === 'saved' || autoSaveStatus === 'saving') {
       setHasUnsavedChanges(false);
-      toast.success('Project saved successfully');
       
       // 저장 후 새 프로젝트로 이동
       if (targetProjectName) {
@@ -210,10 +232,8 @@ function VideoEditorContent() {
         // 페이지 완전 리로드하여 새 프로젝트 로드
         window.location.href = `/video-editor?projectName=${encodeURIComponent(targetProjectName)}`;
       }
-    } else {
-      toast.error(result.error || 'Failed to save project');
     }
-  }, [projectTitle, timelineClips, textClips, soundClips, calculateTotalFrames, setHasUnsavedChanges, targetProjectName]);
+  }, [triggerSave, autoSaveStatus, setHasUnsavedChanges, targetProjectName]);
 
   // 저장하지 않고 전환
   const handleDontSaveProject = useCallback(() => {
@@ -234,6 +254,9 @@ function VideoEditorContent() {
         projectTitle={projectTitle}
         onProjectTitleChange={setProjectTitle}
         onLibraryClick={() => setShowLibrary(true)}
+        autoSaveStatus={autoSaveStatus}
+        lastAutoSavedAt={lastAutoSavedAt}
+        autoSaveError={autoSaveError}
       />
       
       <div className="flex-1 flex flex-col overflow-hidden">
