@@ -4,7 +4,8 @@ import { LibraryVideo, LibraryProject, UserUploadedVideo } from '@/types/video-e
 import { LibraryModalConfig } from '@/types/library-modal';
 import { CARD_CONTAINER_CLASS, getContentFitStyle } from '../utils/constants';
 import Image from 'next/image';
-import { Play, Download, Loader2, Star, Folder, Upload as UploadIcon } from 'lucide-react';
+import { Play, Download, Loader2, Star, Folder, Upload as UploadIcon, ExternalLink } from 'lucide-react';
+import { Tooltip } from '@/components/ui/Tooltip';
 
 interface LibraryCardProps {
   item: LibraryVideo | LibraryProject | UserUploadedVideo;
@@ -13,9 +14,11 @@ interface LibraryCardProps {
   selectionOrder?: number;
   isFavorite?: boolean;
   isDownloading?: boolean;
+  isCurrentProject?: boolean;
   onSelect?: () => void;
   onFavoriteToggle?: () => void;
   onDownload?: () => void;
+  onProjectNavigate?: (project: LibraryProject) => void;
   theme?: LibraryModalConfig['theme'];
 }
 
@@ -26,9 +29,11 @@ export function LibraryCard({
   selectionOrder,
   isFavorite = false,
   isDownloading = false,
+  isCurrentProject = false,
   onSelect,
   onFavoriteToggle,
   onDownload,
+  onProjectNavigate,
   theme
 }: LibraryCardProps) {
   // 타입별 데이터 접근
@@ -100,13 +105,22 @@ export function LibraryCard({
       onClick={handleCardClick}
       className={`${CARD_CONTAINER_CLASS} bg-gray-900 rounded-lg overflow-hidden relative transition-all
         ${onSelect ? 'cursor-pointer' : ''}
-        ${isSelected 
-          ? `ring-2 scale-[0.98]` 
-          : onSelect ? 'hover:ring-2 hover:ring-opacity-50' : ''}`}
+        ${isCurrentProject 
+          ? 'ring-4 ring-red-500 shadow-xl shadow-red-500/30'
+          : isSelected 
+            ? `ring-2 scale-[0.98]` 
+            : onSelect ? 'hover:ring-2 hover:ring-opacity-50' : ''}`}
       style={{
-        '--tw-ring-color': isSelected ? selectionColor : `${selectionColor}80`,
+        '--tw-ring-color': isCurrentProject ? undefined : isSelected ? selectionColor : `${selectionColor}80`,
       } as React.CSSProperties}
     >
+      {/* Current Project Label */}
+      {isCurrentProject && (
+        <div className="absolute top-0 left-0 right-0 z-20 bg-red-500 text-white text-xs font-bold text-center py-1 shadow-lg">
+          CURRENT PROJECT
+        </div>
+      )}
+      
       <div className="relative h-full group">
         {/* Thumbnail or Video Preview */}
         {thumbnailUrl ? (
@@ -148,32 +162,54 @@ export function LibraryCard({
         {/* Hover overlay with actions */}
         {videoUrl && (
           <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-            <a 
-              href={videoUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center text-white"
-              onClick={(e) => {
-                e.stopPropagation();
-              }}
-            >
-              <Play className="w-4 h-4" />
-            </a>
-            {onDownload && (
-              <button 
+            {/* Play button */}
+            <Tooltip text="Play Video" position="top">
+              <a 
+                href={videoUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center text-white"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onDownload();
                 }}
-                disabled={isDownloading}
-                className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center text-white disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isDownloading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Download className="w-4 h-4" />
-                )}
-              </button>
+                <Play className="w-4 h-4" />
+              </a>
+            </Tooltip>
+            
+            {/* Save/Download button */}
+            {onDownload && (
+              <Tooltip text={isDownloading ? "Downloading..." : "Download Video"} position="top">
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDownload();
+                  }}
+                  disabled={isDownloading}
+                  className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isDownloading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Download className="w-4 h-4" />
+                  )}
+                </button>
+              </Tooltip>
+            )}
+            
+            {/* Open project button - only for projects */}
+            {type === 'project' && onProjectNavigate && (
+              <Tooltip text="Open Project" position="top">
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onProjectNavigate(item as LibraryProject);
+                  }}
+                  className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center text-white"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                </button>
+              </Tooltip>
             )}
           </div>
         )}
@@ -181,19 +217,21 @@ export function LibraryCard({
         {/* Favorite button */}
         {onFavoriteToggle && type === 'clip' && (
           <div className="absolute top-2 right-2">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onFavoriteToggle();
-              }}
-              className="bg-black/60 p-1.5 rounded-full hover:bg-black/80 transition-colors"
-            >
-              <Star className={`w-5 h-5 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] ${
-                isFavorite
-                  ? "text-yellow-400 fill-current"
-                  : "text-white/70 hover:text-white"
-              }`} />
-            </button>
+            <Tooltip text={isFavorite ? "Remove from Favorites" : "Add to Favorites"} position="bottom">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onFavoriteToggle();
+                }}
+                className="bg-black/60 p-1.5 rounded-full hover:bg-black/80 transition-colors"
+              >
+                <Star className={`w-5 h-5 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] ${
+                  isFavorite
+                    ? "text-yellow-400 fill-current"
+                    : "text-white/70 hover:text-white"
+                }`} />
+              </button>
+            </Tooltip>
           </div>
         )}
         
