@@ -32,7 +32,7 @@ export function useAutoSave({
   aspectRatio,
   durationInFrames,
   enabled = true,
-  debounceMs = 15000, // 15 seconds debounce
+  debounceMs = 30000, // 30 seconds debounce
   maxWaitMs = 120000, // 2 minutes max wait
 }: UseAutoSaveParams): UseAutoSaveReturn {
   const [status, setStatus] = useState<AutoSaveStatus>('idle');

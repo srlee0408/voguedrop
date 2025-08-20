@@ -1,6 +1,6 @@
 import { Bell, Edit2, Check, Loader2, AlertCircle } from "lucide-react"
 import Link from "next/link"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 
 type AutoSaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 
@@ -11,7 +11,6 @@ interface HeaderProps {
   onEditClick?: () => void
   onProjectTitleChange?: (title: string) => void
   autoSaveStatus?: AutoSaveStatus
-  lastAutoSavedAt?: Date | null
   autoSaveError?: string | null
 }
 
@@ -22,48 +21,58 @@ export function Header({
   onEditClick,
   onProjectTitleChange,
   autoSaveStatus = 'idle',
-  lastAutoSavedAt,
   autoSaveError
 }: HeaderProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false)
   const [tempTitle, setTempTitle] = useState(projectTitle || '')
-  const [, forceUpdate] = useState({})
+  const [showSaveStatus, setShowSaveStatus] = useState(false)
+  const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   
   // Update tempTitle when projectTitle changes
   useEffect(() => {
     setTempTitle(projectTitle || '')
   }, [projectTitle])
   
-  // Update save status text periodically
+  // Notion-style: Show status temporarily
   useEffect(() => {
-    if (autoSaveStatus === 'saved' && lastAutoSavedAt) {
-      const interval = setInterval(() => {
-        forceUpdate({})
-      }, 30000) // Update every 30 seconds
-      
-      return () => clearInterval(interval)
+    // Clear any existing timeout
+    if (hideTimeoutRef.current) {
+      clearTimeout(hideTimeoutRef.current)
+      hideTimeoutRef.current = null
     }
-  }, [autoSaveStatus, lastAutoSavedAt])
+    
+    if (autoSaveStatus === 'saving') {
+      // Show immediately when saving
+      setShowSaveStatus(true)
+    } else if (autoSaveStatus === 'saved') {
+      // Keep showing for 2 seconds after saved, then hide
+      setShowSaveStatus(true)
+      hideTimeoutRef.current = setTimeout(() => {
+        setShowSaveStatus(false)
+      }, 2000)
+    } else if (autoSaveStatus === 'error') {
+      // Show error persistently
+      setShowSaveStatus(true)
+    } else {
+      // Hide for idle state
+      setShowSaveStatus(false)
+    }
+    
+    // Cleanup timeout on unmount
+    return () => {
+      if (hideTimeoutRef.current) {
+        clearTimeout(hideTimeoutRef.current)
+      }
+    }
+  }, [autoSaveStatus])
   
-  // Format save status text
+  // Format save status text (simplified)
   const getSaveStatusText = () => {
     switch (autoSaveStatus) {
       case 'saving':
         return 'Saving...'
       case 'saved':
-        if (lastAutoSavedAt) {
-          const now = new Date()
-          const diff = Math.floor((now.getTime() - lastAutoSavedAt.getTime()) / 1000)
-          if (diff < 5) {
-            return 'Saved'
-          } else if (diff < 60) {
-            return 'All changes saved'
-          } else {
-            const minutes = Math.floor(diff / 60)
-            return `Saved ${minutes}m ago`
-          }
-        }
-        return 'All changes saved'
+        return 'Saved'
       case 'error':
         return 'Failed to save'
       default:
@@ -146,18 +155,20 @@ export function Header({
               )}
             </div>
             
-            {/* Auto-save status */}
-            {autoSaveStatus !== 'idle' && (
-              <div className={`flex items-center gap-1.5 text-xs ${getSaveStatusColor()}`}>
-                {getSaveStatusIcon()}
-                <span>{getSaveStatusText()}</span>
-                {autoSaveStatus === 'error' && autoSaveError && (
-                  <span className="text-xs text-red-400" title={autoSaveError}>
-                    ⓘ
-                  </span>
-                )}
-              </div>
-            )}
+            {/* Auto-save status*/}
+            <div 
+              className={`flex items-center gap-1.5 text-xs ${getSaveStatusColor()} transition-all duration-300 ${
+                showSaveStatus ? 'opacity-100' : 'opacity-0 pointer-events-none'
+              }`}
+            >
+              {getSaveStatusIcon()}
+              <span>{getSaveStatusText()}</span>
+              {autoSaveStatus === 'error' && autoSaveError && (
+                <span className="text-xs text-red-400" title={autoSaveError}>
+                  ⓘ
+                </span>
+              )}
+            </div>
           </div>
         )}
       </div>

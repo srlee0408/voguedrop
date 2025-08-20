@@ -32,6 +32,13 @@ export interface LibraryModalConfig {
     onProjectNavigate: (projectName: string) => void;
   };
   
+  /** 프로젝트 필터 설정 */
+  projectFilter?: {
+    enabled: boolean;
+    requireVideo: boolean;  // true면 비디오가 있는 프로젝트만 표시
+    emptyMessage?: string;  // 필터링 후 프로젝트가 없을 때 표시할 메시지
+  };
+  
   /** 날짜 필터 설정 */
   dateFilter?: {
     enabled: boolean;

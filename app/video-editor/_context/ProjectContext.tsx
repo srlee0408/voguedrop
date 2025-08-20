@@ -18,8 +18,6 @@ interface ProjectContextType {
   // 자동 저장 상태
   autoSaveStatus: AutoSaveStatus;
   setAutoSaveStatus: React.Dispatch<React.SetStateAction<AutoSaveStatus>>;
-  lastAutoSavedAt: Date | null;
-  setLastAutoSavedAt: React.Dispatch<React.SetStateAction<Date | null>>;
   autoSaveError: string | null;
   setAutoSaveError: React.Dispatch<React.SetStateAction<string | null>>;
   
@@ -67,7 +65,6 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   
   // 자동 저장 상태
   const [autoSaveStatus, setAutoSaveStatus] = useState<AutoSaveStatus>('idle');
-  const [lastAutoSavedAt, setLastAutoSavedAt] = useState<Date | null>(null);
   const [autoSaveError, setAutoSaveError] = useState<string | null>(null);
   
   // 타임라인 높이 관리 (page.tsx에서 그대로)
@@ -226,8 +223,6 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     // 자동 저장 상태
     autoSaveStatus,
     setAutoSaveStatus,
-    lastAutoSavedAt,
-    setLastAutoSavedAt,
     autoSaveError,
     setAutoSaveError,
     
@@ -265,7 +260,6 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     projectLoadError,
     loadProjectData,
     autoSaveStatus,
-    lastAutoSavedAt,
     autoSaveError,
     timelineHeight,
     isResizing,

@@ -183,9 +183,16 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
       ? clipItems.filter(item => filterByDate(new Date(item.created_at)))
       : clipItems;
       
-    const filteredProjects = config.dateFilter?.enabled
+    let filteredProjects = config.dateFilter?.enabled
       ? projectItems.filter(item => filterByDate(new Date(item.updated_at)))
       : projectItems;
+    
+    // 프로젝트 필터 적용 - 비디오가 있는 프로젝트만 표시
+    if (config.projectFilter?.enabled && config.projectFilter.requireVideo) {
+      filteredProjects = filteredProjects.filter(project => 
+        project.latest_video_url && project.latest_video_url.trim() !== ''
+      );
+    }
       
     const filteredUploads = config.dateFilter?.enabled
       ? uploadItems.filter(item => filterByDate(new Date(item.uploaded_at)))
@@ -205,7 +212,7 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
     }
 
     return { clips: filteredClips, projects: filteredProjects, uploads: filteredUploads };
-  }, [clipItems, projectItems, uploadItems, startDate, endDate, config.dateFilter, config.favorites]);
+  }, [clipItems, projectItems, uploadItems, startDate, endDate, config.dateFilter, config.favorites, config.projectFilter]);
 
   // 업로드 완료 핸들러
   const handleUploadComplete = useCallback((video: UserUploadedVideo) => {
@@ -234,6 +241,15 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname, onClose, config.onProjectSwitch, config.openProject]);
+
+  // 필터링된 카운트 계산
+  const filteredCounts = useMemo(() => {
+    return {
+      clips: filteredItems.clips.length,
+      projects: filteredItems.projects.length,
+      uploads: filteredItems.uploads.length
+    };
+  }, [filteredItems]);
 
   // Info 메시지
   const getInfoMessage = () => {
@@ -287,7 +303,7 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
           <LibrarySidebar
             activeCategory={activeCategory}
             onCategoryChange={handleCategoryChange}
-            counts={counts}
+            counts={filteredCounts}
             dateFilter={config.dateFilter?.enabled ? {
               enabled: true,
               startDate,
@@ -355,8 +371,16 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
                     <div className="flex items-center justify-center py-20">
                       <div className="text-center">
                         <Folder className="w-12 h-12 text-gray-500 mx-auto mb-4" />
-                        <p className="text-gray-400">No projects found</p>
-                        <p className="text-sm text-gray-500 mt-2">Save your video projects to see them here</p>
+                        <p className="text-gray-400">
+                          {config.projectFilter?.enabled && config.projectFilter.requireVideo
+                            ? config.projectFilter.emptyMessage || "No exported projects found"
+                            : "No projects found"}
+                        </p>
+                        <p className="text-sm text-gray-500 mt-2">
+                          {config.projectFilter?.enabled && config.projectFilter.requireVideo
+                            ? "Only projects with exported videos are shown"
+                            : "Save your video projects to see them here"}
+                        </p>
                       </div>
                     </div>
                   ) : (

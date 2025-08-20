@@ -21,6 +21,11 @@ export default function VideoLibraryModal({ onClose, onAddToTimeline }: VideoLib
       enabled: false,  // Add Clip 모드에서는 프로젝트 열기 버튼 비활성화
       onProjectNavigate: () => {}
     },
+    projectFilter: {
+      enabled: true,
+      requireVideo: true,  // 렌더링된 비디오가 있는 프로젝트만 표시
+      emptyMessage: 'No exported projects available'
+    },
     theme: {
       primaryColor: '#38f47cf9',
       buttonStyle: 'success',

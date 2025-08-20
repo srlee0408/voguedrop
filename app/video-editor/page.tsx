@@ -40,8 +40,6 @@ function VideoEditorContent() {
     handleAddText: handleAddTextButton,
     autoSaveStatus,
     setAutoSaveStatus,
-    lastAutoSavedAt,
-    setLastAutoSavedAt,
     autoSaveError,
     setAutoSaveError,
   } = useProject();
@@ -160,7 +158,6 @@ function VideoEditorContent() {
   // 자동 저장 설정
   const {
     status: autoSaveStatusLocal,
-    lastSavedAt: lastSavedAtLocal,
     errorMessage: autoSaveErrorLocal,
     triggerSave,
   } = useAutoSave({
@@ -171,16 +168,15 @@ function VideoEditorContent() {
     aspectRatio: '9:16', // TODO: Get from VideoPreview component
     durationInFrames: calculateTotalFrames,
     enabled: true,
-    debounceMs: 2000, // 2초 후 저장
-    maxWaitMs: 30000, // 최대 30초 대기
+    debounceMs: 15000, // 15초 후 저장 (서버 부하 감소)
+    maxWaitMs: 120000, // 최대 2분 대기
   });
   
   // 자동 저장 상태를 ProjectContext와 동기화
   useEffect(() => {
     setAutoSaveStatus(autoSaveStatusLocal);
-    setLastAutoSavedAt(lastSavedAtLocal);
     setAutoSaveError(autoSaveErrorLocal);
-  }, [autoSaveStatusLocal, lastSavedAtLocal, autoSaveErrorLocal, setAutoSaveStatus, setLastAutoSavedAt, setAutoSaveError]);
+  }, [autoSaveStatusLocal, autoSaveErrorLocal, setAutoSaveStatus, setAutoSaveError]);
   
   // Favorites 상태 관리 (간단한 로컬 상태로 처리)
   const [favoriteVideos, setFavoriteVideos] = useState<Set<string>>(new Set());
@@ -255,7 +251,6 @@ function VideoEditorContent() {
         onProjectTitleChange={setProjectTitle}
         onLibraryClick={() => setShowLibrary(true)}
         autoSaveStatus={autoSaveStatus}
-        lastAutoSavedAt={lastAutoSavedAt}
         autoSaveError={autoSaveError}
       />
       
