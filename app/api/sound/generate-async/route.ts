@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/service';
+import { requireAuth } from '@/lib/api/auth';
 import { nanoid } from 'nanoid';
 import { processSoundTitle } from '@/lib/sound/utils';
 import { SoundGenerationType } from '@/types/sound';
@@ -15,9 +17,11 @@ export async function POST(request: NextRequest) {
   const isMockMode = process.env.NEXT_PUBLIC_MOCK_MODE === 'true';
   
   try {
-    // Supabase 클라이언트 생성 및 인증 확인
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    // 사용자 인증 확인 (보안 유틸리티 사용)
+    const { user, error: authError } = await requireAuth(request);
+    if (authError) {
+      return authError;
+    }
     
     if (!user) {
       return NextResponse.json(
@@ -25,6 +29,8 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       );
     }
+    
+    const supabase = await createClient();
     
     // 1. 요청 데이터 검증
     const body: GenerateSoundRequest = await request.json();
@@ -119,10 +125,9 @@ export async function POST(request: NextRequest) {
     if (isMockMode) {
       console.log('Mock mode enabled - generating 4 sound variations');
       
-      const { createServiceClient } = await import('@/lib/supabase/service');
       const serviceSupabase = createServiceClient();
       
-      // 모든 job을 processing으로 업데이트
+      // 모든 job을 processing으로 업데이트 (user_id 조건 추가)
       for (const jobId of jobIds) {
         await serviceSupabase
           .from('sound_generations')
@@ -131,7 +136,8 @@ export async function POST(request: NextRequest) {
             fal_request_id: `mock_${jobId}`,
             updated_at: new Date().toISOString()
           })
-          .eq('job_id', jobId);
+          .eq('job_id', jobId)
+          .eq('user_id', userId); // 보안: user_id 조건 추가
       }
       
       // 각 job에 대해 webhook 시뮬레이션 (약간의 딜레이를 두고)
@@ -179,7 +185,6 @@ export async function POST(request: NextRequest) {
     const endpoint = generation_type === 'music' 
       ? "fal-ai/lyria2" 
       : "fal-ai/elevenlabs/sound-effects";
-    const { createServiceClient } = await import('@/lib/supabase/service');
     const serviceSupabase = createServiceClient();
     
     // API별로 다른 페이로드 구조
@@ -213,7 +218,7 @@ export async function POST(request: NextRequest) {
           const errorData = await response.json();
           console.error(`fal.ai API error for job ${jobId}:`, errorData);
           
-          // 실패 시 DB 업데이트
+          // 실패 시 DB 업데이트 (user_id 조건 추가)
           await serviceSupabase
             .from('sound_generations')
             .update({
@@ -221,14 +226,15 @@ export async function POST(request: NextRequest) {
               error_message: errorData.detail || 'fal.ai API 호출 실패',
               updated_at: new Date().toISOString()
             })
-            .eq('job_id', jobId);
+            .eq('job_id', jobId)
+            .eq('user_id', userId); // 보안: user_id 조건 추가
           
           return { success: false, jobId, error: errorData.detail || 'fal.ai API 호출 실패' };
         }
         
         const result = await response.json();
         
-        // fal request ID 저장 및 상태 업데이트
+        // fal request ID 저장 및 상태 업데이트 (user_id 조건 추가)
         await serviceSupabase
           .from('sound_generations')
           .update({
@@ -236,7 +242,8 @@ export async function POST(request: NextRequest) {
             status: 'processing',
             updated_at: new Date().toISOString()
           })
-          .eq('job_id', jobId);
+          .eq('job_id', jobId)
+          .eq('user_id', userId); // 보안: user_id 조건 추가
         
         return { success: true, jobId, requestId: result.request_id };
       } catch (error) {
@@ -249,7 +256,8 @@ export async function POST(request: NextRequest) {
             error_message: 'API 호출 중 오류 발생',
             updated_at: new Date().toISOString()
           })
-          .eq('job_id', jobId);
+          .eq('job_id', jobId)
+          .eq('user_id', userId); // 보안: user_id 조건 추가
         
         return { success: false, jobId, error: 'API 호출 중 오류 발생' };
       }

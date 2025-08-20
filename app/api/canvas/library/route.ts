@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createServiceClient } from '@/lib/supabase/service';
+import { requireAuth } from '@/lib/api/auth';
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    // 사용자 인증 확인 (보안 유틸리티 사용)
+    const { user, error: authError } = await requireAuth(request);
+    if (authError) {
+      return authError;
+    }
 
     if (!user) {
       return NextResponse.json(
@@ -13,6 +17,8 @@ export async function GET(request: NextRequest) {
         { status: 401 }
       );
     }
+    
+    const supabase = await createClient();
 
     // URL 파라미터 가져오기
     const { searchParams } = new URL(request.url);
@@ -98,7 +104,8 @@ export async function GET(request: NextRequest) {
       // 업로드 조회 실패는 치명적이지 않으므로 빈 배열로 처리
     }
 
-    // Service Client로 공개 URL 가져오기
+    // Storage URL은 공개 정보이므로 Service Client 사용이 필수
+    // 하지만 위에서 이미 user_id로 필터링된 데이터만 처리하므로 안전
     const serviceSupabase = createServiceClient();
     const sanitizedUploads = (uploads || []).map(upload => {
       const { data: { publicUrl } } = serviceSupabase.storage

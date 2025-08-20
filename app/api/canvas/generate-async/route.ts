@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { checkDailyGenerationLimit } from '@/lib/db/video-generations';
 import { uploadBase64Image } from '@/lib/supabase/storage';
 import { createClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/service';
+import { requireAuth } from '@/lib/api/auth';
 import { createVideoGenerationLogger, measureAndLog } from '@/lib/logging/video-generation-logger';
 import { nanoid } from 'nanoid';
 
@@ -25,12 +27,15 @@ export async function POST(request: NextRequest) {
     
     await logger.info('Video generation request received', { mockMode: isMockMode });
 
-    // Supabase 클라이언트 생성 및 인증 확인
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    // 사용자 인증 확인 (보안 유틸리티 사용)
+    const { user, error: authError } = await requireAuth(request);
+    if (authError) {
+      await logger.warning('Unauthorized request - user not logged in');
+      return authError;
+    }
     
     if (!user) {
-      await logger.warning('Unauthorized request - user not logged in');
+      await logger.warning('Unauthorized request - user not found');
       return NextResponse.json(
         { error: '로그인이 필요합니다.' },
         { status: 401 }
@@ -99,6 +104,8 @@ export async function POST(request: NextRequest) {
     let combinedPrompt = basePrompt || '';
     
     if (effectIds.length > 0) {
+      // effect_templates는 공개 데이터이므로 일반 클라이언트 사용 가능
+      const supabase = await createClient();
       const { data: effects, error: effectsError } = await supabase
         .from('effect_templates')
         .select('id, name, prompt')
@@ -175,8 +182,9 @@ export async function POST(request: NextRequest) {
           job_id: jobId
         });
         
-        // DB에 초기 레코드 생성
-        const { data, error } = await supabase
+        // DB에 초기 레코드 생성 (Service Client + user_id 명시)
+        const serviceSupabase = createServiceClient();
+        const { data, error } = await serviceSupabase
           .from('video_generations')
           .insert({
             job_id: jobId,
@@ -240,8 +248,7 @@ export async function POST(request: NextRequest) {
         if (isMockMode) {
           await jobLogger?.info('Mock mode enabled - skipping fal.ai API call');
           
-          // 상태를 processing으로 업데이트
-          const { createServiceClient } = await import('@/lib/supabase/service');
+          // 상태를 processing으로 업데이트 (user_id 조건 추가)
           const serviceSupabase = createServiceClient();
           
           await serviceSupabase
@@ -251,7 +258,8 @@ export async function POST(request: NextRequest) {
               fal_request_id: `mock_${job.jobId}`,
               updated_at: new Date().toISOString()
             })
-            .eq('job_id', job.jobId);
+            .eq('job_id', job.jobId)
+            .eq('user_id', userId); // 보안: user_id 조건 추가
           
           // 5초 후 webhook 시뮬레이션
           setTimeout(async () => {
@@ -347,8 +355,7 @@ export async function POST(request: NextRequest) {
           fal_request_id: result.request_id
         });
         
-        // fal request ID 저장 및 상태 업데이트 (Service Role 사용)
-        const { createServiceClient } = await import('@/lib/supabase/service');
+        // fal request ID 저장 및 상태 업데이트 (user_id 조건 추가)
         const serviceSupabase = createServiceClient();
         
         const { error: updateError } = await serviceSupabase
@@ -358,7 +365,8 @@ export async function POST(request: NextRequest) {
             status: 'processing',
             updated_at: new Date().toISOString()
           })
-          .eq('job_id', job.jobId);
+          .eq('job_id', job.jobId)
+          .eq('user_id', userId); // 보안: user_id 조건 추가
           
         if (updateError) {
           // Failed to update status to processing
@@ -384,9 +392,8 @@ export async function POST(request: NextRequest) {
           duration_ms: Date.now() - startTime
         });
         
-        // 실패 시 DB 업데이트 (Service Role 사용)
-        const { createServiceClient: createFailServiceClient } = await import('@/lib/supabase/service');
-        const failServiceSupabase = createFailServiceClient();
+        // 실패 시 DB 업데이트 (user_id 조건 추가)
+        const failServiceSupabase = createServiceClient();
         
         const { error: updateError } = await failServiceSupabase
           .from('video_generations')
@@ -395,7 +402,8 @@ export async function POST(request: NextRequest) {
             error_message: errorMessage,
             updated_at: new Date().toISOString()
           })
-          .eq('job_id', job.jobId);
+          .eq('job_id', job.jobId)
+          .eq('user_id', userId); // 보안: user_id 조건 추가
           
         if (updateError) {
           await jobLogger?.error('Failed to update database with failure status', updateError);

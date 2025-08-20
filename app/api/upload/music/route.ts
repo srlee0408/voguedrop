@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createServiceClient } from '@/lib/supabase/service';
+import { requireAuth } from '@/lib/api/auth';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_TYPES = [
@@ -27,9 +28,12 @@ function sanitizeFileName(fileName: string): string {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
+    // 사용자 인증 확인 (보안 유틸리티 사용)
+    const { user, error: authError } = await requireAuth(request);
+    if (authError) {
+      return authError;
+    }
+    
     if (!user) {
       return NextResponse.json(
         { error: '로그인이 필요합니다.' },
@@ -73,7 +77,7 @@ export async function POST(request: NextRequest) {
     const fileName = `${timestamp}_${sanitizedName}`;
     const storagePath = `music/${user.id}/${fileName}`;
 
-    // Service Client로 Storage에 업로드
+    // Storage 업로드는 Service Client가 필요 (RLS가 Storage에 적용되지 않음)
     const serviceSupabase = createServiceClient();
     const fileBuffer = await file.arrayBuffer();
     const { error: uploadError } = await serviceSupabase.storage
@@ -96,11 +100,11 @@ export async function POST(request: NextRequest) {
       .from('user-uploads')
       .getPublicUrl(storagePath);
 
-    // DB에 저장 (클라이언트에서 전송한 메타데이터 사용)
-    const { data: savedMusic, error: dbError } = await supabase
+    // DB에 저장 (Service Client + user_id 조건으로 보안 강화)
+    const { data: savedMusic, error: dbError } = await serviceSupabase
       .from('user_uploaded_music')
       .insert({
-        user_id: user.id,
+        user_id: user.id, // user_id 포함으로 소유권 보장
         file_name: originalName,
         storage_path: storagePath,
         file_size: file.size,
@@ -147,15 +151,20 @@ export async function POST(request: NextRequest) {
 // 업로드된 음악 조회
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
+    // 사용자 인증 확인 (보안 유틸리티 사용)
+    const { user, error: authError } = await requireAuth(request);
+    if (authError) {
+      return authError;
+    }
+    
     if (!user) {
       return NextResponse.json(
         { error: '로그인이 필요합니다.' },
         { status: 401 }
       );
     }
+    
+    const supabase = await createClient();
 
     const { searchParams } = new URL(request.url);
     const genre = searchParams.get('genre');
@@ -184,7 +193,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Storage URL 추가
+    // Storage URL 추가 (Storage는 공개 정보이므로 Service Client 사용 필수)
     const serviceSupabase = createServiceClient();
     const musicWithUrls = data?.map(music => {
       const { data: { publicUrl } } = serviceSupabase.storage
@@ -215,9 +224,12 @@ export async function GET(request: NextRequest) {
 // 업로드된 음악 삭제
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
+    // 사용자 인증 확인 (보안 유틸리티 사용)
+    const { user, error: authError } = await requireAuth(request);
+    if (authError) {
+      return authError;
+    }
+    
     if (!user) {
       return NextResponse.json(
         { error: '로그인이 필요합니다.' },
@@ -235,12 +247,13 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // 소프트 삭제
-    const { error } = await supabase
+    // 소프트 삭제 (Service Client + user_id 조건으로 소유권 검증)
+    const serviceSupabase = createServiceClient();
+    const { error } = await serviceSupabase
       .from('user_uploaded_music')
       .update({ is_deleted: true })
       .eq('id', musicId)
-      .eq('user_id', user.id);
+      .eq('user_id', user.id); // 보안: 소유권 확인
 
     if (error) {
       return NextResponse.json(

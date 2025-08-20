@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createServiceClient } from '@/lib/supabase/service';
+import { requireAuth } from '@/lib/api/auth';
 import crypto from 'crypto';
 
 interface SaveRequest {
@@ -248,8 +249,8 @@ export async function POST(request: NextRequest) {
           // 메타데이터 업로드 실패는 치명적이지 않으므로 계속 진행
         }
 
-        // 5. project_saves 테이블 업데이트 (Supabase URL 저장)
-        await supabase
+        // 5. project_saves 테이블 업데이트 (user_id 조건 추가)
+        await serviceSupabase
           .from('project_saves')
           .update({ 
             latest_render_id: validRenderId,
@@ -259,7 +260,8 @@ export async function POST(request: NextRequest) {
               video_url: supabaseVideoUrl  // 호환성을 위해 여기도 유지
             }
           })
-          .eq('id', savedProject.id);
+          .eq('id', savedProject.id)
+          .eq('user_id', user.id); // 보안: 소유권 검증
 
       } catch (error) {
         console.error('Error saving video to Supabase:', error);
@@ -302,15 +304,20 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    // 사용자 인증 확인 (보안 유틸리티 사용)
+    const { user, error: authError } = await requireAuth(request);
+    if (authError) {
+      return authError;
+    }
     
-    if (authError || !user) {
+    if (!user) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       );
     }
+    
+    const supabase = await createClient();
 
     // 프로젝트 조회 (단일 레코드)
     const { data: projectSave, error } = await supabase
