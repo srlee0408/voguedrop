@@ -44,7 +44,6 @@ export function ImageBrushModal({
   const [resultImage, setResultImage] = useState<string | null>(null)
   const [isDrawing, setIsDrawing] = useState(false)
   const [lastPos, setLastPos] = useState<{ x: number; y: number } | null>(null)
-  const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>(null)
 
   // Load image and initialize canvas
   useEffect(() => {
@@ -262,7 +261,6 @@ export function ImageBrushModal({
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const pos = getMousePos(e)
-    setMousePos(pos)
     drawBrushPreview(pos.x, pos.y)  // 브러쉬 프리뷰 업데이트
     
     if (isDrawing) {
@@ -278,7 +276,6 @@ export function ImageBrushModal({
   const handleMouseLeave = () => {
     setIsDrawing(false)
     setLastPos(null) // Reset last position when mouse leaves
-    setMousePos(null) // Clear mouse position
     
     // Clear brush preview
     const previewCanvas = previewCanvasRef.current
