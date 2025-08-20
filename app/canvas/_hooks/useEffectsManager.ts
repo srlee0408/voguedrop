@@ -6,12 +6,19 @@ import type { EffectsManagerReturn } from '../_types'
 
 const MAX_EFFECTS = 2
 
+interface InitialEffectsState {
+  selectedEffects?: EffectTemplateWithMedia[]
+}
+
 /**
  * 효과 선택 및 관리를 담당하는 훅
  * 최대 2개까지 효과 선택 가능
+ * localStorage 복원 지원
  */
-export function useEffectsManager(): EffectsManagerReturn {
-  const [selectedEffects, setSelectedEffects] = useState<EffectTemplateWithMedia[]>([])
+export function useEffectsManager(initialState?: InitialEffectsState): EffectsManagerReturn {
+  const [selectedEffects, setSelectedEffects] = useState<EffectTemplateWithMedia[]>(
+    initialState?.selectedEffects || []
+  )
 
   const canAddMore = selectedEffects.length < MAX_EFFECTS
 
@@ -57,6 +64,13 @@ export function useEffectsManager(): EffectsManagerReturn {
     setSelectedEffects([])
   }, [])
 
+  /**
+   * 효과 상태를 직접 설정 (localStorage 복원용)
+   */
+  const restoreEffects = useCallback((effects: EffectTemplateWithMedia[]): void => {
+    setSelectedEffects(effects)
+  }, [])
+
   return {
     selectedEffects,
     canAddMore,
@@ -64,6 +78,7 @@ export function useEffectsManager(): EffectsManagerReturn {
     removeEffect,
     toggleEffect,
     clearEffects,
+    restoreEffects,
     maxEffects: MAX_EFFECTS,
   }
 }

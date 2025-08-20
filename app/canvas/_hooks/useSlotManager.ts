@@ -3,30 +3,28 @@ import type { GeneratedVideo } from "@/types/canvas";
 
 type SlotContent = { type: "image" | "video"; data: string | GeneratedVideo } | null;
 
+interface InitialSlotState {
+  slotContents?: Array<SlotContent>;
+  slotStates?: Array<"empty" | "generating" | "completed">;
+  slotCompletedAt?: Array<number | null>;
+}
+
 /**
  * Canvas 슬롯 상태와 배치 규칙을 관리하는 훅
  * - 4개 슬롯의 콘텐츠/상태/완료시점을 관리
  * - 이미지 업로드/제거, 히스토리 비디오 토글 배치, 슬롯 선택 등의 로직 캡슐화
+ * - localStorage 복원 지원
  */
-export function useSlotManager() {
-  const [slotContents, setSlotContents] = useState<Array<SlotContent>>([
-    null,
-    null,
-    null,
-    null,
-  ]);
-  const [slotStates, setSlotStates] = useState<Array<"empty" | "generating" | "completed">>([
-    "empty",
-    "empty",
-    "empty",
-    "empty",
-  ]);
-  const [slotCompletedAt, setSlotCompletedAt] = useState<Array<number | null>>([
-    null,
-    null,
-    null,
-    null,
-  ]);
+export function useSlotManager(initialState?: InitialSlotState) {
+  const [slotContents, setSlotContents] = useState<Array<SlotContent>>(
+    initialState?.slotContents || [null, null, null, null]
+  );
+  const [slotStates, setSlotStates] = useState<Array<"empty" | "generating" | "completed">>(
+    initialState?.slotStates || ["empty", "empty", "empty", "empty"]
+  );
+  const [slotCompletedAt, setSlotCompletedAt] = useState<Array<number | null>>(
+    initialState?.slotCompletedAt || [null, null, null, null]
+  );
   const [selectedSlotIndex, setSelectedSlotIndex] = useState<number | null>(null);
   const [activeVideo, setActiveVideo] = useState<GeneratedVideo | null>(null);
 
@@ -433,6 +431,21 @@ export function useSlotManager() {
     });
   }, []);
 
+  /**
+   * 슬롯 상태를 직접 설정 (localStorage 복원용)
+   */
+  const restoreSlotStates = useCallback((state: InitialSlotState) => {
+    if (state.slotContents) {
+      setSlotContents(state.slotContents);
+    }
+    if (state.slotStates) {
+      setSlotStates(state.slotStates);
+    }
+    if (state.slotCompletedAt) {
+      setSlotCompletedAt(state.slotCompletedAt);
+    }
+  }, []);
+
   return {
     // 상태
     slotContents,
@@ -460,6 +473,9 @@ export function useSlotManager() {
     markSlotCompleted,
     resetSlot,
     updateVideoFavoriteFlag,
+    
+    // 복원
+    restoreSlotStates,
   };
 }
 

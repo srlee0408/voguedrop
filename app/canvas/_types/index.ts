@@ -57,6 +57,7 @@ export interface EffectsManagerReturn {
   removeEffect: (effectId: number) => void
   toggleEffect: (effect: EffectTemplateWithMedia) => void
   clearEffects: () => void
+  restoreEffects: (effects: EffectTemplateWithMedia[]) => void
   maxEffects: number
 }
 
@@ -91,6 +92,13 @@ export interface SlotManagerReturn {
   markSlotCompleted: (slotIndex: number) => void
   resetSlot: (slotIndex: number) => void
   updateVideoFavoriteFlag: (videoId: string, isFavorite: boolean) => void
+  
+  // 복원
+  restoreSlotStates: (state: {
+    slotContents?: Array<SlotContent>
+    slotStates?: Array<SlotState>
+    slotCompletedAt?: Array<number | null>
+  }) => void
 }
 
 // 비디오 생성 관리 타입  

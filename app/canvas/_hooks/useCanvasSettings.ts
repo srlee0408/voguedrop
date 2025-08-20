@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react'
 import type { CanvasSettings, CanvasSettingsReturn } from '../_types'
 
-const initialSettings: CanvasSettings = {
+const defaultSettings: CanvasSettings = {
   promptText: '',
   negativePrompt: '',
   selectedResolution: '1:1',
@@ -16,9 +16,13 @@ const initialSettings: CanvasSettings = {
 /**
  * Canvas 페이지의 모든 설정을 관리하는 훅
  * 프롬프트, 해상도, 모델 등의 설정 통합 관리
+ * localStorage 복원 지원
  */
-export function useCanvasSettings(): CanvasSettingsReturn {
-  const [settings, setSettings] = useState<CanvasSettings>(initialSettings)
+export function useCanvasSettings(initialSettings?: Partial<CanvasSettings>): CanvasSettingsReturn {
+  const [settings, setSettings] = useState<CanvasSettings>({
+    ...defaultSettings,
+    ...initialSettings,
+  })
 
   const updateSettings = useCallback((newSettings: Partial<CanvasSettings>): void => {
     setSettings((prev) => ({
@@ -28,7 +32,7 @@ export function useCanvasSettings(): CanvasSettingsReturn {
   }, [])
 
   const resetSettings = useCallback((): void => {
-    setSettings(initialSettings)
+    setSettings(defaultSettings)
   }, [])
 
   return {
