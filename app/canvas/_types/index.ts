@@ -60,6 +60,51 @@ export interface EffectsManagerReturn {
   maxEffects: number
 }
 
+// 슬롯 관리 타입
+export type SlotContent = { type: 'image' | 'video'; data: string | GeneratedVideo } | null
+export type SlotState = 'empty' | 'generating' | 'completed'
+
+export interface SlotManagerReturn {
+  // 상태
+  slotContents: Array<SlotContent>
+  slotStates: Array<SlotState>
+  slotCompletedAt: Array<number | null>
+  selectedSlotIndex: number | null
+  activeVideo: GeneratedVideo | null
+
+  // 선택 제어
+  setSelectedSlotIndex: (index: number | null) => void
+  setActiveVideo: (video: GeneratedVideo | null) => void
+  handleSlotSelect: (index: number, video: GeneratedVideo | null) => void
+
+  // 이미지/비디오 배치
+  handleImageUpload: (imageUrl: string, isSlotGenerating: (slotIndex: number) => boolean, prevImage?: string | null) => void
+  removeImageByUrlIfEmpty: (imageUrl: string) => void
+  handleVideoToggle: (video: GeneratedVideo, isSlotGenerating: (slotIndex: number) => boolean) => boolean
+  handleRemoveContent: (index: number) => void
+
+  // 생성 플로우 인터페이스
+  findAvailableSlotForGeneration: (imageUrl: string | null) => number
+  setSlotToImage: (slotIndex: number, imageUrl: string) => void
+  markSlotGenerating: (slotIndex: number) => void
+  placeVideoInSlot: (slotIndex: number, video: GeneratedVideo) => void
+  markSlotCompleted: (slotIndex: number) => void
+  resetSlot: (slotIndex: number) => void
+  updateVideoFavoriteFlag: (videoId: string, isFavorite: boolean) => void
+}
+
+// 비디오 생성 관리 타입  
+export interface VideoGenerationReturn {
+  isGenerating: boolean
+  canGenerate: boolean
+  generatingProgress: Map<string, number>
+  generatingJobIds: Map<string, string>
+  generationError: string | null
+  generateVideo: () => Promise<void>
+  isSlotGenerating: (slotIndex: number) => boolean
+  setGenerationError: (error: string | null) => void
+}
+
 // Canvas Context 타입
 export interface CanvasContextValue {
   // 모달 관리
@@ -74,9 +119,19 @@ export interface CanvasContextValue {
   // 효과 관리
   effects: EffectsManagerReturn
   
+  // 슬롯 관리
+  slotManager: SlotManagerReturn
+  
+  // 비디오 생성 관리
+  videoGeneration: VideoGenerationReturn
+  
   // 현재 생성 이미지
   currentGeneratingImage: string | null
   setCurrentGeneratingImage: (imageUrl: string | null) => void
+  
+  // 현재 편집 중인 슬롯 인덱스
+  currentEditingSlotIndex: number | null
+  setCurrentEditingSlotIndex: (index: number | null) => void
   
   // 선택된 비디오
   selectedVideoId: string | null

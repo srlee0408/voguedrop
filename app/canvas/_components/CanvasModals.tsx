@@ -9,7 +9,7 @@ import { CameraModal } from '@/components/modals/CameraModal'
 import { ModelModal } from '@/components/modals/ModelModal'
 import { ProjectTitleModal } from '@/components/modals/ProjectTitleModal'
 import { ImageBrushModal } from './ImageBrushModal'
-import { useCanvas, useSlotManager } from '../_context/CanvasContext'
+import { useCanvas } from '../_context/CanvasContext'
 
 /**
  * Canvas 페이지의 모든 모달을 관리하는 컨테이너 컴포넌트
@@ -17,8 +17,17 @@ import { useCanvas, useSlotManager } from '../_context/CanvasContext'
  */
 export function CanvasModals(): React.ReactElement {
   const router = useRouter()
-  const { modals, settings, favorites, effects, currentGeneratingImage, setCurrentGeneratingImage } = useCanvas()
-  const slotManager = useSlotManager()
+  const { 
+    modals, 
+    settings, 
+    favorites, 
+    effects,
+    slotManager,
+    currentGeneratingImage, 
+    setCurrentGeneratingImage,
+    currentEditingSlotIndex,
+    setCurrentEditingSlotIndex 
+  } = useCanvas()
 
   return (
     <>
@@ -78,31 +87,41 @@ export function CanvasModals(): React.ReactElement {
       {currentGeneratingImage && (
         <ImageBrushModal
           isOpen={modals.modals.imageBrush}
-          onClose={() => modals.closeModal('imageBrush')}
+          onClose={() => {
+            modals.closeModal('imageBrush')
+            setCurrentEditingSlotIndex(null)
+          }}
           imageUrl={currentGeneratingImage}
           onComplete={(brushedImageUrl: string) => {
             // 브러시 처리된 이미지로 업데이트
             setCurrentGeneratingImage(brushedImageUrl)
             
-            // 현재 선택된 슬롯 또는 이미지가 있는 슬롯을 찾아서 업데이트
-            const selectedIndex = slotManager.selectedSlotIndex
-            
-            // 선택된 슬롯이 있고 이미지 타입이면 해당 슬롯 업데이트
-            if (selectedIndex !== null) {
-              const selectedSlotContent = slotManager.slotContents[selectedIndex]
-              if (selectedSlotContent?.type === 'image') {
-                slotManager.setSlotToImage(selectedIndex, brushedImageUrl)
-              }
+            // currentEditingSlotIndex가 있으면 해당 슬롯 업데이트
+            if (currentEditingSlotIndex !== null) {
+              slotManager.setSlotToImage(currentEditingSlotIndex, brushedImageUrl)
             } else {
-              // 선택된 슬롯이 없으면 현재 이미지와 일치하는 슬롯 찾아서 업데이트
-              slotManager.slotContents.forEach((slot, index) => {
-                if (slot?.type === 'image' && slot.data === currentGeneratingImage) {
-                  slotManager.setSlotToImage(index, brushedImageUrl)
+              // fallback: 선택된 슬롯 또는 현재 이미지가 있는 슬롯 업데이트
+              const selectedIndex = slotManager.selectedSlotIndex
+              
+              if (selectedIndex !== null) {
+                const selectedSlotContent = slotManager.slotContents[selectedIndex]
+                if (selectedSlotContent?.type === 'image') {
+                  slotManager.setSlotToImage(selectedIndex, brushedImageUrl)
                 }
-              })
+              } else {
+                // 현재 이미지와 일치하는 첫 번째 슬롯 찾아서 업데이트
+                for (let i = 0; i < slotManager.slotContents.length; i++) {
+                  const slot = slotManager.slotContents[i]
+                  if (slot?.type === 'image') {
+                    slotManager.setSlotToImage(i, brushedImageUrl)
+                    break
+                  }
+                }
+              }
             }
             
             modals.closeModal('imageBrush')
+            setCurrentEditingSlotIndex(null)
           }}
         />
       )}

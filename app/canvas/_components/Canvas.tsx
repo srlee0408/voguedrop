@@ -3,7 +3,6 @@ import Image from "next/image";
 import { CanvasControls } from "./CanvasControls";
 import { CanvasHistoryPanel } from "./CanvasHistoryPanel";
 import { VideoGenerationProgress } from "./VideoGenerationProgress";
-import { useCanvas } from "../_hooks/useCanvas";
 import type { GeneratedVideo } from "@/types/canvas";
 
 interface CanvasProps {
@@ -59,16 +58,12 @@ export function Canvas({
   onImageBrushOpen,
   hasUploadedImage = false,
 }: CanvasProps) {
-  const {
-    images,
-  } = useCanvas();
-
   return (
     <div className="flex-1 flex bg-background">
       <div className="flex-1 flex flex-col">
         {/* Main Images - 4 Columns */}
         <div className="grid grid-cols-4 gap-4 flex-1 p-4">
-          {images.map((image, index) => {
+          {[0, 1, 2, 3].map((index) => {
             // 슬롯 콘텐츠 가져오기
             const content = slotContents[index];
             let displayContent: { type: 'video' | 'image' | 'empty', data?: GeneratedVideo | string } = { type: 'empty' };
@@ -78,9 +73,6 @@ export function Canvas({
                 type: content.type,
                 data: content.data
               };
-            } else if (image.url) {
-              // 콘텐츠가 없으면 기본 이미지 표시
-              displayContent = { type: 'image', data: image.url };
             }
             
             // 현재 슬롯의 생성 진행률 찾기
@@ -90,7 +82,7 @@ export function Canvas({
             
             return (
               <div
-                key={image.id}
+                key={`slot-${index}`}
                 className={`relative bg-surface rounded-lg overflow-hidden h-full cursor-pointer transition-all group ${
                   selectedSlotIndex === index ? 'ring-2 ring-primary' : ''
                 }`}

@@ -347,6 +347,16 @@ export function useSlotManager() {
       next[slotIndex] = { type: "image", data: imageUrl };
       return next;
     });
+    
+    // 슬롯 상태도 empty로 설정 (이미지만 있고 비디오는 없는 상태)
+    setSlotStates(prev => {
+      const next = [...prev];
+      if (next[slotIndex] !== 'generating') {
+        next[slotIndex] = 'empty';
+      }
+      return next;
+    });
+    
     setSlotCompletedAt(prev => {
       const next = [...prev];
       next[slotIndex] = null;

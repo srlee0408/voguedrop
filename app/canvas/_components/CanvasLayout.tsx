@@ -5,7 +5,7 @@ import { Header } from '@/components/layout/Header'
 import { LeftPanel } from './LeftPanel'
 import { Canvas } from './Canvas'
 import { CanvasModals } from './CanvasModals'
-import { useCanvas, useSlotManager, useVideoGeneration } from '../_context/CanvasContext'
+import { useCanvas } from '../_context/CanvasContext'
 import { useBeforeUnload } from '../_hooks/useBeforeUnload'
 import type { GeneratedVideo } from '@/types/canvas'
 
@@ -19,35 +19,15 @@ export function CanvasLayout(): React.ReactElement {
     settings,
     favorites,
     effects,
+    slotManager,
+    videoGeneration,
     currentGeneratingImage,
     setCurrentGeneratingImage,
-    selectedVideoId,
+    setCurrentEditingSlotIndex,
     setSelectedVideoId,
     isDownloading,
     handleDownload,
   } = useCanvas()
-
-  // 슬롯 관리와 비디오 생성은 직접 사용
-  const slotManager = useSlotManager()
-  const videoGeneration = useVideoGeneration({
-    getCurrentImage: () => currentGeneratingImage,
-    selectedEffects: effects.selectedEffects,
-    promptText: settings.promptText,
-    selectedDuration: settings.selectedDuration,
-    slotManager: {
-      slotStates: slotManager.slotStates,
-      findAvailableSlotForGeneration: slotManager.findAvailableSlotForGeneration,
-      setSlotToImage: slotManager.setSlotToImage,
-      markSlotGenerating: slotManager.markSlotGenerating,
-      placeVideoInSlot: slotManager.placeVideoInSlot,
-      resetSlot: slotManager.resetSlot,
-    },
-    onVideoCompleted: (video: GeneratedVideo) => {
-      if (!selectedVideoId) {
-        setSelectedVideoId(video.id)
-      }
-    },
-  })
 
   // 페이지 이탈 방지
   useBeforeUnload(
@@ -147,7 +127,32 @@ export function CanvasLayout(): React.ReactElement {
           isDownloading={isDownloading}
           favoriteVideos={favorites.favoriteIds}
           onToggleFavorite={handleToggleFavorite}
-          onImageBrushOpen={() => modals.openModal('imageBrush')}
+          onImageBrushOpen={() => {
+            // 현재 이미지가 있는 슬롯 인덱스를 찾아서 저장
+            let foundIndex: number | null = null
+            
+            // 방법 1: selectedSlotIndex 사용 (우선순위)
+            if (slotManager.selectedSlotIndex !== null) {
+              const selectedSlot = slotManager.slotContents[slotManager.selectedSlotIndex]
+              if (selectedSlot?.type === 'image') {
+                foundIndex = slotManager.selectedSlotIndex
+              }
+            }
+            
+            // 방법 2: currentGeneratingImage와 일치하는 슬롯 찾기
+            if (foundIndex === null && currentGeneratingImage) {
+              for (let i = 0; i < slotManager.slotContents.length; i++) {
+                const slot = slotManager.slotContents[i]
+                if (slot?.type === 'image') {
+                  foundIndex = i  // 첫 번째 이미지 슬롯 사용
+                  break
+                }
+              }
+            }
+            
+            setCurrentEditingSlotIndex(foundIndex)
+            modals.openModal('imageBrush')
+          }}
           hasUploadedImage={!!currentGeneratingImage}
         />
       </div>

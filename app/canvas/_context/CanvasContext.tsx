@@ -40,6 +40,7 @@ export function CanvasProvider({ children }: CanvasProviderProps): React.ReactEl
   
   // 로컬 상태
   const [currentGeneratingImage, setCurrentGeneratingImage] = useState<string | null>(null)
+  const [currentEditingSlotIndex, setCurrentEditingSlotIndex] = useState<number | null>(null)
   const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null)
   const [isDownloading, setIsDownloading] = useState<boolean>(false)
   
@@ -92,8 +93,12 @@ export function CanvasProvider({ children }: CanvasProviderProps): React.ReactEl
     settings,
     favorites,
     effects,
+    slotManager,
+    videoGeneration,
     currentGeneratingImage,
     setCurrentGeneratingImage,
+    currentEditingSlotIndex,
+    setCurrentEditingSlotIndex,
     selectedVideoId,
     setSelectedVideoId,
     isDownloading,
