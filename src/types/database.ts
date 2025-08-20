@@ -79,7 +79,7 @@ export interface UserUploadedVideo {
   duration?: number
   aspect_ratio?: string
   thumbnail_url?: string
-  metadata?: any
+  metadata?: Record<string, unknown>
   uploaded_at: string
   is_deleted?: boolean
 }
