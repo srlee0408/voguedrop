@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import Image from 'next/image'
-import { X, Brush, Eraser, RotateCcw, Loader2, Sliders, ArrowRight } from 'lucide-react'
+import { X, Brush, Eraser, RotateCcw, Loader2, Sliders, ArrowRight, Upload } from 'lucide-react'
 import type { ImageBrushModalState, BrushTool, CanvasMouseEvent } from '@/types/image-brush'
 
 interface ImageBrushModalProps {
@@ -38,12 +38,15 @@ export function ImageBrushModal({
     prompt: '',
     mode: 'flux',
     progress: 0,
-    error: null
+    error: null,
+    referenceImage: null,
+    styleStrength: 1.0
   })
   
   const [resultImage, setResultImage] = useState<string | null>(null)
   const [isDrawing, setIsDrawing] = useState(false)
   const [lastPos, setLastPos] = useState<{ x: number; y: number } | null>(null)
+  const referenceInputRef = useRef<HTMLInputElement>(null)
 
   // Load image and initialize canvas
   useEffect(() => {
@@ -316,10 +319,64 @@ export function ImageBrushModal({
     }))
   }
 
+  // Handle reference image upload
+  const handleReferenceUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    
+    if (!file.type.startsWith('image/')) {
+      setState(prev => ({ ...prev, error: 'Please upload an image file.' }))
+      return
+    }
+    
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      setState(prev => ({ 
+        ...prev, 
+        referenceImage: event.target?.result as string,
+        error: null 
+      }))
+    }
+    reader.readAsDataURL(file)
+  }, [])
+  
+  // Handle reference image drag and drop
+  const handleReferenceDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    
+    const file = e.dataTransfer.files[0]
+    if (!file || !file.type.startsWith('image/')) {
+      setState(prev => ({ ...prev, error: 'Please drop an image file.' }))
+      return
+    }
+    
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      setState(prev => ({ 
+        ...prev, 
+        referenceImage: event.target?.result as string,
+        error: null 
+      }))
+    }
+    reader.readAsDataURL(file)
+  }, [])
+  
+  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+  }, [])
+
   // AI processing request
   const handleGenerate = async () => {
-    if (!state.prompt.trim()) {
+    // Mode-specific validation
+    if (state.mode === 'flux' && !state.prompt.trim()) {
       setState(prev => ({ ...prev, error: 'Please enter a prompt.' }))
+      return
+    }
+    
+    if (state.mode === 'i2i' && !state.referenceImage) {
+      setState(prev => ({ ...prev, error: 'Please upload a reference image for I2I mode.' }))
       return
     }
 
@@ -352,36 +409,69 @@ export function ImageBrushModal({
       // 마스크 Base64
       const maskBase64 = maskCanvas.toDataURL('image/png')
 
-      // 진행률 시뮬레이션
+      // 진행률 시뮬레이션 (I2I 모드는 더 천천히)
+      const progressIncrement = state.mode === 'i2i' ? 5 : 10;
+      const progressDelay = state.mode === 'i2i' ? 1000 : 500;
+      
       const progressInterval = setInterval(() => {
         setState(prev => ({ 
           ...prev, 
-          progress: Math.min(prev.progress + 10, 90) 
+          progress: Math.min(prev.progress + progressIncrement, 90) 
         }))
-      }, 500)
+      }, progressDelay)
 
       // API 호출
+      const requestBody: {
+        image: string;
+        mask: string;
+        prompt: string;
+        mode: 'flux' | 'i2i';
+        referenceImage?: string;
+        styleStrength?: number;
+      } = {
+        image: imageBase64,
+        mask: maskBase64,
+        prompt: state.prompt,
+        mode: state.mode
+      }
+      
+      // Add I2I specific fields
+      if (state.mode === 'i2i' && state.referenceImage) {
+        requestBody.referenceImage = state.referenceImage
+        requestBody.styleStrength = state.styleStrength
+      }
+      
       const response = await fetch('/api/canvas/image-brush', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          image: imageBase64,
-          mask: maskBase64,
-          prompt: state.prompt,
-          mode: state.mode
-        })
+        body: JSON.stringify(requestBody)
       })
 
+      clearInterval(progressInterval)
+
       if (!response.ok) {
-        clearInterval(progressInterval)
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'An error occurred during processing.')
+        let errorMessage = 'An error occurred during processing.'
+        
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.error || errorMessage
+        } catch (parseError) {
+          // JSON 파싱 실패 시 상태 코드로 에러 메시지 결정
+          if (response.status === 504) {
+            errorMessage = 'Processing timeout. The service took too long to respond.'
+          } else if (response.status === 502) {
+            errorMessage = 'Service temporarily unavailable. Please try again.'
+          } else if (response.status === 500) {
+            errorMessage = 'Internal server error. Please try again later.'
+          }
+        }
+        
+        throw new Error(errorMessage)
       }
 
       const result = await response.json()
-      clearInterval(progressInterval)
       
       // Debug: Log all returned URLs
       console.log('Image Brush Result:', {
@@ -457,10 +547,26 @@ export function ImageBrushModal({
           border: none;
           border-radius: 50%;
         }
+        
+        /* Custom Scrollbar Styles */
+        .scrollbar-custom::-webkit-scrollbar {
+          width: 6px;
+        }
+        .scrollbar-custom::-webkit-scrollbar-track {
+          background: #1f2937;
+          border-radius: 3px;
+        }
+        .scrollbar-custom::-webkit-scrollbar-thumb {
+          background: #4b5563;
+          border-radius: 3px;
+        }
+        .scrollbar-custom::-webkit-scrollbar-thumb:hover {
+          background: #6b7280;
+        }
       `}</style>
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       {/* Main Modal with integrated Before/After */}
-      <div className="bg-gray-800 rounded-xl w-full max-w-[1400px] max-h-[90vh] flex flex-col">
+      <div className="bg-gray-800 rounded-xl w-full max-w-[1400px] max-h-[95vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-6 pb-2 border-b border-gray-700">
           <h2 className="text-xl font-medium text-white">Image Brush - AI Image Editor</h2>
@@ -493,7 +599,7 @@ export function ImageBrushModal({
                     onMouseLeave={handleMouseLeave}
                     style={{
                       maxWidth: '100%',
-                      maxHeight: 'calc(90vh - 250px)'
+                      maxHeight: 'calc(95vh - 200px)'
                     }}
                   />
                   <canvas
@@ -501,7 +607,7 @@ export function ImageBrushModal({
                     className="absolute inset-0 pointer-events-none"
                     style={{
                       maxWidth: '100%',
-                      maxHeight: 'calc(90vh - 250px)'
+                      maxHeight: 'calc(95vh - 200px)'
                     }}
                   />
                   <canvas
@@ -524,7 +630,7 @@ export function ImageBrushModal({
               </div>
               <div className="flex-1 p-4 flex items-center justify-center bg-gray-900/50">
                 {resultImage ? (
-                  <div className="relative max-w-full max-h-[calc(90vh-250px)]">
+                  <div className="relative max-w-full max-h-[calc(95vh-200px)]">
                     <Image 
                       src={resultImage} 
                       alt="AI Generated Result" 
@@ -533,7 +639,7 @@ export function ImageBrushModal({
                       className="object-contain rounded border border-gray-600"
                       style={{
                         maxWidth: '100%',
-                        maxHeight: 'calc(90vh - 250px)',
+                        maxHeight: 'calc(95vh - 200px)',
                         width: 'auto',
                         height: 'auto'
                       }}
@@ -554,7 +660,9 @@ export function ImageBrushModal({
           </div>
 
           {/* Tools Panel */}
-          <div className="w-80 p-4 bg-gray-800 border-l border-gray-700 flex flex-col gap-4">
+          <div className="w-80 bg-gray-800 border-l border-gray-700 flex flex-col overflow-hidden">
+            {/* Scrollable Content Area */}
+            <div className="flex-1 p-4 overflow-y-auto scrollbar-custom flex flex-col gap-4" style={{ maxHeight: 'calc(95vh - 5rem)' }}>
             {/* Tool Selection */}
             <div className="space-y-2">
               <h3 className="text-sm font-medium text-gray-400">Tools</h3>
@@ -664,9 +772,86 @@ export function ImageBrushModal({
                 disabled={state.isProcessing}
               >
                 <option value="flux">Image Modification</option>
-                <option value="i2i" disabled>Image Transform(coming soon)</option>
+                <option value="i2i">Style Transfer</option>
               </select>
             </div>
+
+            {/* I2I Mode: Reference Image Upload */}
+            {state.mode === 'i2i' && (
+              <div className="space-y-2">
+                <h3 className="text-sm font-medium text-gray-400">Reference Image</h3>
+                <div 
+                  className="border-2 border-dashed border-gray-600 rounded-lg p-3 text-center cursor-pointer hover:border-gray-500 transition-colors"
+                  onDragOver={handleDragOver}
+                  onDrop={handleReferenceDrop}
+                  onClick={() => referenceInputRef.current?.click()}
+                >
+                  {state.referenceImage ? (
+                    <div className="relative">
+                      <Image 
+                        src={state.referenceImage} 
+                        alt="Reference" 
+                        width={100} 
+                        height={100}
+                        className="mx-auto rounded object-cover"
+                        style={{ maxHeight: '100px', width: 'auto' }}
+                      />
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setState(prev => ({ ...prev, referenceImage: null }));
+                        }}
+                        className="absolute top-1 right-1 p-1 bg-red-500 rounded-full hover:bg-red-600 transition-colors"
+                      >
+                        <X className="w-3 h-3 text-white" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="text-gray-400 py-1">
+                      <Upload className="w-6 h-6 mx-auto mb-1 opacity-50" />
+                      <p className="text-xs">Drop or click to upload</p>
+                      <p className="text-xs mt-1 opacity-70">Style source image</p>
+                    </div>
+                  )}
+                </div>
+                <input
+                  ref={referenceInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleReferenceUpload}
+                />
+                
+                {/* Style Strength Slider */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-400">Style Strength</span>
+                    <span className="text-xs text-gray-400">{state.styleStrength?.toFixed(1)}</span>
+                  </div>
+                  <input
+                    type="range"
+                    value={state.styleStrength || 1.0}
+                    onChange={(e) => setState(prev => ({ 
+                      ...prev, 
+                      styleStrength: parseFloat(e.target.value) 
+                    }))}
+                    min={0.5}
+                    max={1.5}
+                    step={0.1}
+                    disabled={state.isProcessing}
+                    className="w-full h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                    style={{
+                      background: `linear-gradient(to right, #38f47cf9 0%, #38f47cf9 ${((state.styleStrength || 1.0) - 0.5) * 100}%, #374151 ${((state.styleStrength || 1.0) - 0.5) * 100}%, #374151 100%)`
+                    }}
+                  />
+                  <div className="flex justify-between text-[10px] text-gray-500">
+                    <span>Weak</span>
+                    <span>Normal</span>
+                    <span>Strong</span>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Error Message */}
             {state.error && (
@@ -679,7 +864,11 @@ export function ImageBrushModal({
             {state.isProcessing && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm text-gray-400">
-                  <span>Processing...</span>
+                  <span>
+                    {state.mode === 'i2i' && state.progress < 30 
+                      ? 'Initializing AI model...' 
+                      : 'Processing...'}
+                  </span>
                   <span>{state.progress}%</span>
                 </div>
                 <div className="w-full bg-gray-700 rounded-full h-2">
@@ -688,17 +877,35 @@ export function ImageBrushModal({
                     style={{ width: `${state.progress}%`, backgroundColor: '#38f47cf9' }}
                   />
                 </div>
+                {state.mode === 'i2i' && state.progress < 30 && (
+                  <p className="text-xs text-gray-500">
+                    First request may take 30-60 seconds to warm up the model
+                  </p>
+                )}
               </div>
             )}
 
-            {/* Action Buttons */}
+            {/* Instructions */}
+            <div className="text-xs text-gray-500 space-y-1">
+              <p>• Mark the areas to modify with the brush</p>
+              <p>• Colored areas indicate where AI will make changes</p>
+              <p>• English prompts provide more accurate results</p>
+            </div>
+          </div>
+
+          {/* Sticky Action Buttons at Bottom */}
+          <div className="p-4 bg-gray-800 border-t border-gray-700 mt-auto">
             <div className="space-y-2">
               {/* Generate Button */}
               <button
                 className="w-full px-4 py-2.5 text-black rounded-lg font-medium hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                 style={{ backgroundColor: '#38f47cf9' }}
                 onClick={handleGenerate}
-                disabled={state.isProcessing || !state.prompt.trim()}
+                disabled={
+                  state.isProcessing || 
+                  (state.mode === 'flux' && !state.prompt.trim()) ||
+                  (state.mode === 'i2i' && !state.referenceImage)
+                }
               >
                 {state.isProcessing ? (
                   <>
@@ -706,7 +913,7 @@ export function ImageBrushModal({
                     Processing...
                   </>
                 ) : (
-                  'Generate with AI'
+                  state.mode === 'i2i' ? 'Apply Style with AI' : 'Generate with AI'
                 )}
               </button>
 
@@ -729,14 +936,8 @@ export function ImageBrushModal({
                 </div>
               )}
             </div>
-
-            {/* Instructions */}
-            <div className="text-xs text-gray-500 space-y-1 mt-auto">
-              <p>• Mark the areas to modify with the brush</p>
-              <p>• Colored areas indicate where AI will make changes</p>
-              <p>• English prompts provide more accurate results</p>
-            </div>
           </div>
+        </div>
         </div>
       </div>
     </div>

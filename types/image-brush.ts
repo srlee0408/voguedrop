@@ -16,6 +16,10 @@ export interface ImageBrushRequest {
   mode: 'flux' | 'i2i';
   /** 사용자 ID */
   userId?: string;
+  /** Base64 인코딩된 참조 이미지 (I2I 모드용) */
+  referenceImage?: string;
+  /** 스타일 강도 (I2I 모드용, 0.5 ~ 1.5) */
+  styleStrength?: number;
 }
 
 /**
@@ -30,6 +34,8 @@ export interface ImageBrushResponse {
   originalImageUrl?: string;
   /** 마스크 이미지 URL (디버깅용) */
   maskImageUrl?: string;
+  /** 참조 이미지 URL (I2I 모드용) */
+  referenceImageUrl?: string;
   /** 에러 메시지 */
   error?: string;
   /** 처리 시간 (ms) */
@@ -93,6 +99,10 @@ export interface ImageBrushModalState {
   progress: number;
   /** 에러 메시지 */
   error: string | null;
+  /** 참조 이미지 (I2I 모드용) */
+  referenceImage?: string | null;
+  /** 스타일 강도 (I2I 모드용) */
+  styleStrength?: number;
 }
 
 /**

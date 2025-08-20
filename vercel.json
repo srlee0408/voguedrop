@@ -2,6 +2,15 @@
   "functions": {
     "app/api/canvas/generate/route.ts": {
       "maxDuration": 60
+    },
+    "app/api/canvas/generate-async/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/canvas/image-brush/route.ts": {
+      "maxDuration": 300
+    },
+    "app/api/video/render/route.ts": {
+      "maxDuration": 60
     }
   }
 }

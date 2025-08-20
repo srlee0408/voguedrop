@@ -71,6 +71,7 @@ npm run remotion:lambda:sites
 - **Database**: Supabase (PostgreSQL + Auth + Storage)
 - **AI Integration**: fal.ai API로 영상 생성
 - **Video Editing**: Remotion으로 클라이언트 사이드 비디오 편집 및 렌더링
+- **Security**: RLS 대신 Next.js API Route로 보안을 관리함
 
 ### 주요 워크플로우
 1. **AI 영상 생성 (Job-based Architecture)**:
