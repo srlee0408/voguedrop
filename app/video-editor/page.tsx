@@ -1,17 +1,25 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Header } from '@/components/layout/Header';
 import { LibraryModal } from '@/components/modals/LibraryModal';
+import { ProjectSwitchConfirmModal } from '@/components/modals/ProjectSwitchConfirmModal';
 import { VideoEditorProviders, useClips, usePlayback, useHistory, useProject } from './_context/Providers';
 import VideoPreview from './_components/VideoPreview';
 import Timeline from './_components/Timeline';
 import VideoLibraryModal from './_components/VideoLibraryModal';
 import SoundLibraryModal from './_components/SoundLibraryModal';
 import TextEditorModal from './_components/TextEditorModal';
+import { saveProject } from '@/lib/api/projects';
+import { toast } from 'sonner';
 
 // 실제 Video Editor 컴포넌트 (Context 사용)
 function VideoEditorContent() {
+  
+  // 프로젝트 전환 관련 상태
+  const [showSwitchConfirm, setShowSwitchConfirm] = useState(false);
+  const [targetProjectName, setTargetProjectName] = useState<string>('');
+  
   // Context에서 가져오기
   const {
     projectTitle,
@@ -40,8 +48,10 @@ function VideoEditorContent() {
     soundClips,
     selectedTextClip,
     editingTextClip,
+    hasUnsavedChanges,
     setSelectedTextClip,
     setEditingTextClip,
+    setHasUnsavedChanges,
     handleAddToTimeline,
     handleDeleteVideoClip,
     handleDuplicateVideoClip,
@@ -131,6 +141,17 @@ function VideoEditorContent() {
     // TODO: Implement sound editing modal
   };
   
+  // 총 프레임 계산
+  const calculateTotalFrames = useMemo(() => {
+    const maxEndTime = Math.max(
+      ...timelineClips.map(c => c.position + c.duration),
+      ...textClips.map(c => c.position + c.duration),
+      ...soundClips.map(c => c.position + c.duration),
+      0
+    );
+    return Math.ceil(maxEndTime * 30); // 30fps 기준
+  }, [timelineClips, textClips, soundClips]);
+  
   // Favorites 상태 관리 (간단한 로컬 상태로 처리)
   const [favoriteVideos, setFavoriteVideos] = useState<Set<string>>(new Set());
   
@@ -145,6 +166,64 @@ function VideoEditorContent() {
       return newSet;
     });
   }, []);
+
+  // 프로젝트 전환 핸들러
+  const handleProjectSwitch = useCallback((newProjectName: string) => {
+    // 같은 프로젝트를 선택해도 최신 상태로 리로드
+    if (newProjectName === projectTitle && !hasUnsavedChanges) {
+      // 같은 프로젝트이고 변경사항이 없으면 바로 리로드
+      window.location.href = `/video-editor?projectName=${encodeURIComponent(newProjectName)}`;
+      return;
+    }
+    
+    if (hasUnsavedChanges) {
+      // 변경사항이 있으면 확인 모달 표시
+      setTargetProjectName(newProjectName);
+      setShowSwitchConfirm(true);
+    } else {
+      // 변경사항이 없으면 바로 이동 (페이지 완전 리로드)
+      window.location.href = `/video-editor?projectName=${encodeURIComponent(newProjectName)}`;
+    }
+  }, [hasUnsavedChanges, projectTitle]);
+
+  // 프로젝트 저장 핸들러
+  const handleSaveProject = useCallback(async () => {
+    const params = {
+      projectName: projectTitle,
+      videoClips: timelineClips,
+      textClips: textClips,
+      soundClips: soundClips,
+      aspectRatio: '9:16' as const, // TODO: Get from VideoPreview component
+      durationInFrames: calculateTotalFrames
+    };
+
+    const result = await saveProject(params);
+    
+    if (result.success) {
+      setHasUnsavedChanges(false);
+      toast.success('Project saved successfully');
+      
+      // 저장 후 새 프로젝트로 이동
+      if (targetProjectName) {
+        setShowSwitchConfirm(false);
+        setTargetProjectName('');
+        // 페이지 완전 리로드하여 새 프로젝트 로드
+        window.location.href = `/video-editor?projectName=${encodeURIComponent(targetProjectName)}`;
+      }
+    } else {
+      toast.error(result.error || 'Failed to save project');
+    }
+  }, [projectTitle, timelineClips, textClips, soundClips, calculateTotalFrames, setHasUnsavedChanges, targetProjectName]);
+
+  // 저장하지 않고 전환
+  const handleDontSaveProject = useCallback(() => {
+    setHasUnsavedChanges(false);
+    setShowSwitchConfirm(false);
+    const projectToLoad = targetProjectName;
+    setTargetProjectName('');
+    // 페이지 완전 리로드하여 새 프로젝트 로드
+    window.location.href = `/video-editor?projectName=${encodeURIComponent(projectToLoad)}`;
+  }, [targetProjectName, setHasUnsavedChanges]);
 
   // 리사이저 이벤트는 ProjectContext에서 이미 처리됨
 
@@ -284,8 +363,20 @@ function VideoEditorContent() {
           onClose={() => setShowLibrary(false)}
           favoriteVideos={favoriteVideos}
           onToggleFavorite={handleToggleFavorite}
+          onProjectSwitch={handleProjectSwitch}
+          currentProjectName={projectTitle}
         />
       )}
+      
+      {/* 프로젝트 전환 확인 모달 */}
+      <ProjectSwitchConfirmModal
+        isOpen={showSwitchConfirm}
+        onClose={() => setShowSwitchConfirm(false)}
+        onSave={handleSaveProject}
+        onDontSave={handleDontSaveProject}
+        currentProjectName={projectTitle}
+        targetProjectName={targetProjectName}
+      />
     </div>
   );
 }

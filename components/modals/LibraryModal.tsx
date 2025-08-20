@@ -6,13 +6,17 @@ interface LibraryModalProps {
   onClose: () => void;
   favoriteVideos?: Set<string>;
   onToggleFavorite?: (videoId: string) => void;
+  onProjectSwitch?: (projectName: string) => void;
+  currentProjectName?: string;
 }
 
 export function LibraryModal({ 
   isOpen, 
   onClose, 
   favoriteVideos = new Set(), 
-  onToggleFavorite 
+  onToggleFavorite,
+  onProjectSwitch,
+  currentProjectName
 }: LibraryModalProps) {
   const config: LibraryModalConfig = {
     mode: 'view',
@@ -31,7 +35,9 @@ export function LibraryModal({
       primaryColor: '#38f47cf9',
       buttonStyle: 'success',
       selectionColor: '#38f47cf9'
-    }
+    },
+    onProjectSwitch,
+    currentProjectName
   };
 
   return <LibraryModalBase isOpen={isOpen} onClose={onClose} config={config} />;

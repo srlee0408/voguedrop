@@ -21,12 +21,14 @@ interface ClipContextType {
   textClips: TextClip[];
   soundClips: SoundClip[];
   selectedTextClip: string | null;
+  hasUnsavedChanges: boolean;
   
   // Setter 함수들
   setTimelineClips: React.Dispatch<React.SetStateAction<VideoClip[]>>;
   setTextClips: React.Dispatch<React.SetStateAction<TextClip[]>>;
   setSoundClips: React.Dispatch<React.SetStateAction<SoundClip[]>>;
   setSelectedTextClip: React.Dispatch<React.SetStateAction<string | null>>;
+  setHasUnsavedChanges: React.Dispatch<React.SetStateAction<boolean>>;
   
   // 비디오 클립 관련 함수
   handleAddToTimeline: (items: LibraryItem[]) => Promise<void>;
@@ -89,6 +91,7 @@ export function ClipProvider({ children }: ClipProviderProps) {
   const [soundClips, setSoundClips] = useState<SoundClip[]>([]);
   const [selectedTextClip, setSelectedTextClip] = useState<string | null>(null);
   const [editingTextClip, setEditingTextClip] = useState<TextClip | undefined>(undefined);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   
   // 기본 saveToHistory 함수 (나중에 HistoryContext와 연결)
   const [saveToHistoryCallback, setSaveToHistoryCallback] = useState<(() => void) | null>(null);
@@ -125,6 +128,9 @@ export function ClipProvider({ children }: ClipProviderProps) {
     if (contentSnapshot.sound_clips) {
       setSoundClips(contentSnapshot.sound_clips);
     }
+    
+    // 프로젝트 로드 후에는 변경사항 없음으로 설정
+    setHasUnsavedChanges(false);
     
     // 히스토리 초기화 (새 프로젝트를 로드했으므로)
     // HistoryContext와 연결되면 clearHistory 호출
@@ -704,6 +710,14 @@ export function ClipProvider({ children }: ClipProviderProps) {
     saveToHistory();
   }, [saveToHistory]);
   
+  // 클립 변경 감지 및 hasUnsavedChanges 설정
+  useEffect(() => {
+    // 초기 로드 시에는 변경사항으로 간주하지 않음
+    if (timelineClips.length > 0 || textClips.length > 0 || soundClips.length > 0) {
+      setHasUnsavedChanges(true);
+    }
+  }, [timelineClips, textClips, soundClips]);
+
   // Context value를 useMemo로 최적화
   const value = useMemo(() => ({
     // 상태
@@ -712,6 +726,7 @@ export function ClipProvider({ children }: ClipProviderProps) {
     soundClips,
     selectedTextClip,
     editingTextClip,
+    hasUnsavedChanges,
     
     // Setter 함수
     setTimelineClips,
@@ -719,6 +734,7 @@ export function ClipProvider({ children }: ClipProviderProps) {
     setSoundClips,
     setSelectedTextClip,
     setEditingTextClip,
+    setHasUnsavedChanges,
     
     // 비디오 클립 함수
     handleAddToTimeline,
@@ -765,6 +781,7 @@ export function ClipProvider({ children }: ClipProviderProps) {
     soundClips,
     selectedTextClip,
     editingTextClip,
+    hasUnsavedChanges,
     handleAddToTimeline,
     handleDeleteVideoClip,
     handleDuplicateVideoClip,

@@ -38,6 +38,12 @@ export interface LibraryModalConfig {
     buttonStyle: 'primary' | 'success';
     selectionColor?: string;
   };
+  
+  /** 프로젝트 전환 콜백 (video-editor에서 사용) */
+  onProjectSwitch?: (projectName: string) => void;
+  
+  /** 현재 프로젝트 이름 (테두리 표시용) */
+  currentProjectName?: string;
 }
 
 /**

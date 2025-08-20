@@ -160,25 +160,27 @@ export function LibraryCard({
         )}
         
         {/* Hover overlay with actions */}
-        {videoUrl && (
+        {(videoUrl || (type === 'project' && onProjectNavigate && !isCurrentProject)) && (
           <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
             {/* Play button */}
-            <Tooltip text="Play Video" position="top">
-              <a 
-                href={videoUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center text-white"
-                onClick={(e) => {
-                  e.stopPropagation();
-                }}
-              >
-                <Play className="w-4 h-4" />
-              </a>
-            </Tooltip>
+            {videoUrl && (
+              <Tooltip text="Play Video" position="top">
+                <a 
+                  href={videoUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center text-white"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                  }}
+                >
+                  <Play className="w-4 h-4" />
+                </a>
+              </Tooltip>
+            )}
             
-            {/* Save/Download button */}
-            {onDownload && (
+            {/* Download button */}
+            {videoUrl && onDownload && (
               <Tooltip text={isDownloading ? "Downloading..." : "Download Video"} position="top">
                 <button 
                   onClick={(e) => {
@@ -197,8 +199,8 @@ export function LibraryCard({
               </Tooltip>
             )}
             
-            {/* Open project button - only for projects */}
-            {type === 'project' && onProjectNavigate && (
+            {/* Open project button - only for projects that are NOT current */}
+            {type === 'project' && onProjectNavigate && !isCurrentProject && (
               <Tooltip text="Open Project" position="top">
                 <button 
                   onClick={(e) => {

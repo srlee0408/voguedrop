@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useCallback, useMemo, ReactNode, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { loadProject } from '@/lib/api/projects';
+import { loadProject, saveProject } from '@/lib/api/projects';
 
 interface ProjectContextType {
   // 프로젝트 메타데이터
@@ -106,9 +106,41 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     if (projectName && !projectLoaded && !isLoadingProject) {
       loadProjectData(decodeURIComponent(projectName));
     }
-    // title 파라미터만 있다면 (이전 방식 호환)
+    // title 파라미터만 있다면 (이전 방식 호환) - 새 프로젝트 생성
     else if (title && !projectName) {
-      setProjectTitle(decodeURIComponent(title));
+      const newTitle = decodeURIComponent(title);
+      setProjectTitle(newTitle);
+      
+      // 새 프로젝트를 자동으로 DB에 저장 (빈 프로젝트로)
+      saveProject({
+        projectName: newTitle,
+        videoClips: [],
+        textClips: [],
+        soundClips: [],
+        aspectRatio: '9:16',
+        durationInFrames: 0
+      }).then(result => {
+        if (result.success) {
+          console.log('New project created and saved:', newTitle);
+        }
+      });
+    }
+    // 아무 파라미터도 없으면 기본 Untitled Project로 생성
+    else if (!title && !projectName && !projectLoaded && !isLoadingProject) {
+      // Untitled Project도 자동 저장
+      const defaultTitle = 'Untitled Project';
+      saveProject({
+        projectName: defaultTitle,
+        videoClips: [],
+        textClips: [],
+        soundClips: [],
+        aspectRatio: '9:16',
+        durationInFrames: 0
+      }).then(result => {
+        if (result.success) {
+          console.log('Default project created and saved:', defaultTitle);
+        }
+      });
     }
   }, [searchParams, projectLoaded, isLoadingProject, loadProjectData]);
   

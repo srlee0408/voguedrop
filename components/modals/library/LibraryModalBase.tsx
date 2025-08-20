@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useMemo } from 'react';
+import { usePathname } from 'next/navigation';
 import { X, Info, Loader2, Video, Folder, Upload } from 'lucide-react';
 import { LibraryModalBaseProps, LibraryCategory } from '@/types/library-modal';
 import { LibraryVideo, LibraryProject, UserUploadedVideo, LibraryItem } from '@/types/video-editor';
@@ -10,6 +11,7 @@ import { LibrarySidebar } from './components/LibrarySidebar';
 import { LibraryUpload } from './components/LibraryUpload';
 
 export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBaseProps) {
+  const pathname = usePathname();
   const [activeCategory, setActiveCategory] = useState<LibraryCategory>('clips');
   const [selectedItems, setSelectedItems] = useState<Map<string, number>>(new Map());
   const [isAdding, setIsAdding] = useState(false);
@@ -211,6 +213,20 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
     updateCounts('uploads', 1);
   }, [updateUploadItems, updateCounts]);
 
+  // 프로젝트 네비게이션 핸들러
+  const handleProjectNavigate = useCallback((project: LibraryProject) => {
+    // 현재 video-editor에 있고 config에 onProjectSwitch가 있으면 호출
+    if (pathname === '/video-editor' && config.onProjectSwitch) {
+      config.onProjectSwitch(project.project_name);
+      onClose();
+    } else {
+      // 그 외의 경우 직접 이동 (완전한 페이지 리로드)
+      const targetUrl = `/video-editor?projectName=${encodeURIComponent(project.project_name)}`;
+      window.location.href = targetUrl;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname, onClose, config.onProjectSwitch]);
+
   // Info 메시지
   const getInfoMessage = () => {
     switch(activeCategory) {
@@ -345,8 +361,10 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
                           isSelected={selectedItems.has(project.id.toString())}
                           selectionOrder={selectedItems.get(project.id.toString())}
                           isDownloading={downloadingVideos.has(String(project.id))}
+                          isCurrentProject={config.currentProjectName === project.project_name}
                           onSelect={config.selection?.enabled ? () => handleItemSelect(project.id.toString()) : undefined}
                           onDownload={config.download?.enabled ? () => handleDownload(project, 'project') : undefined}
+                          onProjectNavigate={handleProjectNavigate}
                           theme={config.theme}
                         />
                       ))}

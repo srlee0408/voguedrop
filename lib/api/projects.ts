@@ -9,6 +9,15 @@ export interface ProjectListItem {
   duration_frames?: number;
 }
 
+export interface SaveProjectParams {
+  projectName: string;
+  videoClips: unknown[];
+  textClips: unknown[];
+  soundClips: unknown[];
+  aspectRatio: '9:16' | '1:1' | '16:9';
+  durationInFrames: number;
+}
+
 // 사용자의 모든 프로젝트 목록 가져오기
 export async function fetchUserProjects(): Promise<ProjectListItem[]> {
   try {
@@ -104,4 +113,39 @@ export function formatDuration(frames?: number, fps: number = 30): string {
   const seconds = totalSeconds % 60;
   
   return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+}
+
+// 프로젝트 저장 (렌더링 없이)
+export async function saveProject(params: SaveProjectParams): Promise<{ success: boolean; error?: string }> {
+  try {
+    const response = await fetch('/api/video/save', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        projectName: params.projectName,
+        videoClips: params.videoClips,
+        textClips: params.textClips,
+        soundClips: params.soundClips,
+        aspectRatio: params.aspectRatio,
+        durationInFrames: params.durationInFrames,
+        // renderId와 renderOutputUrl은 포함하지 않음 (렌더링 없이 저장만)
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to save project');
+    }
+
+    await response.json();
+    return { success: true };
+  } catch (error) {
+    console.error('Error saving project:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Failed to save project' 
+    };
+  }
 }
