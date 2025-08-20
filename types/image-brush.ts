@@ -46,6 +46,8 @@ export interface BrushSettings {
   opacity: number;
   /** 브러시 경도 (0 ~ 1, 0은 부드러움, 1은 딱딱함) */
   hardness: number;
+  /** 브러시 색상 (hex 형식, 예: #FF0000) */
+  color: string;
 }
 
 /**

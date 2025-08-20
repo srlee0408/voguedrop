@@ -21,6 +21,7 @@ export function ImageBrushModal({
   // Canvas refs
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const maskCanvasRef = useRef<HTMLCanvasElement>(null)
+  const previewCanvasRef = useRef<HTMLCanvasElement>(null)
   const imageRef = useRef<HTMLImageElement | null>(null)
   
   // State
@@ -31,7 +32,8 @@ export function ImageBrushModal({
     brushSettings: {
       size: 40,
       opacity: 1,
-      hardness: 0.8
+      hardness: 0.8,
+      color: '#FF0000'  // 기본값 빨간색
     },
     prompt: '',
     mode: 'flux',
@@ -42,6 +44,7 @@ export function ImageBrushModal({
   const [resultImage, setResultImage] = useState<string | null>(null)
   const [isDrawing, setIsDrawing] = useState(false)
   const [lastPos, setLastPos] = useState<{ x: number; y: number } | null>(null)
+  const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>(null)
 
   // Load image and initialize canvas
   useEffect(() => {
@@ -84,6 +87,12 @@ export function ImageBrushModal({
           maskCtx.fillRect(0, 0, width, height)
         }
       }
+      
+      // Initialize preview canvas
+      if (previewCanvasRef.current) {
+        previewCanvasRef.current.width = width
+        previewCanvasRef.current.height = height
+      }
     }
     
     img.src = imageUrl
@@ -118,9 +127,9 @@ export function ImageBrushModal({
     ctx.clearRect(0, 0, canvas.width, canvas.height)
     ctx.drawImage(imageRef.current, 0, 0, canvas.width, canvas.height)
     
-    // 마스크 오버레이 (반투명 빨간색)
-    ctx.globalAlpha = 0.5
-    ctx.fillStyle = 'red'
+    // 마스크 오버레이
+    ctx.globalAlpha = 1
+    ctx.fillStyle = state.brushSettings.color
     
     const maskCtx = maskCanvas.getContext('2d')
     if (maskCtx) {
@@ -133,12 +142,24 @@ export function ImageBrushModal({
       if (tempCtx) {
         const overlayData = tempCtx.createImageData(maskCanvas.width, maskCanvas.height)
         
+        // hex 색상을 RGB로 변환
+        const hexToRgb = (hex: string): { r: number; g: number; b: number } => {
+          const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+          return result ? {
+            r: parseInt(result[1], 16),
+            g: parseInt(result[2], 16),
+            b: parseInt(result[3], 16)
+          } : { r: 255, g: 0, b: 0 }  // 기본값 빨간색
+        }
+        
+        const rgb = hexToRgb(state.brushSettings.color)
+        
         for (let i = 0; i < maskData.data.length; i += 4) {
           if (maskData.data[i] > 0) { // 흰색 부분만
-            overlayData.data[i] = 255     // R
-            overlayData.data[i + 1] = 0   // G
-            overlayData.data[i + 2] = 0   // B
-            overlayData.data[i + 3] = 128 // A (반투명)
+            overlayData.data[i] = rgb.r       // R
+            overlayData.data[i + 1] = rgb.g   // G
+            overlayData.data[i + 2] = rgb.b   // B
+            overlayData.data[i + 3] = 128     // A (반투명)
           }
         }
         
@@ -148,7 +169,7 @@ export function ImageBrushModal({
     }
     
     ctx.globalAlpha = 1
-  }, [])
+  }, [state.brushSettings.color])
 
   // 마스크 그리기 - 연속적인 선 그리기
   const drawMask = useCallback((x: number, y: number, isNewStroke: boolean = false) => {
@@ -195,6 +216,43 @@ export function ImageBrushModal({
     updatePreview()
   }, [state.brushSettings, state.currentTool, lastPos, updatePreview])
 
+  // 브러쉬 프리뷰 그리기
+  const drawBrushPreview = useCallback((x: number, y: number) => {
+    const previewCanvas = previewCanvasRef.current
+    if (!previewCanvas) return
+    
+    const ctx = previewCanvas.getContext('2d')
+    if (!ctx) return
+    
+    // Clear previous preview
+    ctx.clearRect(0, 0, previewCanvas.width, previewCanvas.height)
+    
+    // Draw brush preview circle
+    const { size } = state.brushSettings
+    ctx.strokeStyle = 'rgba(128, 128, 128, 0.5)'  // 반투명 회색
+    ctx.lineWidth = 2
+    ctx.beginPath()
+    ctx.arc(x, y, size / 2, 0, Math.PI * 2)
+    ctx.stroke()
+    
+    // Draw crosshair at center
+    ctx.strokeStyle = 'rgba(128, 128, 128, 0.8)'  // 더 진한 회색
+    ctx.lineWidth = 1
+    const crosshairSize = 10  // 고정 크기
+    
+    // Horizontal line
+    ctx.beginPath()
+    ctx.moveTo(x - crosshairSize, y)
+    ctx.lineTo(x + crosshairSize, y)
+    ctx.stroke()
+    
+    // Vertical line
+    ctx.beginPath()
+    ctx.moveTo(x, y - crosshairSize)
+    ctx.lineTo(x, y + crosshairSize)
+    ctx.stroke()
+  }, [state.brushSettings])
+
   // 마우스 이벤트 핸들러
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     setIsDrawing(true)
@@ -203,9 +261,13 @@ export function ImageBrushModal({
   }
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDrawing) return
     const pos = getMousePos(e)
-    drawMask(pos.x, pos.y, false) // isNewStroke = false
+    setMousePos(pos)
+    drawBrushPreview(pos.x, pos.y)  // 브러쉬 프리뷰 업데이트
+    
+    if (isDrawing) {
+      drawMask(pos.x, pos.y, false) // isNewStroke = false
+    }
   }
 
   const handleMouseUp = () => {
@@ -216,6 +278,16 @@ export function ImageBrushModal({
   const handleMouseLeave = () => {
     setIsDrawing(false)
     setLastPos(null) // Reset last position when mouse leaves
+    setMousePos(null) // Clear mouse position
+    
+    // Clear brush preview
+    const previewCanvas = previewCanvasRef.current
+    if (previewCanvas) {
+      const ctx = previewCanvas.getContext('2d')
+      if (ctx) {
+        ctx.clearRect(0, 0, previewCanvas.width, previewCanvas.height)
+      }
+    }
   }
 
   // Tool selection
@@ -428,6 +500,14 @@ export function ImageBrushModal({
                     }}
                   />
                   <canvas
+                    ref={previewCanvasRef}
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                      maxWidth: '100%',
+                      maxHeight: 'calc(90vh - 250px)'
+                    }}
+                  />
+                  <canvas
                     ref={maskCanvasRef}
                     className="hidden"
                   />
@@ -520,6 +600,28 @@ export function ImageBrushModal({
             </div>
 
             {/* Brush Settings */}
+            <div className="space-y-2">
+              <h3 className="text-sm font-medium text-gray-400">Brush Color</h3>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={state.brushSettings.color}
+                    onChange={(e) => setState(prev => ({ 
+                      ...prev, 
+                      brushSettings: { 
+                        ...prev.brushSettings, 
+                        color: e.target.value 
+                      } 
+                    }))}
+                    disabled={state.isProcessing}
+                    className="w-12 h-8 border border-gray-600 rounded cursor-pointer"
+                  />
+                  <span className="text-sm text-gray-400">{state.brushSettings.color}</span>
+                </div>
+              </div>
+            </div>
+
             <div className="space-y-2">
               <h3 className="text-sm font-medium text-gray-400">Brush Size</h3>
               <div className="flex items-center gap-3">
@@ -634,7 +736,7 @@ export function ImageBrushModal({
             {/* Instructions */}
             <div className="text-xs text-gray-500 space-y-1 mt-auto">
               <p>• Mark the areas to modify with the brush</p>
-              <p>• Red areas indicate where AI will make changes</p>
+              <p>• Colored areas indicate where AI will make changes</p>
               <p>• English prompts provide more accurate results</p>
             </div>
           </div>
