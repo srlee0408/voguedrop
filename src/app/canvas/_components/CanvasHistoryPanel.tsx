@@ -1,9 +1,9 @@
 import { Play, Clock, Loader2 } from "lucide-react";
 import Image from "next/image";
-import { formatRelativeTime } from "@/lib/utils/session";
-import type { GeneratedVideo } from "@/types/canvas";
+import { formatRelativeTime } from "@/shared/lib/session";
+import type { GeneratedVideo } from "@/shared/types/canvas";
 import { useEffect, useState } from "react";
-import { useAuth } from "@/lib/auth/AuthContext";
+import { useAuth } from "@/shared/lib/auth/AuthContext";
 
 interface CanvasHistoryPanelProps {
   onVideoSelect?: (video: GeneratedVideo) => void;

@@ -1,7 +1,7 @@
 'use client'
 
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import type { EffectTemplateWithMedia, Category } from '@/types/database'
+import type { EffectTemplateWithMedia, Category } from '@/shared/types/database'
 
 /**
  * 갤러리 데이터를 위한 React Query hooks

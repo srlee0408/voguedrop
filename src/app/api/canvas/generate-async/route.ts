@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkDailyGenerationLimit } from '@/lib/db/video-generations';
-import { uploadBase64Image } from '@/lib/supabase/storage';
-import { createClient } from '@/lib/supabase/server';
-import { createServiceClient } from '@/lib/supabase/service';
+import { uploadBase64Image } from '@/shared/lib/supabase/storage';
+import { createClient } from '@/shared/lib/supabase/server';
+import { createServiceClient } from '@/shared/lib/supabase/service';
 import { requireAuth } from '@/lib/api/auth';
 import { createVideoGenerationLogger, measureAndLog } from '@/lib/logging/video-generation-logger';
 import { nanoid } from 'nanoid';

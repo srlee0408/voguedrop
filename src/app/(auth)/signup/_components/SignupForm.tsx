@@ -2,8 +2,8 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import type { SignupFormData } from '@/types/auth'
-import { createClient } from '@/lib/supabase/client'
+import type { SignupFormData } from '@/shared/types/auth'
+import { createClient } from '@/shared/lib/supabase/client'
 
 export function SignupForm() {
   const router = useRouter()

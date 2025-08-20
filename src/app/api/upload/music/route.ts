@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
-import { createServiceClient } from '@/lib/supabase/service';
+import { createClient } from '@/shared/lib/supabase/server';
+import { createServiceClient } from '@/shared/lib/supabase/service';
 import { requireAuth } from '@/lib/api/auth';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB

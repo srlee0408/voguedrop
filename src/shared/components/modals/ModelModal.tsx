@@ -1,6 +1,6 @@
 import { BaseModal } from "./BaseModal"
 import { User, Users, Check } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { Button } from "@/shared/components/ui/button"
 import { useState } from "react"
 import Image from "next/image"
 

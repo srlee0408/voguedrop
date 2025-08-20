@@ -7,9 +7,9 @@ import {
   clearCanvasState,
   debounce,
   type CanvasStorageData 
-} from '@/lib/utils/canvas-storage'
-import type { EffectTemplateWithMedia } from '@/types/database'
-import type { GeneratedVideo } from '@/types/canvas'
+} from '@/shared/lib/canvas-storage'
+import type { EffectTemplateWithMedia } from '@/shared/types/database'
+import type { GeneratedVideo } from '@/shared/types/canvas'
 
 type SlotContent = { type: "image" | "video"; data: string | GeneratedVideo } | null
 

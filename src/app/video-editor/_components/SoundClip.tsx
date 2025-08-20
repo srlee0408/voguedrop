@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useEffect, useState, useCallback } from 'react';
-import { SoundClip as SoundClipType } from '@/types/video-editor';
+import { SoundClip as SoundClipType } from '@/shared/types/video-editor';
 import { drawWaveformFinalCutStyle, resampleWaveform } from '../_utils/audio-analysis';
 
 interface SoundClipProps {

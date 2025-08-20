@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useCallback, useMemo, useEffect, ReactNode } from 'react';
-import { VideoClip, TextClip, SoundClip, LibraryVideo, LibraryProject, UserUploadedVideo, LibraryItem } from '@/types/video-editor';
+import { VideoClip, TextClip, SoundClip, LibraryVideo, LibraryProject, UserUploadedVideo, LibraryItem } from '@/shared/types/video-editor';
 import { toast } from 'sonner';
 import {
   duplicateVideoClip,

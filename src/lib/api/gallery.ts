@@ -1,6 +1,6 @@
 import { unstable_cache } from 'next/cache'
-import { supabase } from '@/lib/supabase'
-import type { EffectTemplateWithMedia, Category } from '@/types/database'
+import { supabase } from '@/shared/lib/supabase'
+import type { EffectTemplateWithMedia, Category } from '@/shared/types/database'
 
 // 내부 구현 함수 (캐시되지 않은 원본)
 async function _getGalleryItemsInternal(): Promise<EffectTemplateWithMedia[]> {

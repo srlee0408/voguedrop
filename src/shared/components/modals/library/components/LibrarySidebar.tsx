@@ -1,8 +1,8 @@
 'use client';
 
 import { Video, Folder, Upload } from 'lucide-react';
-import { LibraryCategory, LibraryCounts, LibraryModalConfig } from '@/types/library-modal';
-import { Input } from '@/components/ui/input';
+import { LibraryCategory, LibraryCounts, LibraryModalConfig } from '@/shared/types/library-modal';
+import { Input } from '@/shared/components/ui/input';
 
 interface LibrarySidebarProps {
   activeCategory: LibraryCategory;

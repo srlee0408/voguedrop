@@ -3,7 +3,7 @@ import Image from "next/image";
 import { CanvasControls } from "./CanvasControls";
 import { CanvasHistoryPanel } from "./CanvasHistoryPanel";
 import { VideoGenerationProgress } from "./VideoGenerationProgress";
-import type { GeneratedVideo } from "@/types/canvas";
+import type { GeneratedVideo } from "@/shared/types/canvas";
 
 interface CanvasProps {
   selectedResolution?: string;

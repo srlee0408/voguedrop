@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useCallback, useMemo, ReactNode } from 'react';
-import { VideoClip, TextClip, SoundClip } from '@/types/video-editor';
+import { VideoClip, TextClip, SoundClip } from '@/shared/types/video-editor';
 import { useClips } from './ClipContext';
 
 // 히스토리 상태 타입 (page.tsx에서 그대로)

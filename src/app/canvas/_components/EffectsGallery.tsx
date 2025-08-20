@@ -1,5 +1,5 @@
 import { useEffectsData } from "@/app/canvas/_hooks/useEffectsData";
-import { HoverVideo } from "@/components/ui/hover-video";
+import { HoverVideo } from "@/shared/components/ui/hover-video";
 
 interface EffectsGalleryProps {
   onEffectClick?: () => void;

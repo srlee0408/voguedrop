@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { Header } from '@/components/layout/Header';
-import { LibraryModal } from '@/components/modals/LibraryModal';
-import { ProjectSwitchConfirmModal } from '@/components/modals/ProjectSwitchConfirmModal';
+import { Header } from '@/shared/components/layout/Header';
+import { LibraryModal } from '@/shared/components/modals/LibraryModal';
+import { ProjectSwitchConfirmModal } from '@/shared/components/modals/ProjectSwitchConfirmModal';
 import { VideoEditorProviders, useClips, usePlayback, useHistory, useProject } from './_context/Providers';
 import VideoPreview from './_components/VideoPreview';
 import Timeline from './_components/Timeline';

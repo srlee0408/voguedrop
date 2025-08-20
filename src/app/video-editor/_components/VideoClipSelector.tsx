@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { VideoClip } from '@/types/video-editor';
+import { VideoClip } from '@/shared/types/video-editor';
 
 interface VideoClipSelectorProps {
   clips: VideoClip[];

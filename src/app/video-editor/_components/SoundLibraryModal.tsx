@@ -1,13 +1,13 @@
 'use client';
 
 import { useState, useRef, useEffect, useContext } from 'react';
-import { useTranslation } from '@/hooks/useTranslation';
+import { useTranslation } from '@/shared/hooks/useTranslation';
 import { ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
 import { VideoClipSelector } from './VideoClipSelector';
 import { useVideoSoundGeneration } from '../_hooks/useVideoSoundGeneration';
 import { ClipContext } from '../_context/ClipContext';
 import { formatSoundDisplayTitle } from '@/lib/sound/utils';
-import { SoundGenerationType } from '@/types/sound';
+import { SoundGenerationType } from '@/shared/types/sound';
 
 interface SoundLibraryModalProps {
   onClose: () => void;

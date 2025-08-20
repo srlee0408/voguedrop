@@ -1,6 +1,6 @@
 import { Wand2, Download, ChevronDown, Loader2, Brush } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import type { GeneratedVideo } from "@/types/canvas"
+import { Button } from "@/shared/components/ui/button"
+import type { GeneratedVideo } from "@/shared/types/canvas"
 
 interface CanvasControlsProps {
   selectedResolution: string

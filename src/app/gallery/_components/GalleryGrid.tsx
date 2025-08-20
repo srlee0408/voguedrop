@@ -1,5 +1,5 @@
 import { GalleryItem } from "./GalleryItem"
-import type { EffectTemplateWithMedia } from "@/types/database"
+import type { EffectTemplateWithMedia } from "@/shared/types/database"
 
 interface GalleryGridProps {
   items: EffectTemplateWithMedia[]

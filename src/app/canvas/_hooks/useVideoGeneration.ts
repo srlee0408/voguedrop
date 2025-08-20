@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { GeneratedVideo } from "@/types/canvas";
-import type { EffectTemplateWithMedia } from "@/types/database";
+import type { GeneratedVideo } from "@/shared/types/canvas";
+import type { EffectTemplateWithMedia } from "@/shared/types/database";
 
 /**
  * 진행률 계산: 경과 시간 기반으로 0~90% 구간을 부드럽게 증가

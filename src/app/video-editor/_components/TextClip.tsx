@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef } from 'react';
-import { TextClip as TextClipType } from '@/types/video-editor';
+import { TextClip as TextClipType } from '@/shared/types/video-editor';
 
 interface TextClipProps {
   clip: TextClipType;

@@ -1,5 +1,5 @@
-import { ProjectSave } from '@/types/database';
-import { VideoClip, TextClip, SoundClip } from '@/types/video-editor';
+import { ProjectSave } from '@/shared/types/database';
+import { VideoClip, TextClip, SoundClip } from '@/shared/types/video-editor';
 
 export interface ProjectListItem {
   id: number;

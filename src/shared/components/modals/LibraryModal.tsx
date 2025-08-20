@@ -1,5 +1,5 @@
-import { LibraryModalBase } from '@/components/modals/library/LibraryModalBase';
-import { LibraryModalConfig } from '@/types/library-modal';
+import { LibraryModalBase } from '@/shared/components/modals/library/LibraryModalBase';
+import { LibraryModalConfig } from '@/shared/types/library-modal';
 
 interface LibraryModalProps {
   isOpen: boolean;

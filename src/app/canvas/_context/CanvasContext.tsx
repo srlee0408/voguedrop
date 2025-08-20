@@ -1,7 +1,7 @@
 'use client'
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
-import type { GeneratedVideo } from '@/types/canvas'
+import type { GeneratedVideo } from '@/shared/types/canvas'
 import type { CanvasContextValue } from '../_types'
 import { useModalManager } from '../_hooks/useModalManager'
 import { useFavoritesManager } from '../_hooks/useFavoritesManager'
@@ -11,7 +11,7 @@ import { useSlotManager } from '../_hooks/useSlotManager'
 import { useVideoGeneration } from '../_hooks/useVideoGeneration'
 import { useCanvasPersistence } from '../_hooks/useCanvasPersistence'
 import { CanvasAPI } from '../_services/api'
-import { getCanvasState } from '@/lib/utils/canvas-storage'
+import { getCanvasState } from '@/shared/lib/canvas-storage'
 
 const CanvasContext = createContext<CanvasContextValue | undefined>(undefined)
 

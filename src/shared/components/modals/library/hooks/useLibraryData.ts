@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { LibraryVideo, LibraryProject, UserUploadedVideo } from '@/types/video-editor';
-import { LibraryCounts } from '@/types/library-modal';
-import { useAuth } from '@/lib/auth/AuthContext';
+import { LibraryVideo, LibraryProject, UserUploadedVideo } from '@/shared/types/video-editor';
+import { LibraryCounts } from '@/shared/types/library-modal';
+import { useAuth } from '@/shared/lib/auth/AuthContext';
 
 interface UseLibraryDataReturn {
   clipItems: LibraryVideo[];

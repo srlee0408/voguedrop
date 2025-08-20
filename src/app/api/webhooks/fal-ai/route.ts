@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-// import { createClient } from '@/lib/supabase/server';
+// import { createClient } from '@/shared/lib/supabase/server';
 import { verifyWebhookSignature, extractWebhookHeaders } from '@/lib/fal-webhook';
 
 interface FalWebhookPayload {
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
     // Processing webhook payload
 
     // 6. Supabase에서 job 업데이트 (Service Role 사용)
-    const { createServiceClient } = await import('@/lib/supabase/service');
+    const { createServiceClient } = await import('@/shared/lib/supabase/service');
     const supabase = createServiceClient();
     
     // 타입에 따라 다른 테이블 업데이트

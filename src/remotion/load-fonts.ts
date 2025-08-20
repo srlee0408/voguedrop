@@ -13,7 +13,7 @@
  */
 
 import { continueRender, delayRender, getRemotionEnvironment } from 'remotion';
-import { FONT_OPTIONS } from '../constants/fonts';
+import { FONT_OPTIONS } from '@/shared/constants/fonts';
 
 let fontsLoaded = false;
 let fontLoadHandle: number | null = null;

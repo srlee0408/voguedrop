@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import Image from 'next/image'
 import { X, Brush, Eraser, RotateCcw, Loader2, Sliders, ArrowRight, Upload } from 'lucide-react'
-import type { ImageBrushModalState, BrushTool, CanvasMouseEvent } from '@/types/image-brush'
+import type { ImageBrushModalState, BrushTool, CanvasMouseEvent } from '@/shared/types/image-brush'
 
 interface ImageBrushModalProps {
   isOpen: boolean

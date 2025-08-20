@@ -3,7 +3,7 @@ import type {
   ToggleFavoriteRequest, 
   ToggleFavoriteResponse 
 } from '../_types'
-import type { GeneratedVideo } from '@/types/canvas'
+import type { GeneratedVideo } from '@/shared/types/canvas'
 
 /**
  * Canvas 페이지의 모든 API 호출을 담당하는 서비스 레이어

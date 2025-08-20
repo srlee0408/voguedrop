@@ -1,5 +1,5 @@
-import { createClient } from '@/lib/supabase/client';
-import type { UserUploadedVideo } from '@/types/database';
+import { createClient } from '@/shared/lib/supabase/client';
+import type { UserUploadedVideo } from '@/shared/types/database';
 
 interface UploadVideoOptions {
   file: File;

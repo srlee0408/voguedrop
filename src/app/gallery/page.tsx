@@ -6,7 +6,7 @@ import { CategoryFilter } from "./_components/CategoryFilter"
 import { GallerySection } from "./_components/GallerySection"
 import { GalleryGrid } from "./_components/GalleryGrid"
 import { GalleryGridSkeleton } from "./_components/GalleryGridSkeleton"
-import type { EffectTemplateWithMedia } from "@/types/database"
+import type { EffectTemplateWithMedia } from "@/shared/types/database"
 
 // ISR 설정 - 갤러리 페이지도 60초마다 재생성
 export const revalidate = 60

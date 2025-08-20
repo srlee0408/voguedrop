@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import type { GeneratedVideo } from "@/types/canvas";
+import type { GeneratedVideo } from "@/shared/types/canvas";
 
 type SlotContent = { type: "image" | "video"; data: string | GeneratedVideo } | null;
 

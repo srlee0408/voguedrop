@@ -1,14 +1,14 @@
 'use client'
 
 import React, { useState } from 'react'
-import { Header } from '@/components/layout/Header'
+import { Header } from '@/shared/components/layout/Header'
 import { LeftPanel } from './LeftPanel'
 import { Canvas } from './Canvas'
 import { CanvasModals } from './CanvasModals'
 import { useCanvas } from '../_context/CanvasContext'
 import { useBeforeUnload } from '../_hooks/useBeforeUnload'
-import { ProjectSelectorModal } from '@/components/modals/ProjectSelectorModal'
-import type { GeneratedVideo } from '@/types/canvas'
+import { ProjectSelectorModal } from '@/shared/components/modals/ProjectSelectorModal'
+import type { GeneratedVideo } from '@/shared/types/canvas'
 
 /**
  * Canvas 페이지의 메인 레이아웃 컴포넌트

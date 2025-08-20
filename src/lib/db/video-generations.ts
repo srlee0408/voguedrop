@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/shared/lib/supabase';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 export interface VideoGeneration {

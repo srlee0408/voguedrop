@@ -1,6 +1,6 @@
 'use client';
 
-import { VideoClip as VideoClipType, TextClip as TextClipType, SoundClip as SoundClipType } from '@/types/video-editor';
+import { VideoClip as VideoClipType, TextClip as TextClipType, SoundClip as SoundClipType } from '@/shared/types/video-editor';
 import TextClip from './TextClip';
 import SoundClip from './SoundClip';
 

@@ -1,6 +1,6 @@
-import type { EffectTemplateWithMedia } from "@/types/database";
+import type { EffectTemplateWithMedia } from "@/shared/types/database";
 import { X } from "lucide-react";
-import { HoverVideo } from "@/components/ui/hover-video";
+import { HoverVideo } from "@/shared/components/ui/hover-video";
 
 export interface Effect {
   id: string;

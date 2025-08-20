@@ -1,11 +1,11 @@
 'use client';
 
-import { LibraryVideo, LibraryProject, UserUploadedVideo } from '@/types/video-editor';
-import { LibraryModalConfig } from '@/types/library-modal';
+import { LibraryVideo, LibraryProject, UserUploadedVideo } from '@/shared/types/video-editor';
+import { LibraryModalConfig } from '@/shared/types/library-modal';
 import { CARD_CONTAINER_CLASS, getContentFitStyle } from '../utils/constants';
 import Image from 'next/image';
 import { Play, Download, Loader2, Star, Folder, Upload as UploadIcon, ExternalLink } from 'lucide-react';
-import { Tooltip } from '@/components/ui/Tooltip';
+import { Tooltip } from '@/shared/components/ui/Tooltip';
 
 interface LibraryCardProps {
   item: LibraryVideo | LibraryProject | UserUploadedVideo;

@@ -2,7 +2,7 @@ import { ImageSection } from "./ImageSection";
 import { EffectsSection } from "./EffectsSection";
 import { PrompterSection } from "./PrompterSection";
 import { EffectsGallery } from "./EffectsGallery";
-import type { EffectTemplateWithMedia } from "@/types/database";
+import type { EffectTemplateWithMedia } from "@/shared/types/database";
 
 interface LeftPanelProps {
   isPrompterOpen: boolean;

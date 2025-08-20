@@ -1,7 +1,7 @@
 import React from 'react';
 import { AbsoluteFill, Sequence, OffthreadVideo, Audio, useVideoConfig, useCurrentFrame } from 'remotion';
-import { TextClip as TextClipType, SoundClip as SoundClipType } from '@/types/video-editor';
-import { TEXT_DEFAULTS, TEXT_PADDING, TEXT_POSITION_PRESETS, TEXT_ANIMATION, pxToFrames, ratioToPixels, pixelsToRatio } from '../../../../constants/text-editor';
+import { TextClip as TextClipType, SoundClip as SoundClipType } from '@/shared/types/video-editor';
+import { TEXT_DEFAULTS, TEXT_PADDING, TEXT_POSITION_PRESETS, TEXT_ANIMATION, pxToFrames, ratioToPixels, pixelsToRatio } from '@/shared/constants/text-editor';
 
 interface VideoClip {
   id: string;

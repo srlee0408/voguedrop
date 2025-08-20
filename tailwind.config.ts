@@ -1,5 +1,5 @@
 import type { Config } from "tailwindcss"
-import { tokens } from "./src/lib/tokens"
+import { tokens } from "./src/shared/lib/tokens"
 
 const config: Config = {
   darkMode: ["class"],

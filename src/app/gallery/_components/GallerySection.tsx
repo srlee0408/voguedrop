@@ -1,5 +1,5 @@
 import { GalleryItem } from "./GalleryItem"
-import type { Category, EffectTemplateWithMedia } from "@/types/database"
+import type { Category, EffectTemplateWithMedia } from "@/shared/types/database"
 import { ChevronRight } from "lucide-react"
 import Link from "next/link"
 

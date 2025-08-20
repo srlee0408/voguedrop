@@ -2,12 +2,12 @@
 
 import React from 'react'
 import { useRouter } from 'next/navigation'
-import { LibraryModal } from '@/components/modals/LibraryModal'
-import { EffectModal } from '@/components/modals/EffectModal'
-import { PromptModal } from '@/components/modals/PromptModal'
-import { CameraModal } from '@/components/modals/CameraModal'
-import { ModelModal } from '@/components/modals/ModelModal'
-import { ProjectTitleModal } from '@/components/modals/ProjectTitleModal'
+import { LibraryModal } from '@/shared/components/modals/LibraryModal'
+import { EffectModal } from '@/shared/components/modals/EffectModal'
+import { PromptModal } from '@/shared/components/modals/PromptModal'
+import { CameraModal } from '@/shared/components/modals/CameraModal'
+import { ModelModal } from '@/shared/components/modals/ModelModal'
+import { ProjectTitleModal } from '@/shared/components/modals/ProjectTitleModal'
 import { ImageBrushModal } from './ImageBrushModal'
 import { useCanvas } from '../_context/CanvasContext'
 

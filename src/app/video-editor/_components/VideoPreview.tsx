@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useRef } from 'react';
 import { toast } from 'sonner';
 import { Player, PlayerRef } from '@remotion/player';
 import { CompositePreview } from './remotion/CompositePreview';
-import { TextClip as TextClipType, SoundClip as SoundClipType } from '@/types/video-editor';
+import { TextClip as TextClipType, SoundClip as SoundClipType } from '@/shared/types/video-editor';
 import TextOverlayEditor from './TextOverlayEditor';
 import FullscreenPreviewModal from './FullscreenPreviewModal';
 import RenderingModal from './RenderingModal';

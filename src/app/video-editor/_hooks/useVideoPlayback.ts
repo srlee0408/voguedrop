@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { PlayerRef } from '@remotion/player';
-import { VideoClip, TextClip, SoundClip } from '@/types/video-editor';
+import { VideoClip, TextClip, SoundClip } from '@/shared/types/video-editor';
 import { TIMELINE_CONFIG } from '../_constants';
 
 interface UseVideoPlaybackProps {

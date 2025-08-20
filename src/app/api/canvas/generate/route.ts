@@ -3,8 +3,8 @@ import { generateVideo } from '@/lib/fal-ai';
 import {
   checkDailyGenerationLimit
 } from '@/lib/db/video-generations';
-import { uploadBase64Image } from '@/lib/supabase/storage';
-import { createClient } from '@/lib/supabase/server';
+import { uploadBase64Image } from '@/shared/lib/supabase/storage';
+import { createClient } from '@/shared/lib/supabase/server';
 
 export const maxDuration = 60; // Vercel 함수 타임아웃 60초
 
@@ -291,7 +291,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Supabase에서 생성 상태 조회
-    const { supabase } = await import('@/lib/supabase');
+    const { supabase } = await import('@/shared/lib/supabase');
     const { data, error } = await supabase
       .from('video_generations')
       .select('*')

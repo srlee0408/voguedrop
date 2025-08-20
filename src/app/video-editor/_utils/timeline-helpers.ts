@@ -1,4 +1,4 @@
-import { VideoClip, TextClip, SoundClip } from '@/types/video-editor';
+import { VideoClip, TextClip, SoundClip } from '@/shared/types/video-editor';
 import { BaseClip } from './timeline-utils';
 
 /**

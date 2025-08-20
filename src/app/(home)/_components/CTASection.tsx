@@ -1,9 +1,9 @@
 "use client"
 
-import { Button } from "@/components/ui/button"
+import { Button } from "@/shared/components/ui/button"
 import { Zap } from "lucide-react"
 import Link from "next/link"
-import { useAuth } from "@/lib/auth/AuthContext"
+import { useAuth } from "@/shared/lib/auth/AuthContext"
 
 interface CTASectionProps {
   texts: {

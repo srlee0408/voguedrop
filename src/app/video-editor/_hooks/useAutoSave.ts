@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { saveProject } from '@/lib/api/projects';
-import { VideoClip, TextClip, SoundClip } from '@/types/video-editor';
+import { VideoClip, TextClip, SoundClip } from '@/shared/types/video-editor';
 import { toast } from 'sonner';
 
 export type AutoSaveStatus = 'idle' | 'saving' | 'saved' | 'error';

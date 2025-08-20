@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { useAuth } from "@/lib/auth/AuthContext";
+import { Button } from "@/shared/components/ui/button";
+import { useAuth } from "@/shared/lib/auth/AuthContext";
 
 interface HomeHeaderProps {
   texts?: {

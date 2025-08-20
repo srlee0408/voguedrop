@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
-import { createServiceClient } from '@/lib/supabase/service';
+import { createClient } from '@/shared/lib/supabase/server';
+import { createServiceClient } from '@/shared/lib/supabase/service';
 import { requireAuth } from '@/lib/api/auth';
 import { nanoid } from 'nanoid';
 import { processSoundTitle } from '@/lib/sound/utils';
-import { SoundGenerationType } from '@/types/sound';
+import { SoundGenerationType } from '@/shared/types/sound';
 
 interface GenerateSoundRequest {
   prompt: string;

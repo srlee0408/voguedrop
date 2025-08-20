@@ -3,8 +3,8 @@
 import { useState, useCallback, useMemo } from 'react';
 import { usePathname } from 'next/navigation';
 import { X, Info, Loader2, Video, Folder, Upload } from 'lucide-react';
-import { LibraryModalBaseProps, LibraryCategory } from '@/types/library-modal';
-import { LibraryVideo, LibraryProject, UserUploadedVideo, LibraryItem } from '@/types/video-editor';
+import { LibraryModalBaseProps, LibraryCategory } from '@/shared/types/library-modal';
+import { LibraryVideo, LibraryProject, UserUploadedVideo, LibraryItem } from '@/shared/types/video-editor';
 import { useLibraryData } from './hooks/useLibraryData';
 import { LibraryCard } from './components/LibraryCard';
 import { LibrarySidebar } from './components/LibrarySidebar';

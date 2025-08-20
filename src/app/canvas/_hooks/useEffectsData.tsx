@@ -1,7 +1,7 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
-import type { EffectTemplateWithMedia } from '@/types/database'
+import type { EffectTemplateWithMedia } from '@/shared/types/database'
 
 interface Category {
   id: number

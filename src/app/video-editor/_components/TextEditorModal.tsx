@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
-import { TextClip, TextStyle, TextEffect } from '@/types/video-editor';
-import { TEXT_DEFAULTS, FONT_SIZE_PRESETS, pixelsToRatio } from '../../../constants/text-editor';
-import { FONT_FAMILIES } from '../../../constants/fonts';
+import { TextClip, TextStyle, TextEffect } from '@/shared/types/video-editor';
+import { TEXT_DEFAULTS, FONT_SIZE_PRESETS, pixelsToRatio } from '@/shared/constants/text-editor';
+import { FONT_FAMILIES } from '@/shared/constants/fonts';
 
 interface TextEditorModalProps {
   isOpen: boolean;

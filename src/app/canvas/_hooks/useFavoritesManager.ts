@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
-import { useAuth } from '@/lib/auth/AuthContext'
+import { useAuth } from '@/shared/lib/auth/AuthContext'
 import type { FavoritesManagerReturn, FavoritesApiResponse } from '../_types'
 
 /**

@@ -1,8 +1,8 @@
 'use client';
 
-import { LibraryModalBase } from '@/components/modals/library/LibraryModalBase';
-import { LibraryModalConfig } from '@/types/library-modal';
-import { LibraryItem } from '@/types/video-editor';
+import { LibraryModalBase } from '@/shared/components/modals/library/LibraryModalBase';
+import { LibraryModalConfig } from '@/shared/types/library-modal';
+import { LibraryItem } from '@/shared/types/video-editor';
 
 interface VideoLibraryModalProps {
   onClose: () => void;

@@ -1,6 +1,6 @@
 // Canvas 페이지 전용 타입 정의
-import type { GeneratedVideo } from '@/types/canvas'
-import type { EffectTemplateWithMedia } from '@/types/database'
+import type { GeneratedVideo } from '@/shared/types/canvas'
+import type { EffectTemplateWithMedia } from '@/shared/types/database'
 
 // 모달 관련 타입
 export type ModalName = 'library' | 'effect' | 'prompt' | 'camera' | 'model' | 'projectTitle' | 'imageBrush'

@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { VideoClip } from '@/types/video-editor';
+import { VideoClip } from '@/shared/types/video-editor';
 
 interface JobProgress {
   jobId: string;

@@ -1,4 +1,4 @@
-import { VideoClip, TextClip, SoundClip } from '@/types/video-editor';
+import { VideoClip, TextClip, SoundClip } from '@/shared/types/video-editor';
 
 // 클립 복제 함수
 export function duplicateVideoClip(clip: VideoClip, allClips: VideoClip[]): VideoClip {

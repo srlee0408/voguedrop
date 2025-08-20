@@ -1,6 +1,6 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/shared/lib/supabase/server'
 import { NextResponse } from 'next/server'
-import type { LoginFormData } from '@/types/auth'
+import type { LoginFormData } from '@/shared/types/auth'
 
 export async function POST(request: Request) {
   try {

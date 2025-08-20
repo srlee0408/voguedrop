@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
-import type { ImageBrushRequest, ImageBrushResponse } from '@/types/image-brush';
+import { createClient } from '@/shared/lib/supabase/server';
+import type { ImageBrushRequest, ImageBrushResponse } from '@/shared/types/image-brush';
 
 /**
  * Image Brush API Route

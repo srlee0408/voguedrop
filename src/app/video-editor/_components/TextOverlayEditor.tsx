@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { TextClip as TextClipType } from '@/types/video-editor';
-import { TEXT_DEFAULTS, TEXT_PADDING, TEXT_POSITION_PRESETS, ratioToPixels, pixelsToRatio } from '../../../constants/text-editor';
+import { TextClip as TextClipType } from '@/shared/types/video-editor';
+import { TEXT_DEFAULTS, TEXT_PADDING, TEXT_POSITION_PRESETS, ratioToPixels, pixelsToRatio } from '@/shared/constants/text-editor';
 
 interface TextOverlayEditorProps {
   textClips: TextClipType[];
