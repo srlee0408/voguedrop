@@ -564,8 +564,8 @@ export function ImageBrushModal({
                 onChange={(e) => setState(prev => ({ ...prev, mode: e.target.value as 'flux' | 'i2i' }))}
                 disabled={state.isProcessing}
               >
-                <option value="flux">FLUX Fill (Prompt-based)</option>
-                <option value="i2i">I2I Transform (Style Transfer)</option>
+                <option value="flux">Image Modification</option>
+                <option value="i2i">Image Transform</option>
               </select>
             </div>
 

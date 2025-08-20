@@ -1,7 +1,7 @@
 -- Create image_brush_history table for tracking AI image editing history
 -- Note: RLS is DISABLED - Access is controlled through Next.js API Routes only
 CREATE TABLE IF NOT EXISTS public.image_brush_history (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  id BIGSERIAL PRIMARY KEY,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   original_image TEXT, -- Reference to original image (first 100 chars of base64)
   mask_image TEXT, -- Reference to mask image (first 100 chars of base64)
