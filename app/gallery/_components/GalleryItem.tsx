@@ -53,7 +53,6 @@ export function GalleryItem({ item }: GalleryItemProps) {
               fill
               className="object-cover z-[1]"
               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-              unoptimized
               onError={(e) => {
                 e.currentTarget.style.display = 'none'
               }}

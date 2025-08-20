@@ -113,7 +113,6 @@ export function CanvasHistoryPanel({
                     className="w-full h-full object-cover"
                     fill
                     sizes="80px"
-                    unoptimized
                   />
                   {/* Play overlay on hover */}
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
