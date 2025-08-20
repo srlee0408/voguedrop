@@ -8,8 +8,8 @@ import { GalleryGrid } from "./_components/GalleryGrid"
 import { GalleryGridSkeleton } from "./_components/GalleryGridSkeleton"
 import type { EffectTemplateWithMedia } from "@/types/database"
 
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
+// ISR 설정 - 갤러리 페이지도 60초마다 재생성
+export const revalidate = 60
 
 interface PageProps {
   searchParams: Promise<{ category?: string }>
@@ -38,7 +38,7 @@ export default async function GalleryPage({ searchParams }: PageProps) {
   }, {} as Record<number, { category: typeof categories[0], items: EffectTemplateWithMedia[] }>)
 
   return (
-    <GalleryPageClient>
+    <GalleryPageClient initialItems={items} initialCategories={categories}>
       <div className="min-h-screen bg-black text-white pt-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12">
           <GalleryHeader />

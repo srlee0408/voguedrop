@@ -10,6 +10,7 @@ import "../styles/fonts.css"; // Google Fonts 직접 import
 import { StagewiseToolbar } from "@stagewise/toolbar-next";
 import ReactPlugin from "@stagewise-plugins/react";
 import { AuthProvider } from "@/lib/auth/AuthContext";
+import { QueryProvider } from "@/lib/providers/QueryProvider";
 import { Toaster } from "sonner";
 
 const geistSans = Geist({
@@ -41,7 +42,9 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <AuthProvider>
-          {children}
+          <QueryProvider>
+            {children}
+          </QueryProvider>
         </AuthProvider>
         <StagewiseToolbar config={{ plugins: [ReactPlugin] }} />
         <Toaster 

@@ -2,8 +2,7 @@ import { Suspense } from "react"
 import { getGalleryItems } from "@/lib/api/gallery"
 import { GalleryItems } from "./GalleryItems"
 
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
+// 컴포넌트 레벨에서는 캐싱 설정 제거 - 부모 페이지 설정을 상속받음
 
 interface GallerySectionProps {
   texts: {

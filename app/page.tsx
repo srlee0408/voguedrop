@@ -6,8 +6,9 @@ import { CTASection } from "./(home)/_components/CTASection"
 import { Footer } from "./(home)/_components/Footer"
 import homeTexts from "@/locales/en/home.json"
 
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
+// ISR (Incremental Static Regeneration) 설정
+// 60초마다 백그라운드에서 페이지를 재생성하여 데이터를 업데이트
+export const revalidate = 60
 
 export default function HomePage() {
   return (

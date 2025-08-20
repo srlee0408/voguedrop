@@ -48,6 +48,12 @@ const nextConfig: NextConfig = {
       };
     }
     
+    // Remotion babylon 경고 해결
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      'babylon': require.resolve('babylon'),
+    };
+    
     return config;
   },
   
