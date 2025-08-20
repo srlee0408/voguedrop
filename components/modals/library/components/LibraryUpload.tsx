@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Upload, Loader2 } from 'lucide-react';
 import { UserUploadedVideo } from '@/types/video-editor';
 import { extractVideoMetadata, extractVideoThumbnail } from '@/app/video-editor/_utils/video-metadata';
@@ -14,11 +14,10 @@ export function LibraryUpload({ onUploadComplete }: LibraryUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    
+  // 파일 처리를 위한 공통 함수
+  const processVideoFile = useCallback(async (file: File): Promise<void> => {
     // 파일 크기 체크 (50MB for Edge Function)
     const MAX_SIZE = 50 * 1024 * 1024;
     if (file.size > MAX_SIZE) {
@@ -92,38 +91,119 @@ export function LibraryUpload({ onUploadComplete }: LibraryUploadProps) {
         setIsUploading(false);
       }, 500);
       
-      // Reset file input
-      event.target.value = '';
-      
     } catch (err) {
       console.error('Upload error:', err);
       setError(err instanceof Error ? err.message : 'Failed to upload video');
       setIsUploading(false);
       setUploadProgress(0);
     }
+  }, [onUploadComplete]);
+
+  // 클릭 업로드 핸들러
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    
+    await processVideoFile(file);
+    
+    // Reset file input
+    event.target.value = '';
   };
+
+  // 드래그 앤 드롭 핸들러
+  const handleDragEnter = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // currentTarget과 relatedTarget을 확인하여 실제로 영역을 벗어났는지 확인
+    const currentTarget = e.currentTarget;
+    const relatedTarget = e.relatedTarget as Node;
+    
+    if (!currentTarget.contains(relatedTarget)) {
+      setIsDragging(false);
+    }
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleDrop = useCallback(async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    
+    const files = e.dataTransfer.files;
+    if (files.length === 0) return;
+    
+    const file = files[0];
+    
+    // 비디오 파일인지 확인
+    if (!file.type.startsWith('video/')) {
+      setError('Please drop a video file');
+      setTimeout(() => setError(null), 5000);
+      return;
+    }
+    
+    await processVideoFile(file);
+  }, [processVideoFile]);
 
   const inputId = `library-video-upload-${Date.now()}`;
 
   return (
     <>
-      <button
-        onClick={() => document.getElementById(inputId)?.click()}
-        disabled={isUploading}
-        className="w-full py-3 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed bg-[#38f47cf9] text-black hover:bg-[#38f47cf9]/80"
+      <div
+        className={`
+          relative w-full rounded-lg transition-all
+          ${isDragging 
+            ? 'border-2 border-dashed border-[#38f47cf9] bg-[#38f47cf9]/10' 
+            : 'border-2 border-transparent'
+          }
+        `}
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
       >
-        {isUploading ? (
-          <>
-            <Loader2 className="w-4 h-4 animate-spin" />
-            <span>Uploading... {uploadProgress}%</span>
-          </>
-        ) : (
-          <>
-            <Upload className="w-4 h-4" />
-            <span>Upload Video</span>
-          </>
-        )}
-      </button>
+        <button
+          onClick={() => document.getElementById(inputId)?.click()}
+          disabled={isUploading}
+          className={`
+            w-full py-3 rounded-lg transition-colors flex flex-col items-center justify-center gap-2 text-sm font-medium 
+            disabled:opacity-50 disabled:cursor-not-allowed 
+            ${isDragging 
+              ? 'bg-[#38f47cf9]/20 text-[#38f47cf9]' 
+              : 'bg-[#38f47cf9] text-black hover:bg-[#38f47cf9]/80'
+            }
+          `}
+        >
+          {isUploading ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span>Uploading... {uploadProgress}%</span>
+            </>
+          ) : isDragging ? (
+            <>
+              <Upload className="w-6 h-6" />
+              <span className="font-semibold">Drop video here</span>
+              <span className="text-xs opacity-80">Release to upload</span>
+            </>
+          ) : (
+            <>
+              <Upload className="w-5 h-5" />
+              <span>Upload Video</span>
+              <span className="text-xs opacity-80">or drag and drop</span>
+            </>
+          )}
+        </button>
+      </div>
       
       {isUploading && (
         <div className="mt-2">
@@ -154,7 +234,7 @@ export function LibraryUpload({ onUploadComplete }: LibraryUploadProps) {
       />
       
       <p className="text-xs text-gray-500 mt-2 text-center">
-        Max file size: 20MB
+        Max file size: 50MB • Supported: MP4, WebM, MOV, AVI
       </p>
     </>
   );
