@@ -2,11 +2,17 @@
 
 import { createContext, useContext, useState, useCallback, useMemo, ReactNode, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { loadProject } from '@/lib/api/projects';
 
 interface ProjectContextType {
   // 프로젝트 메타데이터
   projectTitle: string;
   setProjectTitle: React.Dispatch<React.SetStateAction<string>>;
+  
+  // 프로젝트 로드 상태
+  isLoadingProject: boolean;
+  projectLoadError: string | null;
+  loadProjectData: (projectName: string) => Promise<void>;
   
   // 타임라인 UI 상태
   timelineHeight: number;
@@ -45,6 +51,11 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const [projectTitle, setProjectTitle] = useState('Untitled Project');
   const searchParams = useSearchParams();
   
+  // 프로젝트 로드 상태
+  const [isLoadingProject, setIsLoadingProject] = useState(false);
+  const [projectLoadError, setProjectLoadError] = useState<string | null>(null);
+  const [projectLoaded, setProjectLoaded] = useState(false);
+  
   // 타임라인 높이 관리 (page.tsx에서 그대로)
   const maxTimelineHeight = 240;
   const [timelineHeight, setTimelineHeight] = useState(240);
@@ -59,13 +70,47 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const [showTextEditor, setShowTextEditor] = useState(false);
   const [showLibrary, setShowLibrary] = useState(false);
   
-  // URL 파라미터에서 프로젝트 제목 읽기 (page.tsx에서 그대로)
+  // 프로젝트 데이터 로드 함수
+  const loadProjectData = useCallback(async (projectName: string) => {
+    setIsLoadingProject(true);
+    setProjectLoadError(null);
+    
+    try {
+      const project = await loadProject(projectName);
+      
+      // 프로젝트 제목 설정
+      setProjectTitle(project.project_name);
+      
+      // ClipContext에서 데이터 복원을 위해 이벤트 발생
+      // (ClipContext에서 이 이벤트를 리스닝하여 처리)
+      const event = new CustomEvent('projectDataLoaded', {
+        detail: project.content_snapshot
+      });
+      window.dispatchEvent(event);
+      
+      setProjectLoaded(true);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load project';
+      setProjectLoadError(errorMessage);
+    } finally {
+      setIsLoadingProject(false);
+    }
+  }, []);
+  
+  // URL 파라미터에서 프로젝트 로드
   useEffect(() => {
     const title = searchParams.get('title');
-    if (title) {
+    const projectName = searchParams.get('projectName');
+    
+    // projectName 파라미터가 있고 아직 로드하지 않았다면
+    if (projectName && !projectLoaded && !isLoadingProject) {
+      loadProjectData(decodeURIComponent(projectName));
+    }
+    // title 파라미터만 있다면 (이전 방식 호환)
+    else if (title && !projectName) {
       setProjectTitle(decodeURIComponent(title));
     }
-  }, [searchParams]);
+  }, [searchParams, projectLoaded, isLoadingProject, loadProjectData]);
   
   // 모달 열기 핸들러 (page.tsx에서 그대로)
   const handleAddClip = useCallback(() => {
@@ -127,6 +172,11 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     projectTitle,
     setProjectTitle,
     
+    // 프로젝트 로드 상태
+    isLoadingProject,
+    projectLoadError,
+    loadProjectData,
+    
     // 타임라인 UI 상태
     timelineHeight,
     isResizing,
@@ -157,6 +207,9 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     containerRef,
   }), [
     projectTitle,
+    isLoadingProject,
+    projectLoadError,
+    loadProjectData,
     timelineHeight,
     isResizing,
     dragStartY,

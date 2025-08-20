@@ -1,12 +1,13 @@
 'use client'
 
-import React from 'react'
+import React, { useState } from 'react'
 import { Header } from '@/components/layout/Header'
 import { LeftPanel } from './LeftPanel'
 import { Canvas } from './Canvas'
 import { CanvasModals } from './CanvasModals'
 import { useCanvas } from '../_context/CanvasContext'
 import { useBeforeUnload } from '../_hooks/useBeforeUnload'
+import { ProjectSelectorModal } from '@/components/modals/ProjectSelectorModal'
 import type { GeneratedVideo } from '@/types/canvas'
 
 /**
@@ -14,6 +15,8 @@ import type { GeneratedVideo } from '@/types/canvas'
  * Context를 활용하여 모든 상태와 로직을 통합 관리
  */
 export function CanvasLayout(): React.ReactElement {
+  const [showProjectSelector, setShowProjectSelector] = useState(false)
+  
   const {
     modals,
     settings,
@@ -82,7 +85,7 @@ export function CanvasLayout(): React.ReactElement {
       <Header
         onLibraryClick={() => modals.openModal('library')}
         activePage="clip"
-        onEditClick={() => modals.openModal('projectTitle')}
+        onEditClick={() => setShowProjectSelector(true)}
       />
 
       <div className="flex flex-1">
@@ -158,6 +161,16 @@ export function CanvasLayout(): React.ReactElement {
       </div>
 
       <CanvasModals />
+      
+      {/* Project Selector Modal */}
+      <ProjectSelectorModal 
+        isOpen={showProjectSelector}
+        onClose={() => setShowProjectSelector(false)}
+        onNewProject={() => {
+          setShowProjectSelector(false);
+          modals.openModal('projectTitle');
+        }}
+      />
     </div>
   )
 }

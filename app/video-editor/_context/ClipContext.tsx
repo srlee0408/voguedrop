@@ -99,6 +99,50 @@ export function ClipProvider({ children }: ClipProviderProps) {
     }
   }, [saveToHistoryCallback]);
   
+  // 프로젝트 데이터 복원 함수
+  const restoreProjectData = useCallback((contentSnapshot: {
+    video_clips?: VideoClip[];
+    text_clips?: TextClip[];
+    sound_clips?: SoundClip[];
+    [key: string]: unknown;
+  }) => {
+    // 비디오 클립 복원
+    if (contentSnapshot.video_clips) {
+      const restoredVideoClips = contentSnapshot.video_clips.map((clip: VideoClip) => ({
+        ...clip,
+        id: clip.id || `video-${Date.now()}-${Math.random()}`,
+        // 필요한 변환 작업
+      }));
+      setTimelineClips(restoredVideoClips);
+    }
+    
+    // 텍스트 클립 복원
+    if (contentSnapshot.text_clips) {
+      setTextClips(contentSnapshot.text_clips);
+    }
+    
+    // 사운드 클립 복원
+    if (contentSnapshot.sound_clips) {
+      setSoundClips(contentSnapshot.sound_clips);
+    }
+    
+    // 히스토리 초기화 (새 프로젝트를 로드했으므로)
+    // HistoryContext와 연결되면 clearHistory 호출
+  }, []);
+  
+  // ProjectContext에서 발생시킨 이벤트 리스닝
+  useEffect(() => {
+    const handleProjectDataLoaded = (event: CustomEvent) => {
+      restoreProjectData(event.detail);
+    };
+    
+    window.addEventListener('projectDataLoaded', handleProjectDataLoaded as EventListener);
+    
+    return () => {
+      window.removeEventListener('projectDataLoaded', handleProjectDataLoaded as EventListener);
+    };
+  }, [restoreProjectData]);
+  
   // 마지막 경고 시간 추적 (중복 경고 방지)
   const [lastWarningTime, setLastWarningTime] = useState<number>(0);
   
