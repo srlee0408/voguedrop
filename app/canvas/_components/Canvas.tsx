@@ -151,7 +151,7 @@ export function Canvas({
               {displayContent.type === 'video' && displayContent.data ? (
                 <video
                   src={(displayContent.data as GeneratedVideo).url}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain"
                   controls
                   muted
                   playsInline
@@ -161,7 +161,7 @@ export function Canvas({
                   <Image
                     src={displayContent.data as string}
                     alt={`Canvas image ${index + 1}`}
-                    className="absolute inset-0 w-full h-full object-cover"
+                    className="absolute inset-0 w-full h-full object-contain"
                     fill
                     sizes="(max-width: 1024px) 25vw, 25vw"
                     priority={index === 0}
