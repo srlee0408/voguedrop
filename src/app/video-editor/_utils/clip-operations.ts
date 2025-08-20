@@ -179,8 +179,9 @@ export function splitSoundClip(
  * 리사이즈 시 트리밍 시작/끝 시간을 일관된 규칙으로 갱신합니다.
  * - 왼쪽 핸들: startTime만 이동, endTime은 정의되어 있으면 유지합니다
  * - 오른쪽 핸들: endTime = startTime + (duration_px / pixelsPerSecond)
+ * - maxDuration 제약 조건 적용
  */
-export function applyResizeTrim<T extends { duration: number; startTime?: number; endTime?: number }>(
+export function applyResizeTrim<T extends { duration: number; startTime?: number; endTime?: number; maxDuration?: number }>(
   clip: T,
   newDurationPx: number,
   handle?: 'left' | 'right',
@@ -188,7 +189,12 @@ export function applyResizeTrim<T extends { duration: number; startTime?: number
   pixelsPerSecond: number = 40
 ): Partial<T> {
   // 안전장치: 최소 너비 보장
-  const safeDuration = Math.max(80, newDurationPx);
+  let safeDuration = Math.max(80, newDurationPx);
+  
+  // maxDuration 제약 조건 적용
+  if (clip.maxDuration && safeDuration > clip.maxDuration) {
+    safeDuration = clip.maxDuration;
+  }
   
   // duration은 px 단위로 유지 (타임라인과 동일 단위)
   const updates: Partial<T> = { duration: safeDuration } as Partial<T>;
@@ -196,15 +202,42 @@ export function applyResizeTrim<T extends { duration: number; startTime?: number
   if (handle === 'left' && typeof deltaPositionPx === 'number') {
     const deltaSeconds = deltaPositionPx / pixelsPerSecond;
     const currentStart = clip.startTime ?? 0;
+    
+    // startTime이 0 이하일 때 더 이상 왼쪽으로 트림 불가
+    if (currentStart <= 0 && deltaSeconds < 0) {
+      // startTime을 0으로 유지하고 duration 조정하지 않음
+      (updates as Record<string, unknown>).startTime = 0;
+      (updates as Record<string, unknown>).duration = clip.duration; // 기존 duration 유지
+      return updates;
+    }
+    
     const newStart = Math.max(0, currentStart + deltaSeconds);
     (updates as Record<string, unknown>).startTime = newStart;
-    // 새로운 duration에 맞춰 endTime 재계산 (일관된 구간 길이 유지)
+    
+    // maxDuration 기반으로 최대 endTime 계산
+    const maxEndTime = clip.maxDuration ? clip.maxDuration / pixelsPerSecond : Infinity;
     const durationSeconds = safeDuration / pixelsPerSecond;
-    (updates as Record<string, unknown>).endTime = newStart + durationSeconds;
+    const calculatedEndTime = newStart + durationSeconds;
+    
+    (updates as Record<string, unknown>).endTime = Math.min(calculatedEndTime, maxEndTime);
   } else if (handle === 'right') {
     const currentStart = clip.startTime ?? 0;
     const durationSeconds = safeDuration / pixelsPerSecond;
-    (updates as Record<string, unknown>).endTime = currentStart + durationSeconds;
+    
+    // maxDuration 기반으로 최대 endTime 계산
+    const maxEndTime = clip.maxDuration ? clip.maxDuration / pixelsPerSecond : Infinity;
+    const calculatedEndTime = currentStart + durationSeconds;
+    
+    (updates as Record<string, unknown>).endTime = Math.min(calculatedEndTime, maxEndTime);
+    
+    // endTime이 제한되었다면 duration도 조정
+    const actualEndTime = Math.min(calculatedEndTime, maxEndTime);
+    const actualDurationSeconds = actualEndTime - currentStart;
+    const actualDurationPx = Math.round(actualDurationSeconds * pixelsPerSecond);
+    
+    if (actualDurationPx !== safeDuration) {
+      (updates as Record<string, unknown>).duration = Math.max(80, actualDurationPx);
+    }
   }
 
   return updates;

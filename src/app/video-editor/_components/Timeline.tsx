@@ -460,15 +460,54 @@ export default function Timeline({
         let newPosition = startPosition;
 
         // Calculate new dimensions based on resize handle
-
-        if (resizeHandle === 'left') {
-          newPosition = Math.max(0, startPosition + delta);
-          newWidth = startWidth + (startPosition - newPosition);
-        } else {
-          newWidth = startWidth + delta;
+        let minAllowedPosition = startPosition; // Default position
+        
+        // Get current clip to check constraints
+        type ClipWithConstraints = {
+          id: string;
+          maxDuration?: number;
+          startTime?: number;
+        };
+        
+        let currentClip: ClipWithConstraints | undefined = undefined;
+        if (activeClipType === 'video') {
+          currentClip = clips.find(c => c.id === activeClip);
+        } else if (activeClipType === 'text') {
+          currentClip = textClips.find(c => c.id === activeClip);
+        } else if (activeClipType === 'sound') {
+          currentClip = soundClips.find(c => c.id === activeClip);
+        }
+        
+        if (currentClip) {
+          // Calculate minimum allowed position for left handle based on startTime
+          if (resizeHandle === 'left' && currentClip.startTime !== undefined) {
+            const currentStartTime = currentClip.startTime || 0;
+            if (currentStartTime <= 0) {
+              // If startTime is 0 or negative, cannot resize left further
+              minAllowedPosition = startPosition;
+            }
+          }
         }
 
-        // Apply constraints
+        if (resizeHandle === 'left') {
+          newPosition = Math.max(minAllowedPosition, startPosition + delta);
+          newWidth = startWidth + (startPosition - newPosition);
+          
+          // Ensure we don't exceed maxDuration when resizing left
+          if (currentClip?.maxDuration && newWidth > currentClip.maxDuration) {
+            newWidth = currentClip.maxDuration;
+            newPosition = startPosition + startWidth - newWidth;
+          }
+        } else {
+          newWidth = startWidth + delta;
+          
+          // Limit width to maxDuration for right handle
+          if (currentClip?.maxDuration) {
+            newWidth = Math.min(newWidth, currentClip.maxDuration);
+          }
+        }
+
+        // Apply minimum constraints
         newWidth = Math.max(80, newWidth);
         newPosition = Math.max(0, newPosition);
 
