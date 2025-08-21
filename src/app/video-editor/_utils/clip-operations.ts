@@ -40,9 +40,13 @@ export function duplicateTextClip(clip: TextClip, allClips: TextClip[]): TextCli
 }
 
 export function duplicateSoundClip(clip: SoundClip, allClips: SoundClip[]): SoundClip {
-  // 타임라인에서 가장 뒤에 있는 클립의 끝 위치 찾기
+  // 같은 레인의 클립들만 필터링하여 위치 계산
+  const laneIndex = clip.laneIndex ?? 0;
+  const laneClips = allClips.filter(c => (c.laneIndex ?? 0) === laneIndex);
+  
+  // 같은 레인에서 가장 뒤에 있는 클립의 끝 위치 찾기
   let maxEndPosition = 0;
-  allClips.forEach(c => {
+  laneClips.forEach(c => {
     const clipEnd = c.position + c.duration;
     if (clipEnd > maxEndPosition) {
       maxEndPosition = clipEnd;

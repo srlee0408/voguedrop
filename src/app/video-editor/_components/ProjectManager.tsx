@@ -12,6 +12,7 @@ interface ProjectManagerProps {
   timelineClips: VideoClip[];
   textClips: TextClip[];
   soundClips: SoundClip[];
+  soundLanes?: number[]; // 사운드 레인 배열
   calculateTotalFrames: number;
   autoSaveStatus: AutoSaveStatus;
   setAutoSaveStatus: (status: AutoSaveStatus) => void;
@@ -23,6 +24,7 @@ export default function ProjectManager({
   timelineClips,
   textClips,
   soundClips,
+  soundLanes = [0],
   calculateTotalFrames,
   autoSaveStatus,
   setAutoSaveStatus,
@@ -45,6 +47,7 @@ export default function ProjectManager({
     videoClips: timelineClips,
     textClips,
     soundClips,
+    soundLanes,
     aspectRatio: '9:16', // TODO: Get from VideoPreview component
     durationInFrames: calculateTotalFrames,
     enabled: true,

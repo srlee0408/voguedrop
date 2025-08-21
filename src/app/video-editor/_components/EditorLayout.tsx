@@ -6,7 +6,8 @@ import { useProject } from '../_context/Providers';
 import type { AutoSaveStatus } from '../_hooks/useAutoSave';
 
 interface EditorLayoutProps {
-  children: ReactNode;
+  previewSection: ReactNode;
+  timelineSection: ReactNode;
   projectTitle: string;
   onProjectTitleChange: (title: string) => void;
   onLibraryClick: () => void;
@@ -15,7 +16,8 @@ interface EditorLayoutProps {
 }
 
 export default function EditorLayout({
-  children,
+  previewSection,
+  timelineSection,
   projectTitle,
   onProjectTitleChange,
   onLibraryClick,
@@ -41,9 +43,12 @@ export default function EditorLayout({
       />
       
       <div className="flex-1 flex flex-col overflow-hidden">
-        {children}
+        {/* Preview Section - 상단 영역 */}
+        <div className="flex-1 min-h-0 overflow-hidden">
+          {previewSection}
+        </div>
 
-        {/* 리사이저 바 - 아래로만 드래그 가능 */}
+        {/* 리사이저 바 - PreviewSection과 TimelineSection 사이 */}
         <div 
           className={`h-1 bg-gray-700 hover:bg-[#38f47cf9] transition-colors relative ${
             isResizing ? 'bg-[#38f47cf9]' : ''
@@ -58,6 +63,11 @@ export default function EditorLayout({
               <div className="w-8 h-0.5 bg-gray-500 rounded-full" />
             </div>
           </div>
+        </div>
+
+        {/* Timeline Section - 하단 영역 */}
+        <div className="flex-shrink-0">
+          {timelineSection}
         </div>
       </div>
     </div>

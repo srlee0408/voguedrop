@@ -27,6 +27,7 @@ export default function VideoEditorClient() {
     timelineClips,
     textClips,
     soundClips,
+    soundLanes,
     selectedTextClip,
     editingTextClip,
     setSelectedTextClip,
@@ -34,6 +35,11 @@ export default function VideoEditorClient() {
     handleDeleteVideoClip,
     handleUpdateTextPosition,
     handleUpdateTextSize,
+    // 사운드 레인 관리 함수들
+    handleAddSoundLane,
+    handleDeleteSoundLane,
+    handleAddSoundToLane,
+    handleUpdateSoundClipLane,
     // 키보드 단축키용 새로운 함수들
     handleDeleteSelectedClips,
     handleDuplicateSelectedClip,
@@ -230,29 +236,38 @@ export default function VideoEditorClient() {
   }, []);
 
   return (
-    <EditorLayout
-      projectTitle={projectTitle}
-      onProjectTitleChange={setProjectTitle}
-      onLibraryClick={() => setShowLibrary(true)}
-      autoSaveStatus={autoSaveStatus}
-      autoSaveError={autoSaveError}
-    >
-      <PreviewSection
+    <>
+      <EditorLayout
         projectTitle={projectTitle}
-        selectedTextClip={selectedTextClip}
-        onSelectTextClip={setSelectedTextClip}
-        onRemoveClip={handleDeleteVideoClip}
-        onUpdateTextPosition={handleUpdateTextPosition}
-        onUpdateTextSize={handleUpdateTextSize}
-      />
-
-      <TimelineSection
-        PIXELS_PER_SECOND={PIXELS_PER_SECOND}
-        onSplitVideoClip={handleSplitVideoClip}
-        onSplitTextClip={handleSplitTextClip}
-        onSplitSoundClip={handleSplitSoundClip}
-        onAddText={handleAddText}
-        onEditSoundClip={handleEditSoundClip}
+        onProjectTitleChange={setProjectTitle}
+        onLibraryClick={() => setShowLibrary(true)}
+        autoSaveStatus={autoSaveStatus}
+        autoSaveError={autoSaveError}
+        previewSection={
+          <PreviewSection
+            projectTitle={projectTitle}
+            selectedTextClip={selectedTextClip}
+            onSelectTextClip={setSelectedTextClip}
+            onRemoveClip={handleDeleteVideoClip}
+            onUpdateTextPosition={handleUpdateTextPosition}
+            onUpdateTextSize={handleUpdateTextSize}
+          />
+        }
+        timelineSection={
+          <TimelineSection
+            PIXELS_PER_SECOND={PIXELS_PER_SECOND}
+            soundLanes={soundLanes}
+            onSplitVideoClip={handleSplitVideoClip}
+            onSplitTextClip={handleSplitTextClip}
+            onSplitSoundClip={handleSplitSoundClip}
+            onAddText={handleAddText}
+            onEditSoundClip={handleEditSoundClip}
+            onAddSoundLane={handleAddSoundLane}
+            onDeleteSoundLane={handleDeleteSoundLane}
+            onAddSoundToLane={handleAddSoundToLane}
+            onUpdateSoundClipLane={handleUpdateSoundClipLane}
+          />
+        }
       />
 
       <ModalManager
@@ -267,11 +282,12 @@ export default function VideoEditorClient() {
         timelineClips={timelineClips}
         textClips={textClips}
         soundClips={soundClips}
+        soundLanes={soundLanes}
         calculateTotalFrames={calculateTotalFrames}
         autoSaveStatus={autoSaveStatus}
         setAutoSaveStatus={setAutoSaveStatus}
         setAutoSaveError={setAutoSaveError}
       />
-    </EditorLayout>
+    </>
   );
 }

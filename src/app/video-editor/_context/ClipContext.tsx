@@ -19,6 +19,13 @@ import {
   freePositioning,
   soundPositioning,
 } from '../_utils/timeline-utils';
+import { 
+  getUsedLanes,
+  canAddNewLane, 
+  getNextAvailableLane,
+  validateLaneIndex,
+  hasOverlapInLane 
+} from '../_utils/lane-arrangement';
 
 /**
  * 클립 관리 Context의 타입 정의
@@ -37,6 +44,8 @@ interface ClipContextType {
   textClips: TextClip[];
   /** 오디오 트랙에 배치된 사운드 클립 배열 (볼륨과 페이드 정보 포함) */
   soundClips: SoundClip[];
+  /** 활성화된 사운드 레인 인덱스 배열 (0부터 시작, 최대 5개) */
+  soundLanes: number[];
   /** 현재 선택된 텍스트 클립의 ID (null이면 선택 없음) */
   selectedTextClip: string | null;
   /** 프로젝트에 저장되지 않은 변경사항이 있는지 여부 */
@@ -86,7 +95,7 @@ interface ClipContextType {
   
   // 사운드 클립 관련 함수
   handleAddSoundClip: (soundData: Partial<SoundClip>) => void;
-  handleAddSoundClips: (sounds: { name: string; url: string; duration: number }[]) => Promise<void>;
+  handleAddSoundClips: (sounds: { name: string; url: string; duration: number; laneIndex?: number }[]) => Promise<void>;
   handleDeleteSoundClip: (id: string) => void;
   handleDuplicateSoundClip: (id: string) => void;
   handleSplitSoundClip: (id: string, currentTime: number, pixelsPerSecond: number) => void;
@@ -97,6 +106,12 @@ interface ClipContextType {
   handleUpdateSoundVolume: (id: string, volume: number) => void;
   handleUpdateSoundFade: (id: string, fadeType: 'fadeIn' | 'fadeOut', duration: number) => void;
   
+  // 사운드 레인 관리 함수
+  handleAddSoundLane: () => void;
+  handleDeleteSoundLane: (laneIndex: number) => void;
+  handleAddSoundToLane: (laneIndex: number) => void;
+  handleUpdateSoundClipLane: (id: string, laneIndex: number) => void;
+  
   // 편집 상태
   editingTextClip?: TextClip;
   setEditingTextClip: React.Dispatch<React.SetStateAction<TextClip | undefined>>;
@@ -106,6 +121,8 @@ interface ClipContextType {
   handleSelectClip: (id: string, type: 'video' | 'text' | 'sound') => void;
   /** 선택 해제 함수 */
   handleClearSelection: () => void;
+  /** 다중 선택 업데이트 함수 */
+  handleSetMultiSelectedClips: (clips: Array<{id: string, type: 'video' | 'text' | 'sound'}>) => void;
   /** 선택된 클립 삭제 함수 */
   handleDeleteSelectedClips: () => void;
   /** 선택된 클립 복제 함수 */
@@ -175,6 +192,7 @@ export function ClipProvider({ children }: ClipProviderProps) {
   const [timelineClips, setTimelineClips] = useState<VideoClip[]>([]);
   const [textClips, setTextClips] = useState<TextClip[]>([]);
   const [soundClips, setSoundClips] = useState<SoundClip[]>([]);
+  const [soundLanes, setSoundLanes] = useState<number[]>([0]); // 기본적으로 레인 0 활성화
   const [selectedTextClip, setSelectedTextClip] = useState<string | null>(null);
   const [editingTextClip, setEditingTextClip] = useState<TextClip | undefined>(undefined);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -186,6 +204,14 @@ export function ClipProvider({ children }: ClipProviderProps) {
   const [multiSelectedClips, setMultiSelectedClips] = useState<Array<{id: string, type: 'video' | 'text' | 'sound'}>>([]);
   const [clipboard, setClipboard] = useState<ClipboardData | null>(null);
   
+  // 사운드 레인 변경 시 ProjectContext에 이벤트 발송
+  useEffect(() => {
+    const event = new CustomEvent('soundLanesUpdated', {
+      detail: { soundLanes }
+    });
+    window.dispatchEvent(event);
+  }, [soundLanes]);
+  
   // 변경사항이 있을 때 자동으로 추적
   useEffect(() => {
     if (timelineClips.length > 0 || textClips.length > 0 || soundClips.length > 0) {
@@ -193,7 +219,6 @@ export function ClipProvider({ children }: ClipProviderProps) {
       setLastModifiedAt(new Date());
     }
   }, [timelineClips, textClips, soundClips]);
-  
   // 기본 saveToHistory 함수 (나중에 HistoryContext와 연결)
   const [saveToHistoryCallback, setSaveToHistoryCallback] = useState<(() => void) | null>(null);
   
@@ -230,9 +255,19 @@ export function ClipProvider({ children }: ClipProviderProps) {
       const restoredSoundClips = contentSnapshot.sound_clips.map((clip: SoundClip) => ({
         ...clip,
         isAnalyzing: !clip.waveformData, // waveformData가 없을 때만 분석 필요
+        laneIndex: clip.laneIndex ?? 0, // 하위 호환성을 위해 기본값 0 설정
       }));
       
       setSoundClips(restoredSoundClips);
+      
+      // 저장된 soundLanes 복원 (있는 경우)
+      if (contentSnapshot.sound_lanes && Array.isArray(contentSnapshot.sound_lanes)) {
+        setSoundLanes(contentSnapshot.sound_lanes);
+      } else {
+        // soundLanes가 저장되지 않은 경우 사용중인 레인 자동 감지
+        const usedLanes = getUsedLanes(restoredSoundClips);
+        setSoundLanes(usedLanes.length > 0 ? usedLanes : [0]);
+      }
       
       // 폴백: waveformData가 없는 클립만 재분석 (하위 호환성)
       restoredSoundClips.forEach(async (clip: SoundClip) => {
@@ -647,6 +682,7 @@ export function ClipProvider({ children }: ClipProviderProps) {
       url: soundData.url,
       maxDuration: soundData.maxDuration,
       isAnalyzing: true, // Start analyzing
+      laneIndex: soundData.laneIndex ?? 0, // 기본적으로 레인 0에 추가
     };
     setSoundClips([...soundClips, newSoundClip]);
     saveToHistory();
@@ -673,15 +709,26 @@ export function ClipProvider({ children }: ClipProviderProps) {
   }, [soundClips, saveToHistory]);
   
   // 여러 사운드 클립 추가 (SoundLibraryModal에서 사용)
-  const handleAddSoundClips = useCallback(async (sounds: { name: string; url: string; duration: number }[]) => {
+  const handleAddSoundClips = useCallback(async (sounds: { name: string; url: string; duration: number; laneIndex?: number }[]) => {
     const { getTimelineEnd } = await import('../_utils/timeline-utils');
     
-    // Get the end position of existing clips
-    let currentPosition = getTimelineEnd(soundClips);
+    // 레인별로 끝 위치를 별도로 계산하기 위한 Map
+    const laneEndPositions = new Map<number, number>();
     
     // 여러 사운드를 한 번에 처리
     const newSoundClips = sounds.map((sound, index) => {
       const durationInPixels = Math.round(sound.duration * PIXELS_PER_SECOND);
+      const targetLane = sound.laneIndex ?? 0;
+      
+      // 해당 레인의 현재 끝 위치 계산 (첫 번째 계산이면 기존 클립들을 확인)
+      if (!laneEndPositions.has(targetLane)) {
+        // 해당 레인에 있는 기존 클립들만 필터링해서 끝 위치 계산
+        const laneClips = soundClips.filter(clip => (clip.laneIndex ?? 0) === targetLane);
+        const laneEndPosition = getTimelineEnd(laneClips);
+        laneEndPositions.set(targetLane, laneEndPosition);
+      }
+      
+      const currentPosition = laneEndPositions.get(targetLane)!;
       
       const newClip: SoundClip = {
         id: `sound-${Date.now()}-${index}-${Math.random().toString(36).substr(2, 9)}`,
@@ -692,10 +739,11 @@ export function ClipProvider({ children }: ClipProviderProps) {
         position: currentPosition,
         volume: 100,
         isAnalyzing: true, // Start analyzing
+        laneIndex: targetLane,
       };
       
-      // Update position for next clip
-      currentPosition += durationInPixels;
+      // 해당 레인의 끝 위치 업데이트 (같은 레인에 여러 클립 추가 시)
+      laneEndPositions.set(targetLane, currentPosition + durationInPixels);
       
       return newClip;
     });
@@ -810,6 +858,82 @@ export function ClipProvider({ children }: ClipProviderProps) {
     saveToHistory();
   }, [saveToHistory]);
   
+  // 사운드 레인 추가
+  const handleAddSoundLane = useCallback(() => {
+    if (canAddNewLane(soundLanes)) {
+      const nextLane = getNextAvailableLane(soundLanes);
+      if (nextLane !== null) {
+        setSoundLanes(prev => [...prev, nextLane].sort((a, b) => a - b));
+        saveToHistory();
+      }
+    } else {
+      toast.warning('Maximum 5 sound lanes allowed');
+    }
+  }, [soundLanes, saveToHistory]);
+  
+  // 사운드 레인 삭제
+  const handleDeleteSoundLane = useCallback((laneIndex: number) => {
+    // 레인 0은 삭제할 수 없음 (기본 레인)
+    if (laneIndex === 0) {
+      toast.warning('Cannot delete the main sound lane');
+      return;
+    }
+    
+    // 레인이 존재하는지 확인
+    if (!soundLanes.includes(laneIndex)) {
+      toast.error(`Lane ${laneIndex + 1} does not exist`);
+      return;
+    }
+    
+    // 해당 레인에 있는 모든 클립 삭제
+    const laneClips = soundClips.filter(clip => (clip.laneIndex ?? 0) === laneIndex);
+    if (laneClips.length > 0) {
+      setSoundClips(prev => prev.filter(clip => (clip.laneIndex ?? 0) !== laneIndex));
+      toast.info(`Deleted ${laneClips.length} sound clip(s) from lane ${laneIndex + 1}`);
+    }
+    
+    // 레인 삭제
+    setSoundLanes(prev => prev.filter(lane => lane !== laneIndex));
+    saveToHistory();
+    toast.success(`Lane ${laneIndex + 1} deleted`);
+  }, [soundLanes, soundClips, saveToHistory]);
+  
+  // 특정 레인에 사운드 추가
+  const handleAddSoundToLane = useCallback((laneIndex: number) => {
+    const validLaneIndex = validateLaneIndex(laneIndex);
+    
+    // SoundLibraryModal을 열기 위한 이벤트 발생
+    // 이벤트를 통해 laneIndex 정보를 전달
+    const event = new CustomEvent('openSoundLibrary', {
+      detail: { targetLaneIndex: validLaneIndex }
+    });
+    window.dispatchEvent(event);
+  }, []);
+  
+  // 사운드 클립 레인 변경
+  const handleUpdateSoundClipLane = useCallback((id: string, laneIndex: number) => {
+    const validLaneIndex = validateLaneIndex(laneIndex);
+    
+    setSoundClips(prev => {
+      const clipToMove = prev.find(clip => clip.id === id);
+      if (!clipToMove) return prev;
+      
+      // 겹침 검사
+      const updatedClip = { ...clipToMove, laneIndex: validLaneIndex };
+      const otherClips = prev.filter(clip => clip.id !== id);
+      
+      if (hasOverlapInLane(updatedClip, validLaneIndex, otherClips)) {
+        toast.warning('Cannot move clip to this lane due to overlap');
+        return prev;
+      }
+      
+      return prev.map(clip => 
+        clip.id === id ? updatedClip : clip
+      );
+    });
+    saveToHistory();
+  }, [saveToHistory]);
+  
   // 클립 선택 관리 함수들 (키보드 단축키용)
   
   /** 클립 선택 함수 - 단일 클립을 선택하고 다중 선택을 초기화 */
@@ -824,6 +948,16 @@ export function ClipProvider({ children }: ClipProviderProps) {
     setSelectedClipId(null);
     setSelectedClipType(null);
     setMultiSelectedClips([]);
+  }, []);
+  
+  /** 다중 선택 업데이트 함수 - 드래그 선택 결과를 Context에 반영 */
+  const handleSetMultiSelectedClips = useCallback((clips: Array<{id: string, type: 'video' | 'text' | 'sound'}>) => {
+    setMultiSelectedClips(clips);
+    // 다중 선택 시 단일 선택 상태 초기화
+    if (clips.length > 0) {
+      setSelectedClipId(null);
+      setSelectedClipType(null);
+    }
   }, []);
   
   /** 선택된 클립 삭제 함수 - 현재 선택된 클립(들)을 삭제 */
@@ -967,10 +1101,14 @@ export function ClipProvider({ children }: ClipProviderProps) {
       
     } else if (clipboard.type === 'sound') {
       const originalClip = clipboard.clip as SoundClip;
+      const targetLaneIndex = originalClip.laneIndex ?? 0;
+      
+      // 붙여넣을 레인의 클립들만 필터링하여 위치 계산
+      const laneClips = soundClips.filter(clip => (clip.laneIndex ?? 0) === targetLaneIndex);
       
       // soundPositioning을 사용하여 겹치지 않는 위치 찾기
       const { targetPosition, adjustedClips } = soundPositioning(
-        soundClips,
+        laneClips,
         '', // 새 클립이므로 빈 ID
         requestedPosition,
         originalClip.duration
@@ -982,8 +1120,10 @@ export function ClipProvider({ children }: ClipProviderProps) {
         position: targetPosition,
       };
       
-      // 조정된 클립들과 새 클립을 함께 적용
-      const allClips = [...adjustedClips, newClip].sort((a, b) => a.position - b.position);
+      // 조정된 클립들과 새 클립을 함께 적용 (해당 레인만)
+      const otherLaneClips = soundClips.filter(clip => (clip.laneIndex ?? 0) !== targetLaneIndex);
+      const updatedLaneClips = [...adjustedClips, newClip];
+      const allClips = [...otherLaneClips, ...updatedLaneClips].sort((a, b) => a.position - b.position);
       setSoundClips(allClips);
     }
     
@@ -997,6 +1137,7 @@ export function ClipProvider({ children }: ClipProviderProps) {
     timelineClips,
     textClips,
     soundClips,
+    soundLanes,
     selectedTextClip,
     editingTextClip,
     hasUnsavedChanges,
@@ -1052,9 +1193,16 @@ export function ClipProvider({ children }: ClipProviderProps) {
     handleUpdateSoundVolume,
     handleUpdateSoundFade,
     
+    // 사운드 레인 관리 함수
+    handleAddSoundLane,
+    handleDeleteSoundLane,
+    handleAddSoundToLane,
+    handleUpdateSoundClipLane,
+    
     // 클립 선택 관리 (키보드 단축키용)
     handleSelectClip,
     handleClearSelection,
+    handleSetMultiSelectedClips,
     handleDeleteSelectedClips,
     handleDuplicateSelectedClip,
     handleCopyClip,
@@ -1067,6 +1215,7 @@ export function ClipProvider({ children }: ClipProviderProps) {
     timelineClips,
     textClips,
     soundClips,
+    soundLanes,
     selectedTextClip,
     editingTextClip,
     hasUnsavedChanges,
@@ -1105,8 +1254,13 @@ export function ClipProvider({ children }: ClipProviderProps) {
     handleReorderSoundClips,
     handleUpdateSoundVolume,
     handleUpdateSoundFade,
+    handleAddSoundLane,
+    handleDeleteSoundLane,
+    handleAddSoundToLane,
+    handleUpdateSoundClipLane,
     handleSelectClip,
     handleClearSelection,
+    handleSetMultiSelectedClips,
     handleDeleteSelectedClips,
     handleDuplicateSelectedClip,
     handleCopyClip,

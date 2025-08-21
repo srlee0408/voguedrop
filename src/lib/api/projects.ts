@@ -27,6 +27,7 @@ export interface SaveProjectParams {
   videoClips: VideoClip[];
   textClips: TextClip[];
   soundClips: SoundClip[];
+  soundLanes?: number[]; // 사운드 레인 배열
   aspectRatio: '9:16' | '1:1' | '16:9';
   durationInFrames: number;
   renderId?: string;
@@ -47,6 +48,7 @@ export async function saveProject(params: SaveProjectParams): Promise<SaveProjec
         videoClips: params.videoClips,
         textClips: params.textClips,
         soundClips: params.soundClips,
+        soundLanes: params.soundLanes,
         aspectRatio: params.aspectRatio,
         durationInFrames: params.durationInFrames,
         renderId: params.renderId,

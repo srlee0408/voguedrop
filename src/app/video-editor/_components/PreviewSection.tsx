@@ -39,7 +39,7 @@ export default function PreviewSection({
   };
 
   return (
-    <div className="flex-1 min-h-0 overflow-hidden relative">
+    <div className="w-full h-full overflow-hidden relative">
       <VideoPreview 
         clips={timelineClips}
         textClips={textClips}

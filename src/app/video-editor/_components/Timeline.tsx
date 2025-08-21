@@ -10,14 +10,19 @@ import { useDragAndDrop } from '../_hooks/useDragAndDrop';
 import { useSelectionState } from '../_hooks/useSelectionState';
 import { useClips } from '../_context/Providers';
 import { calculateTimelineDuration, generateTimeMarkers } from '../_utils/timeline-helpers';
+import { getClipsForLane, canAddNewLane } from '../_utils/lane-arrangement';
 
 interface TimelineProps {
   clips: VideoClipType[];
   textClips?: TextClipType[];
   soundClips?: SoundClipType[];
+  soundLanes?: number[]; // Active sound lane indices
   onAddClip: () => void;
   onAddText?: () => void;
   onAddSound?: () => void;
+  onAddSoundLane?: () => void; // Add new sound lane
+  onDeleteSoundLane?: (laneIndex: number) => void; // Delete sound lane
+  onAddSoundToLane?: (laneIndex: number) => void; // Add sound to specific lane
   onEditTextClip?: (clip: TextClipType) => void;
   onEditSoundClip?: (clip: SoundClipType) => void;
   onDeleteTextClip?: (id: string) => void;
@@ -43,6 +48,7 @@ interface TimelineProps {
   onUpdateAllSoundClips?: (clips: SoundClipType[]) => void;
   onUpdateSoundVolume?: (id: string, volume: number) => void;
   onUpdateSoundFade?: (id: string, fadeType: 'fadeIn' | 'fadeOut', duration: number) => void;
+  onUpdateSoundClipLane?: (id: string, laneIndex: number) => void; // 사운드 클립 레인 변경
   pixelsPerSecond?: number;
   currentTime?: number;
   totalDuration?: number;
@@ -59,9 +65,13 @@ export default function Timeline({
   clips, 
   textClips = [],
   soundClips = [],
+  soundLanes = [0], // Default to single lane
   onAddClip,
   onAddText,
   onAddSound,
+  onAddSoundLane,
+  onDeleteSoundLane,
+  onAddSoundToLane,
   onEditTextClip,
   onEditSoundClip,
   onDeleteTextClip,
@@ -104,11 +114,17 @@ export default function Timeline({
     multiSelectedClips,
     handleSelectClip,
     handleClearSelection,
+    handleSetMultiSelectedClips,
   } = useClips();
   
   // Local state for drag/resize operations
   const [activeClip, setActiveClip] = useState<string | null>(null);
   const [activeClipType, setActiveClipType] = useState<'video' | 'text' | 'sound' | null>(null);
+  
+  // State for tracking drag target lane (for sound clips only)
+  const [dragTargetLane, setDragTargetLane] = useState<number | null>(null);
+  // Track last mouse event for lane detection
+  // const [lastMouseEvent, setLastMouseEvent] = useState<MouseEvent | null>(null);
   
   // Convert multi-selection to legacy format for compatibility
   const rectSelectedClips = multiSelectedClips;
@@ -128,10 +144,9 @@ export default function Timeline({
     setActiveClipType(clipType);
   };
   
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const setRectSelectedClips = (_clips: Array<{id: string, type: 'video' | 'text' | 'sound'}>) => {
-    // This function is handled by the rectangle selection in useSelectionState
-    // For now, we'll handle multiple selections through the Context
+  const setRectSelectedClips = (clips: Array<{id: string, type: 'video' | 'text' | 'sound'}>) => {
+    // 드래그 선택 결과를 Context의 multiSelectedClips에 업데이트
+    handleSetMultiSelectedClips(clips);
   };
 
   const {
@@ -216,6 +231,36 @@ export default function Timeline({
     // Return true if click is within 8 pixels of playhead
     return Math.abs(clickPosition - playheadPos) < 8;
   }, [currentTime, pixelsPerSecond]);
+
+  // Helper function to detect target lane from mouse position
+  const detectTargetLane = useCallback((clientY: number): number | null => {
+    const container = document.querySelector('.timeline-content');
+    if (!container) return null;
+    
+    const rect = container.getBoundingClientRect();
+    const y = clientY - rect.top;
+    
+    // Calculate track heights
+    const headerHeight = 32;
+    const videoTrackHeight = 32;
+    const textTrackHeight = 32;
+    const soundTrackHeight = 48; // Each sound lane is 48px
+    
+    let currentY = headerHeight;
+    currentY += videoTrackHeight; // Video track
+    currentY += textTrackHeight;  // Text track
+    
+    // Check which sound lane
+    const soundLaneY = y - currentY;
+    if (soundLaneY >= 0) {
+      const laneIndex = Math.floor(soundLaneY / soundTrackHeight);
+      if (laneIndex >= 0 && laneIndex < soundLanes.length) {
+        return soundLanes[laneIndex];
+      }
+    }
+    
+    return null;
+  }, [soundLanes]);
 
   // Calculate timeline duration with zoom
   const basePixelsPerSecond = 40;
@@ -472,7 +517,16 @@ export default function Timeline({
   // Mouse move and mouse up effects
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
+      // Store last mouse event for lane detection
+      // setLastMouseEvent(e);
+      
       if (!activeClip) return;
+
+      // For sound clips, detect target lane during drag
+      if (isDragging && activeClipType === 'sound') {
+        const targetLane = detectTargetLane(e.clientY);
+        setDragTargetLane(targetLane);
+      }
 
       if (isResizing) {
         const delta = e.clientX - dragStartX;
@@ -605,17 +659,55 @@ export default function Timeline({
               const currentClip = soundClips.find(c => c.id === activeClip);
               if (currentClip) {
                 const newPosition = Math.max(0, currentClip.position + delta);
-                const { targetPosition, adjustedClips } = soundPositioning(
-                  soundClips,
-                  activeClip,
-                  newPosition,
-                  currentClip.duration
-                );
                 
-                const updatedClips = [
-                  ...adjustedClips,
-                  { ...currentClip, position: targetPosition }
-                ].sort((a, b) => a.position - b.position);
+                // Check if lane changed during drag
+                const originalLane = currentClip.laneIndex ?? 0;
+                const targetLane = dragTargetLane !== null ? dragTargetLane : originalLane;
+                
+                const updatedClip = { ...currentClip, position: newPosition };
+                
+                // If lane changed, update laneIndex and use free positioning
+                if (targetLane !== originalLane) {
+                  updatedClip.laneIndex = targetLane;
+                  
+                  // Use free positioning for lane changes to avoid conflicts
+                  const targetPosition = freePositioning(
+                    soundClips.filter(c => (c.laneIndex ?? 0) === targetLane),
+                    activeClip,
+                    newPosition,
+                    currentClip.duration
+                  );
+                  updatedClip.position = targetPosition;
+                } else {
+                  // Same lane - use sound positioning (with magnetic behavior)
+                  // Only consider clips in the same lane for positioning
+                  const currentLane = currentClip.laneIndex ?? 0;
+                  const sameLaneClips = soundClips.filter(c => (c.laneIndex ?? 0) === currentLane);
+                  
+                  const { targetPosition, adjustedClips } = soundPositioning(
+                    sameLaneClips,
+                    activeClip,
+                    newPosition,
+                    currentClip.duration
+                  );
+                  
+                  // Update all clips: merge adjusted clips with other lane clips
+                  const otherLaneClips = soundClips.filter(c => (c.laneIndex ?? 0) !== currentLane);
+                  const updatedClips = [
+                    ...otherLaneClips,
+                    ...adjustedClips,
+                    { ...currentClip, position: targetPosition }
+                  ].sort((a, b) => a.position - b.position);
+                  
+                  onUpdateAllSoundClips(updatedClips);
+                  clipElement.style.transform = '';
+                  return;
+                }
+                
+                // For lane changes, update the clip directly
+                const updatedClips = soundClips.map(clip =>
+                  clip.id === activeClip ? updatedClip : clip
+                ).sort((a, b) => a.position - b.position);
                 
                 onUpdateAllSoundClips(updatedClips);
               }
@@ -657,6 +749,8 @@ export default function Timeline({
       }
       
       setActiveClipInfo(null, null);
+      setDragTargetLane(null);
+      // setLastMouseEvent(null);
       resetDragState();
     };
 
@@ -707,6 +801,13 @@ export default function Timeline({
       
       if (end - start < minDragPx || bottom - top < 1) {
         setRectSelectedClips([]);
+      } else {
+        // 유효한 드래그 선택이 있었다면, 최종적으로 선택된 클립들을 업데이트
+        const left = start;
+        const right = end;
+        const top = Math.min(selectionStartY, selectionCurrentY);
+        const bottom = Math.max(selectionStartY, selectionCurrentY);
+        updateRectSelectedClips(left, right, top, bottom);
       }
       
       endSelection();
@@ -933,15 +1034,49 @@ export default function Timeline({
               </button>
             </div>
 
-            <div className="border-r border-gray-700 h-8 flex items-center justify-center px-2">
+            {/* Sound lanes - first lane (default) */}
+            <div className="border-r border-gray-700 h-12 flex items-center justify-center px-2">
               <button 
-                onClick={onAddSound}
+                onClick={() => onAddSoundToLane ? onAddSoundToLane(0) : onAddSound?.()}
                 className="w-32 h-6 bg-black rounded flex items-center justify-center gap-1.5 hover:bg-gray-900 transition-colors group"
               >
                 <i className="ri-music-line text-[13px] text-[#38f47cf9] group-hover:text-white"></i>
                 <span className="text-[13px] text-[#38f47cf9] group-hover:text-white">Add Sound</span>
               </button>
             </div>
+
+            {/* Additional sound lanes */}
+            {soundLanes.slice(1).map((laneIndex) => (
+              <div key={`lane-${laneIndex}`} className="border-r border-gray-700 h-12 flex items-center justify-center px-2 gap-1">
+                <button 
+                  onClick={() => onAddSoundToLane?.(laneIndex)}
+                  className="flex-1 h-6 bg-black rounded flex items-center justify-center gap-1.5 hover:bg-gray-900 transition-colors group"
+                >
+                  <i className="ri-music-line text-[13px] text-[#38f47cf9] group-hover:text-white"></i>
+                  <span className="text-[11px] text-[#38f47cf9] group-hover:text-white">Add Sound</span>
+                </button>
+                <button 
+                  onClick={() => onDeleteSoundLane?.(laneIndex)}
+                  className="w-5 h-5 bg-red-900 rounded flex items-center justify-center hover:bg-red-800 transition-colors group"
+                  title={`Delete Lane ${laneIndex + 1}`}
+                >
+                  <i className="ri-close-line text-[10px] text-red-400 group-hover:text-white"></i>
+                </button>
+              </div>
+            ))}
+
+            {/* Add Sound Lane button */}
+            {canAddNewLane(soundLanes) && (
+              <div className="border-r border-gray-700 h-12 flex items-center justify-center px-2">
+                <button 
+                  onClick={onAddSoundLane}
+                  className="w-32 h-6 bg-gray-900 rounded flex items-center justify-center gap-1.5 hover:bg-gray-800 transition-colors group border border-gray-700 border-dashed"
+                >
+                  <i className="ri-add-line text-[11px] text-gray-400 group-hover:text-white"></i>
+                  <span className="text-[11px] text-gray-400 group-hover:text-white">Add Sound Lane</span>
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Right scrollable area */}
@@ -1025,24 +1160,28 @@ export default function Timeline({
               onTrackClick={handleTrackClick}
             />
 
-            {/* Sound track */}
-            <TimelineTrack
-              type="sound"
-              clips={soundClips}
-              selectedClips={selectedClip === null ? [] : [selectedClip]}
-              rectSelectedClips={rectSelectedClips}
-              onClipClick={selectClip}
-              onMouseDown={handleMouseDown}
-              onResizeStart={handleResizeStart}
-              onEditClip={onEditSoundClip as ((clip: TextClipType | SoundClipType) => void) | undefined}
-              onDeleteClip={onDeleteSoundClip}
-              onVolumeChange={onUpdateSoundVolume}
-              onFadeChange={onUpdateSoundFade}
-              activeClip={activeClip}
-              pixelsPerSecond={pixelsPerSecond}
-              isSelectingRange={isSelectingRange}
-              onTrackClick={handleTrackClick}
-            />
+            {/* Sound tracks - render each lane */}
+            {soundLanes.map((laneIndex) => (
+              <TimelineTrack
+                key={`sound-lane-${laneIndex}`}
+                type="sound"
+                clips={getClipsForLane(soundClips, laneIndex)}
+                laneIndex={laneIndex}
+                selectedClips={selectedClip === null ? [] : [selectedClip]}
+                rectSelectedClips={rectSelectedClips}
+                onClipClick={selectClip}
+                onMouseDown={handleMouseDown}
+                onResizeStart={handleResizeStart}
+                onEditClip={onEditSoundClip as ((clip: TextClipType | SoundClipType) => void) | undefined}
+                onDeleteClip={onDeleteSoundClip}
+                onVolumeChange={onUpdateSoundVolume}
+                onFadeChange={onUpdateSoundFade}
+                activeClip={activeClip}
+                pixelsPerSecond={pixelsPerSecond}
+                isSelectingRange={isSelectingRange}
+                onTrackClick={handleTrackClick}
+              />
+            ))}
 
             {/* Selection box */}
             {isSelectingRange && selectionBounds && (

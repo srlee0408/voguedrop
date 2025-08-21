@@ -10,6 +10,7 @@ interface UseAutoSaveParams {
   videoClips: VideoClip[];
   textClips: TextClip[];
   soundClips: SoundClip[];
+  soundLanes?: number[]; // 사운드 레인 배열
   aspectRatio: '9:16' | '1:1' | '16:9';
   durationInFrames: number;
   enabled?: boolean;
@@ -29,6 +30,7 @@ export function useAutoSave({
   videoClips,
   textClips,
   soundClips,
+  soundLanes = [0],
   aspectRatio,
   durationInFrames,
   enabled = true,
@@ -70,6 +72,7 @@ export function useAutoSave({
         position: c.position,
         duration: c.duration,
         volume: c.volume,
+        laneIndex: c.laneIndex ?? 0, // 레인 인덱스 추가
         startTime: c.startTime,
         endTime: c.endTime,
         fadeInDuration: c.fadeInDuration,
@@ -79,11 +82,12 @@ export function useAutoSave({
         maxDuration: c.maxDuration,
         waveformData: c.waveformData,
       })),
+      soundLanes, // 사운드 레인 정보 추가
       aspectRatio,
       durationInFrames,
     };
     return JSON.stringify(content);
-  }, [videoClips, textClips, soundClips, aspectRatio, durationInFrames]);
+  }, [videoClips, textClips, soundClips, soundLanes, aspectRatio, durationInFrames]);
   
   // Save function with retry logic
   const performSave = useCallback(async () => {
@@ -109,6 +113,7 @@ export function useAutoSave({
         videoClips,
         textClips,
         soundClips,
+        soundLanes,
         aspectRatio,
         durationInFrames,
       });
@@ -143,7 +148,7 @@ export function useAutoSave({
     } finally {
       isSavingRef.current = false;
     }
-  }, [projectTitle, videoClips, textClips, soundClips, aspectRatio, durationInFrames, generateContentHash]);
+  }, [projectTitle, videoClips, textClips, soundClips, soundLanes, aspectRatio, durationInFrames, generateContentHash]);
   
   // Trigger save (can be called manually)
   const triggerSave = useCallback(async () => {

@@ -38,6 +38,7 @@ export interface SoundClip {
   fadeOutDuration?: number; // Fade out duration in pixels (0 = no fade)
   fadeInType?: 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out'; // Fade curve type
   fadeOutType?: 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out'; // Fade curve type
+  laneIndex?: number; // Sound lane index (0-4, for multi-lane sound tracks)
 }
 
 export interface TextStyle {

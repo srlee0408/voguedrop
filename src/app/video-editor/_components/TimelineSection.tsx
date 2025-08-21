@@ -5,20 +5,30 @@ import { useClips, usePlayback, useHistory, useProject } from '../_context/Provi
 
 interface TimelineSectionProps {
   PIXELS_PER_SECOND: number;
+  soundLanes?: number[]; // 사운드 레인 배열
   onSplitVideoClip: (id: string) => void;
   onSplitTextClip: (id: string) => void;
   onSplitSoundClip: (id: string) => void;
   onAddText: () => void;
   onEditSoundClip: () => void;
+  onAddSoundLane?: () => void; // 사운드 레인 추가
+  onDeleteSoundLane?: (laneIndex: number) => void; // 사운드 레인 삭제
+  onAddSoundToLane?: (laneIndex: number) => void; // 특정 레인에 사운드 추가
+  onUpdateSoundClipLane?: (id: string, laneIndex: number) => void; // 사운드 클립 레인 변경
 }
 
 export default function TimelineSection({
   PIXELS_PER_SECOND,
+  soundLanes,
   onSplitVideoClip,
   onSplitTextClip,
   onSplitSoundClip,
   onAddText,
   onEditSoundClip,
+  onAddSoundLane,
+  onDeleteSoundLane,
+  onAddSoundToLane,
+  onUpdateSoundClipLane,
 }: TimelineSectionProps) {
   const { timelineHeight } = useProject();
   
@@ -78,9 +88,13 @@ export default function TimelineSection({
         clips={timelineClips}
         textClips={textClips}
         soundClips={soundClips}
+        soundLanes={soundLanes}
         onAddClip={handleAddClip}
         onAddText={onAddText}
         onAddSound={handleAddSound}
+        onAddSoundLane={onAddSoundLane}
+        onDeleteSoundLane={onDeleteSoundLane}
+        onAddSoundToLane={onAddSoundToLane}
         onEditTextClip={handleEditTextClip}
         onEditSoundClip={onEditSoundClip}
         onDeleteTextClip={handleDeleteTextClip}
@@ -106,6 +120,7 @@ export default function TimelineSection({
         onUpdateAllSoundClips={handleUpdateAllSoundClips}
         onUpdateSoundVolume={handleUpdateSoundVolume}
         onUpdateSoundFade={handleUpdateSoundFade}
+        onUpdateSoundClipLane={onUpdateSoundClipLane}
         pixelsPerSecond={PIXELS_PER_SECOND}
         currentTime={currentTime}
         totalDuration={totalDuration}

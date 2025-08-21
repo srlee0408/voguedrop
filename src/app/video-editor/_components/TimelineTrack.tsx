@@ -7,6 +7,7 @@ import SoundClip from './SoundClip';
 interface TimelineTrackProps {
   type: 'video' | 'text' | 'sound';
   clips: (VideoClipType | TextClipType | SoundClipType)[];
+  laneIndex?: number; // For sound tracks, indicates which lane this track represents
   selectedClips: string[];
   rectSelectedClips: { id: string; type: 'video' | 'text' | 'sound' }[];
   onClipClick: (clipId: string, clipType: 'video' | 'text' | 'sound') => void;
@@ -29,6 +30,7 @@ interface TimelineTrackProps {
 export default function TimelineTrack({
   type,
   clips,
+  laneIndex,
   selectedClips,
   rectSelectedClips,
   onClipClick,
@@ -215,8 +217,23 @@ export default function TimelineTrack({
   };
 
   return (
-    <div className={`border-b border-gray-700 ${getTrackHeight()} flex items-center`} onClick={onTrackClick}>
+    <div 
+      className={`border-b border-gray-700 ${getTrackHeight()} flex items-center`} 
+      onClick={onTrackClick}
+      data-lane-id={type === 'sound' ? laneIndex : undefined}
+      data-track-type={type}
+    >
       <div className={`relative w-full ${getClipContainerHeight()}`}>
+        {/* Lane indicator for sound tracks */}
+        {type === 'sound' && laneIndex !== undefined && (
+          <div 
+            className="absolute top-0 left-0 text-[8px] text-gray-500 px-1 pointer-events-none z-10"
+            style={{ fontSize: '8px', lineHeight: '12px' }}
+          >
+            Lane {laneIndex + 1}
+          </div>
+        )}
+        
         {clips.map((clip) => {
           if (type === 'video') return renderVideoClip(clip as VideoClipType);
           if (type === 'text') return renderTextClip(clip as TextClipType);

@@ -158,18 +158,35 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const [autoSaveError, setAutoSaveError] = useState<string | null>(null);
   
   // 타임라인 높이 관리 (page.tsx에서 그대로)
-  const maxTimelineHeight = 240;
-  const [timelineHeight, setTimelineHeight] = useState(240);
+  const maxTimelineHeight = 400;
+  const [timelineHeight, setTimelineHeight] = useState(300);
   const [isResizing, setIsResizing] = useState(false);
   const [dragStartY, setDragStartY] = useState(0);
   const [initialHeight, setInitialHeight] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
+  
+  // 동적 최소 타임라인 높이 계산을 위한 사운드 레인 추적
+  const [soundLanes, setSoundLanes] = useState<number[]>([0]);
   
   // 모달 상태 (page.tsx에서 그대로)
   const [showVideoLibrary, setShowVideoLibrary] = useState(false);
   const [showSoundLibrary, setShowSoundLibrary] = useState(false);
   const [showTextEditor, setShowTextEditor] = useState(false);
   const [showLibrary, setShowLibrary] = useState(false);
+  
+  // 사운드 레인 수에 따른 최소 타임라인 높이 계산
+  const calculateMinTimelineHeight = useCallback((lanes: number[]) => {
+    const videoTrackHeight = 32; // h-8 (32px)
+    const textTrackHeight = 32;  // h-8 (32px)
+    const soundLaneHeight = 48;  // h-12 (48px) per lane
+    const addSoundLaneButtonHeight = 48; // h-12 (48px)
+    const padding = 20; // 여유 공간
+    
+    const totalSoundHeight = lanes.length * soundLaneHeight + addSoundLaneButtonHeight;
+    const minHeight = videoTrackHeight + textTrackHeight + totalSoundHeight + padding;
+    
+    return Math.max(minHeight, 140); // 최소 140px 보장
+  }, []);
   
   // 프로젝트 데이터 로드 함수
   const loadProjectData = useCallback(async (projectName: string) => {
@@ -213,6 +230,30 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     }
   }, [searchParams, projectLoaded, isLoadingProject, loadProjectData]);
   
+  // ClipContext에서 사운드 레인 변경 이벤트 수신
+  useEffect(() => {
+    const handleSoundLanesUpdate = (event: CustomEvent) => {
+      const { soundLanes: newSoundLanes } = event.detail;
+      setSoundLanes(newSoundLanes);
+    };
+    
+    window.addEventListener('soundLanesUpdated', handleSoundLanesUpdate as EventListener);
+    
+    return () => {
+      window.removeEventListener('soundLanesUpdated', handleSoundLanesUpdate as EventListener);
+    };
+  }, []);
+  
+  // 사운드 레인 수 변경 시 타임라인 높이 자동 조정
+  useEffect(() => {
+    const minHeight = calculateMinTimelineHeight(soundLanes);
+    
+    // 현재 높이가 최소 높이보다 작으면 자동으로 조정
+    if (timelineHeight < minHeight) {
+      setTimelineHeight(minHeight);
+    }
+  }, [soundLanes, calculateMinTimelineHeight, timelineHeight]);
+  
   // 모달 열기 핸들러 (page.tsx에서 그대로)
   const handleAddClip = useCallback(() => {
     setShowVideoLibrary(true);
@@ -243,8 +284,8 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       const deltaY = dragStartY - e.clientY;
       const newHeight = initialHeight + deltaY;
       
-      // 최소 100px, 최대 300px
-      const minHeight = 100;
+      // 동적 최소 높이 계산 및 최대 높이 적용
+      const minHeight = calculateMinTimelineHeight(soundLanes);
       const maxHeight = maxTimelineHeight;
       
       setTimelineHeight(Math.min(maxHeight, Math.max(minHeight, newHeight)));
@@ -265,7 +306,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         document.body.style.cursor = '';
       };
     }
-  }, [isResizing, dragStartY, initialHeight, maxTimelineHeight]);
+  }, [isResizing, dragStartY, initialHeight, maxTimelineHeight, calculateMinTimelineHeight, soundLanes]);
   
   // Context value를 useMemo로 최적화
   const value = useMemo(() => ({

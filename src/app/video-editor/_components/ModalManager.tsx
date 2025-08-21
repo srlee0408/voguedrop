@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { LibraryModal } from '@/shared/components/modals/LibraryModal';
 import VideoLibraryModal from './VideoLibraryModal';
 import SoundLibraryModal from './SoundLibraryModal';
@@ -37,6 +38,24 @@ export default function ModalManager({
     handleAddTextClip,
     handleAddSoundClips,
   } = useClips();
+  
+  // 레인별 사운드 추가를 위한 상태
+  const [targetLaneIndex, setTargetLaneIndex] = useState<number | null>(null);
+  
+  // 'openSoundLibrary' 이벤트 리스너 추가
+  useEffect(() => {
+    const handleOpenSoundLibrary = (event: CustomEvent) => {
+      const { targetLaneIndex: laneIndex } = event.detail;
+      setTargetLaneIndex(laneIndex);
+      setShowSoundLibrary(true);
+    };
+    
+    window.addEventListener('openSoundLibrary', handleOpenSoundLibrary as EventListener);
+    
+    return () => {
+      window.removeEventListener('openSoundLibrary', handleOpenSoundLibrary as EventListener);
+    };
+  }, [setShowSoundLibrary]);
 
   return (
     <>
@@ -54,9 +73,20 @@ export default function ModalManager({
             // TODO: Implement create video functionality
           }}
           onSelectSounds={async (sounds) => {
-            // 사운드 클립들을 추가
-            await handleAddSoundClips(sounds);
+            // 레인별 사운드 추가 지원
+            if (targetLaneIndex !== null) {
+              // 특정 레인에 사운드 추가
+              const soundsWithLane = sounds.map(sound => ({
+                ...sound,
+                laneIndex: targetLaneIndex
+              }));
+              await handleAddSoundClips(soundsWithLane);
+            } else {
+              // 기본 레인에 사운드 추가
+              await handleAddSoundClips(sounds);
+            }
             setShowSoundLibrary(false);
+            setTargetLaneIndex(null); // 리셋
           }}
         />
       )}
