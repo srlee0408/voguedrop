@@ -81,14 +81,12 @@ export function useAutoSave({
   // Save function with retry logic
   const performSave = useCallback(async () => {
     if (isSavingRef.current) {
-      console.log('[AutoSave] Already saving, skipping...');
       return;
     }
     
     // Check if content actually changed
     const currentHash = generateContentHash();
     if (currentHash === lastContentHashRef.current) {
-      console.log('[AutoSave] No changes detected, skipping save');
       setStatus('saved');
       return;
     }
@@ -98,7 +96,6 @@ export function useAutoSave({
     setErrorMessage(null);
     
     try {
-      console.log('[AutoSave] Saving project:', projectTitle);
       
       const result = await saveProject({
         projectName: projectTitle,
@@ -114,12 +111,10 @@ export function useAutoSave({
         setLastSavedAt(new Date());
         lastContentHashRef.current = currentHash;
         retryCountRef.current = 0;
-        console.log('[AutoSave] Project saved successfully');
       } else {
         throw new Error(result.error || 'Failed to save project');
       }
     } catch (error) {
-      console.error('[AutoSave] Save failed:', error);
       setStatus('error');
       setErrorMessage(error instanceof Error ? error.message : 'Failed to save');
       
@@ -127,7 +122,6 @@ export function useAutoSave({
       if (retryCountRef.current < 3) {
         const retryDelay = Math.min(1000 * Math.pow(2, retryCountRef.current), 8000);
         retryCountRef.current++;
-        console.log(`[AutoSave] Retrying in ${retryDelay}ms (attempt ${retryCountRef.current}/3)`);
         
         setTimeout(() => {
           performSave();
@@ -181,7 +175,6 @@ export function useAutoSave({
     // Set max wait timeout if not already set
     if (!maxWaitTimeoutRef.current) {
       maxWaitTimeoutRef.current = setTimeout(() => {
-        console.log('[AutoSave] Max wait time reached, forcing save');
         performSave();
         // Clear debounce timeout
         if (saveTimeoutRef.current) {

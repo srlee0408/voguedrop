@@ -4,6 +4,32 @@ import React, { createContext, useContext, ReactNode, useState, useCallback } fr
 import type { CanvasSettings, CanvasSettingsReturn } from '../_types';
 
 /**
+ * SettingsContext - Canvas AI 생성 설정 관리
+ * 
+ * @description
+ * Canvas에서 AI 비디오 생성에 필요한 모든 설정을 관리합니다.
+ * 프롬프트, 해상도, 모델, 지속시간 등 생성 파라미터를 제어합니다.
+ * 
+ * @manages
+ * - promptText: 사용자 입력 프롬프트 텍스트
+ * - negativePrompt: 네거티브 프롬프트 (생성에서 제외할 요소)
+ * - selectedResolution: 비디오 화면 비율 ('1:1', '9:16', '16:9')
+ * - selectedSize: 비디오 해상도 ('1024x1024', '720x1280' 등)
+ * - selectedModelId: AI 모델 ID (seedance, hailo 등)
+ * - selectedDuration: 비디오 길이 (초 단위)
+ * - isPrompterOpen: 프롬프터 패널 열림/닫힘 상태
+ * 
+ * @features
+ * - 설정값 업데이트 및 검증
+ * - 모델별 호환 가능한 설정 제한
+ * - 프롬프터 UI 상태 관리
+ * - 설정 초기화 및 리셋
+ * 
+ * @persistence
+ * localStorage를 통해 사용자 설정 자동 저장/복원
+ */
+
+/**
  * Canvas 설정의 기본값
  * AI 영상 생성에 필요한 모든 설정을 포함
  */
@@ -19,7 +45,6 @@ const defaultSettings: CanvasSettings = {
 
 /**
  * Settings Context의 값 타입
- * @interface SettingsContextValue
  */
 interface SettingsContextValue {
   /** Canvas 설정 객체와 제어 함수들 */

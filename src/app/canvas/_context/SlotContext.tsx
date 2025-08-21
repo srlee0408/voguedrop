@@ -5,8 +5,27 @@ import { useSlotManager } from '../_hooks/useSlotManager';
 import type { SlotManagerReturn } from '../_types';
 
 /**
- * Slot Context의 값 타입
- * @interface SlotContextValue
+ * SlotContext - Canvas 4개 슬롯 시스템 관리
+ * 
+ * @description
+ * Canvas에서 4개의 독립적인 슬롯을 관리하며, 각 슬롯은 이미지 업로드,
+ * AI 생성, 즐겨찾기 등의 상태를 가집니다. 슬롯 간 전환과 상태 동기화를 처리합니다.
+ * 
+ * @manages
+ * - slots: 4개 슬롯의 상태 배열 (이미지 URL, 생성 상태, 메타데이터)
+ * - activeSlotIndex: 현재 활성화된 슬롯 인덱스 (0-3)
+ * - isSlotGenerating: 각 슬롯의 AI 생성 진행 상태
+ * - slotImages: 각 슬롯에 업로드된 이미지 URL
+ * 
+ * @features
+ * - 이미지 업로드 및 슬롯 할당
+ * - AI 비디오 생성 상태 추적
+ * - 슬롯 간 전환 및 활성화
+ * - 슬롯 초기화 및 클리어
+ * - 생성된 비디오 즐겨찾기 관리
+ * 
+ * @persistence
+ * localStorage를 통해 슬롯 상태 자동 저장/복원
  */
 interface SlotContextValue {
   /** 슬롯 관리 객체와 제어 함수들 */
@@ -17,6 +36,7 @@ const SlotContext = createContext<SlotContextValue | undefined>(undefined);
 
 /**
  * Canvas 슬롯 상태를 사용하는 훅
+ * 
  * @returns {SlotContextValue} 슬롯 관리 객체와 제어 함수들
  * @throws {Error} SlotProvider 없이 사용할 경우 에러 발생
  * 
@@ -26,8 +46,22 @@ const SlotContext = createContext<SlotContextValue | undefined>(undefined);
  *   const { slotManager } = useSlot();
  *   
  *   const handleImageUpload = (imageUrl: string) => {
- *     slotManager.handleImageUpload(imageUrl, slotManager.isSlotGenerating);
+ *     slotManager.handleImageUpload(imageUrl, index);
  *   };
+ *   
+ *   const handleSlotSwitch = () => {
+ *     slotManager.setActiveSlotIndex(index);
+ *   };
+ *   
+ *   return (
+ *     <div className={slotManager.activeSlotIndex === index ? 'active' : ''}>
+ *       {slotManager.slots[index]?.imageUrl && (
+ *         <img src={slotManager.slots[index].imageUrl} alt="Slot content" />
+ *       )}
+ *     </div>
+ *   );
+ * }
+ * ```
  *   
  *   return (
  *     <div onClick={() => slotManager.setSelectedSlotIndex(index)}>

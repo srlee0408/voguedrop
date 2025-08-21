@@ -35,4 +35,8 @@ src/
       └── video-editor/
           ├── _components/      # Video Editor 전용 컴포넌트
           └── _hooks/           # Video Editor 전용 훅
-    ```
+```
+
+3. Zod 스키마
+- https://zod.dev/
+- https://velog.io/@jinyoung985/TypeScript-zod-%EB%9D%BC%EC%9D%B4%EB%B8%8C%EB%9F%AC%EB%A6%AC%EB%9E%80

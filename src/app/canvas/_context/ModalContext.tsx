@@ -5,8 +5,30 @@ import { useModalManager } from '../_hooks/useModalManager';
 import type { ModalManagerReturn } from '../_types';
 
 /**
- * Modal Context의 값 타입
- * @interface ModalContextValue
+ * ModalContext - Canvas 모달 상태 관리
+ * 
+ * @description
+ * Canvas에서 사용되는 모든 모달의 열림/닫힘 상태를 중앙 집중 관리합니다.
+ * 효과 선택, 라이브러리, 카메라, 프롬프트 등 다양한 모달의 상태를 제어합니다.
+ * 
+ * @manages
+ * - isEffectModalOpen: 효과 선택 모달 상태
+ * - isLibraryModalOpen: 미디어 라이브러리 모달 상태
+ * - isCameraModalOpen: 카메라 촬영 모달 상태
+ * - isPromptModalOpen: 프롬프트 편집 모달 상태
+ * - isModelModalOpen: AI 모델 선택 모달 상태
+ * - isProjectSelectorModalOpen: 프로젝트 선택 모달 상태
+ * 
+ * @features
+ * - 모달 개별 열기/닫기 제어
+ * - 모든 모달 일괄 닫기
+ * - 모달 간 전환 및 중첩 방지
+ * - ESC 키 등 글로벌 이벤트 처리
+ * 
+ * @accessibility
+ * - 모달 포커스 트랩
+ * - 키보드 내비게이션
+ * - 스크린 리더 지원
  */
 interface ModalContextValue {
   /** 모달 관리 객체와 제어 함수들 */
@@ -17,8 +39,26 @@ const ModalContext = createContext<ModalContextValue | undefined>(undefined);
 
 /**
  * Canvas 모달 상태를 사용하는 훅
+ * 
  * @returns {ModalContextValue} 모달 관리 객체와 제어 함수들
  * @throws {Error} ModalProvider 없이 사용할 경우 에러 발생
+ * 
+ * @example
+ * ```tsx
+ * function HeaderButton() {
+ *   const { modals } = useModals();
+ *   
+ *   const openEffectModal = () => {
+ *     modals.setIsEffectModalOpen(true);
+ *   };
+ *   
+ *   return (
+ *     <button onClick={openEffectModal}>
+ *       Effects
+ *     </button>
+ *   );
+ * }
+ * ```
  * 
  * @example
  * ```tsx

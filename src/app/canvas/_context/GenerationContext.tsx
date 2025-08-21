@@ -9,8 +9,39 @@ import type { VideoGenerationReturn } from '../_types';
 import type { GeneratedVideo } from '@/shared/types/canvas';
 
 /**
- * Generation Context의 값 타입
- * @interface GenerationContextValue
+ * GenerationContext - Canvas AI 비디오 생성 작업 관리
+ * 
+ * @description
+ * Canvas에서 AI 비디오 생성 작업의 전체 생명주기를 관리합니다.
+ * 비동기 생성 요청부터 완료까지의 상태 추적, 진행률 표시, 결과 처리를 담당합니다.
+ * 
+ * @manages
+ * - currentGeneratingImage: 현재 생성 작업 중인 이미지 URL
+ * - currentEditingSlotIndex: 현재 편집/생성 대상 슬롯 인덱스
+ * - generatingJobs: 진행 중인 생성 작업 목록
+ * - generationProgress: 각 작업의 진행률 (polling 기반)
+ * - generationResults: 완료된 생성 결과
+ * 
+ * @features
+ * - 비동기 AI 비디오 생성 시작
+ * - 실시간 진행률 추적 (3초 간격 polling)
+ * - 생성 완료 시 슬롯 자동 업데이트
+ * - 생성 실패 시 에러 처리 및 재시도
+ * - 여러 모델 동시 생성 지원
+ * - Mock 모드 지원 (개발/테스트용)
+ * 
+ * @workflow
+ * 1. 이미지 + 효과 선택
+ * 2. generateVideo() 호출
+ * 3. Job ID 생성 및 fal.ai API 요청
+ * 4. 3초 간격 polling으로 진행률 추적
+ * 5. Webhook 또는 polling으로 완료 감지
+ * 6. 결과를 슬롯에 자동 저장
+ * 
+ * @integration
+ * - SlotContext: 생성 결과를 활성 슬롯에 저장
+ * - SettingsContext: 생성 설정 (해상도, 모델 등) 참조
+ * - EffectsContext: 선택된 효과를 프롬프트로 변환
  */
 interface GenerationContextValue {
   /** 비디오 생성 관리 객체와 제어 함수들 */

@@ -5,8 +5,28 @@ import { useFavoritesManager } from '../_hooks/useFavoritesManager';
 import type { FavoritesManagerReturn } from '../_types';
 
 /**
- * Favorites Context의 값 타입
- * @interface FavoritesContextValue
+ * FavoritesContext - Canvas 생성 결과 즐겨찾기 관리
+ * 
+ * @description
+ * Canvas에서 생성된 AI 비디오의 즐겨찾기 상태를 관리합니다.
+ * 사용자가 마음에 드는 생성 결과를 즐겨찾기로 저장하고 관리할 수 있습니다.
+ * 
+ * @manages
+ * - favoriteVideos: 즐겨찾기로 설정된 비디오 ID 목록
+ * - favoritesData: 즐겨찾기 비디오의 상세 데이터
+ * - isLoading: 즐겨찾기 데이터 로딩 상태
+ * - error: 즐겨찾기 관련 오류 상태
+ * 
+ * @features
+ * - 비디오 즐겨찾기 추가/제거
+ * - 즐겨찾기 목록 실시간 동기화
+ * - 즐겨찾기 상태 UI 반영
+ * - 서버와 로컬 상태 동기화
+ * 
+ * @persistence
+ * - Supabase를 통한 서버 저장
+ * - 사용자별 개별 즐겨찾기 관리
+ * - 로그인 상태에 따른 동기화
  */
 interface FavoritesContextValue {
   /** 즐겨찾기 관리 객체와 제어 함수들 */
@@ -17,7 +37,34 @@ const FavoritesContext = createContext<FavoritesContextValue | undefined>(undefi
 
 /**
  * Canvas 즐겨찾기 상태를 사용하는 훅
+ * 
  * @returns {FavoritesContextValue} 즐겨찾기 관리 객체와 제어 함수들
+ * @throws {Error} FavoritesProvider 없이 사용할 경우 에러 발생
+ * 
+ * @example
+ * ```tsx
+ * function VideoCard({ videoId }: { videoId: number }) {
+ *   const { favorites } = useFavorites();
+ *   
+ *   const isFavorite = favorites.favoriteVideos.includes(videoId);
+ *   
+ *   const toggleFavorite = async () => {
+ *     if (isFavorite) {
+ *       await favorites.removeFavorite(videoId);
+ *     } else {
+ *       await favorites.addFavorite(videoId);
+ *     }
+ *   };
+ *   
+ *   return (
+ *     <div>
+ *       <button onClick={toggleFavorite}>
+ *         {isFavorite ? '❤️' : '🤍'}
+ *       </button>
+ *     </div>
+ *   );
+ * }
+ * ```
  * @throws {Error} FavoritesProvider 없이 사용할 경우 에러 발생
  * 
  * @example

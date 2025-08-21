@@ -5,8 +5,28 @@ import { useEffectsManager } from '../_hooks/useEffectsManager';
 import type { EffectsManagerReturn } from '../_types';
 
 /**
- * Effects Context의 값 타입
- * @interface EffectsContextValue
+ * EffectsContext - Canvas AI 효과 선택 및 관리
+ * 
+ * @description
+ * Canvas에서 AI 비디오 생성에 사용할 효과를 선택하고 관리합니다.
+ * 카테고리별 효과 브라우징, 선택, 프롬프트 조합 등을 처리합니다.
+ * 
+ * @manages
+ * - selectedEffects: 현재 선택된 효과 목록 (최대 2개)
+ * - availableEffects: 사용 가능한 모든 효과 템플릿
+ * - categories: 효과 카테고리 목록
+ * - selectedCategory: 현재 선택된 카테고리
+ * 
+ * @features
+ * - 효과 선택/해제 (최대 2개 제한)
+ * - 카테고리별 효과 필터링
+ * - 선택된 효과 프롬프트 자동 조합
+ * - 효과 미리보기 및 설명 표시
+ * 
+ * @constraints
+ * - 최대 2개 효과까지 동시 선택 가능
+ * - 효과 간 호환성 검증
+ * - 카테고리별 효과 제한 적용
  */
 interface EffectsContextValue {
   /** 효과 관리 객체와 제어 함수들 */
@@ -17,7 +37,38 @@ const EffectsContext = createContext<EffectsContextValue | undefined>(undefined)
 
 /**
  * Canvas 효과 상태를 사용하는 훅
+ * 
  * @returns {EffectsContextValue} 효과 관리 객체와 제어 함수들
+ * @throws {Error} EffectsProvider 없이 사용할 경우 에러 발생
+ * 
+ * @example
+ * ```tsx
+ * function EffectSelector() {
+ *   const { effects } = useEffects();
+ *   
+ *   const handleEffectToggle = (effectId: number) => {
+ *     if (effects.selectedEffects.includes(effectId)) {
+ *       effects.removeEffect(effectId);
+ *     } else {
+ *       effects.addEffect(effectId);
+ *     }
+ *   };
+ *   
+ *   return (
+ *     <div>
+ *       {effects.availableEffects.map(effect => (
+ *         <button 
+ *           key={effect.id}
+ *           onClick={() => handleEffectToggle(effect.id)}
+ *           className={effects.selectedEffects.includes(effect.id) ? 'selected' : ''}
+ *         >
+ *           {effect.name}
+ *         </button>
+ *       ))}
+ *     </div>
+ *   );
+ * }
+ * ```
  * @throws {Error} EffectsProvider 없이 사용할 경우 에러 발생
  * 
  * @example
