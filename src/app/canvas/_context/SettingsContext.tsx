@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, ReactNode, useState, useCallback } from 'react';
+import { createContext, useContext, ReactNode, useState, useCallback } from 'react';
 import type { CanvasSettings, CanvasSettingsReturn } from '../_types';
 
 /**
@@ -116,7 +116,7 @@ interface SettingsProviderProps {
  * }
  * ```
  */
-export function SettingsProvider({ children, initialSettings }: SettingsProviderProps): React.ReactElement {
+export function SettingsProvider({ children, initialSettings }: SettingsProviderProps) {
   const [settingsState, setSettingsState] = useState<CanvasSettings>({
     ...defaultSettings,
     ...initialSettings,

@@ -152,7 +152,7 @@ interface GenerationProviderProps {
  * }
  * ```
  */
-export function GenerationProvider({ children }: GenerationProviderProps): React.ReactElement {
+export function GenerationProvider({ children }: GenerationProviderProps) {
   // 의존성 Context들
   const { slotManager } = useSlot();
   const { settings } = useSettings();

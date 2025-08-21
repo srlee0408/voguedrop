@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, ReactNode } from 'react';
+import { createContext, useContext, ReactNode } from 'react';
 import { useModalManager } from '../_hooks/useModalManager';
 import type { ModalManagerReturn } from '../_types';
 
@@ -123,7 +123,7 @@ interface ModalProviderProps {
  * }
  * ```
  */
-export function ModalProvider({ children }: ModalProviderProps): React.ReactElement {
+export function ModalProvider({ children }: ModalProviderProps) {
   const modals = useModalManager();
 
   const contextValue: ModalContextValue = {

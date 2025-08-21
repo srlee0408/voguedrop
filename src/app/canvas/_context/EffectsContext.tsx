@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, ReactNode } from 'react';
+import { createContext, useContext, ReactNode } from 'react';
 import { useEffectsManager } from '../_hooks/useEffectsManager';
 import type { EffectsManagerReturn } from '../_types';
 
@@ -145,7 +145,7 @@ interface EffectsProviderProps {
  * }
  * ```
  */
-export function EffectsProvider({ children }: EffectsProviderProps): React.ReactElement {
+export function EffectsProvider({ children }: EffectsProviderProps) {
   const effects = useEffectsManager();
 
   const contextValue: EffectsContextValue = {

@@ -99,6 +99,14 @@ export interface SlotManagerReturn {
     slotStates?: Array<SlotState>
     slotCompletedAt?: Array<number | null>
   }) => void
+  
+  // WeakMap 메타데이터 관리 (디버깅/모니터링용)
+  getVideoMetadata: (video: GeneratedVideo) => { slotIndex: number; timestamp: number } | null
+  trackVideoMetadata: (video: GeneratedVideo, slotIndex: number) => void
+  
+  // 자동 정리 제어 (필요 시 수동 제어)
+  scheduleSlotCleanup: (slotIndex: number) => void
+  cancelSlotCleanup: (slotIndex: number) => void
 }
 
 // 비디오 생성 관리 타입  

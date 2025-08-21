@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, ReactNode } from 'react';
+import { createContext, useContext, ReactNode } from 'react';
 import { useSlotManager } from '../_hooks/useSlotManager';
 import type { SlotManagerReturn } from '../_types';
 
@@ -120,7 +120,7 @@ interface SlotProviderProps {
  * }
  * ```
  */
-export function SlotProvider({ children }: SlotProviderProps): React.ReactElement {
+export function SlotProvider({ children }: SlotProviderProps) {
   const slotManager = useSlotManager();
 
   const contextValue: SlotContextValue = {

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, ReactNode } from 'react';
+import { createContext, useContext, ReactNode } from 'react';
 import { useFavoritesManager } from '../_hooks/useFavoritesManager';
 import type { FavoritesManagerReturn } from '../_types';
 
@@ -136,7 +136,7 @@ interface FavoritesProviderProps {
  * }
  * ```
  */
-export function FavoritesProvider({ children }: FavoritesProviderProps): React.ReactElement {
+export function FavoritesProvider({ children }: FavoritesProviderProps) {
   const favorites = useFavoritesManager();
 
   const contextValue: FavoritesContextValue = {

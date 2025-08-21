@@ -1,6 +1,6 @@
 'use client';
 
-import React, { ReactNode, useEffect } from 'react';
+import { ReactNode, useEffect } from 'react';
 import { SlotProvider } from './SlotContext';
 import { SettingsProvider } from './SettingsContext';
 import { ModalProvider } from './ModalContext';
@@ -131,7 +131,7 @@ function PersistenceConnector({ children }: { children: ReactNode }) {
  * }
  * ```
  */
-export function CanvasProviders({ children }: CanvasProvidersProps): React.ReactElement {
+export function CanvasProviders({ children }: CanvasProvidersProps) {
   return (
     <ModalProvider>
       <FavoritesProvider>

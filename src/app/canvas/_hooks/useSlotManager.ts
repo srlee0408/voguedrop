@@ -1,7 +1,6 @@
-import { useCallback, useState } from "react";
+import { useCallback, useState, useRef, useEffect } from "react";
 import type { GeneratedVideo } from "@/shared/types/canvas";
-
-type SlotContent = { type: "image" | "video"; data: string | GeneratedVideo } | null;
+import type { SlotContent } from "../_types";
 
 interface InitialSlotState {
   slotContents?: Array<SlotContent>;
@@ -14,8 +13,21 @@ interface InitialSlotState {
  * - 4개 슬롯의 콘텐츠/상태/완료시점을 관리
  * - 이미지 업로드/제거, 히스토리 비디오 토글 배치, 슬롯 선택 등의 로직 캡슐화
  * - localStorage 복원 지원
+ * - WeakMap으로 메모리 관리 최적화 (자동 정리)
  */
 export function useSlotManager(initialState?: InitialSlotState) {
+  // WeakMap으로 비디오 객체와 슬롯 메타데이터 매핑 (자동 가비지 컬렉션)
+  const videoMetadataRef = useRef(new WeakMap<GeneratedVideo, { slotIndex: number; timestamp: number }>())
+  const slotCleanupTimeoutsRef = useRef<Map<number, NodeJS.Timeout>>(new Map())
+  
+  // 컴포넌트 언마운트 시 타이머 정리
+  useEffect(() => {
+    const cleanupTimeouts = slotCleanupTimeoutsRef.current
+    return () => {
+      cleanupTimeouts.forEach(timeout => clearTimeout(timeout))
+      cleanupTimeouts.clear()
+    }
+  }, [])
   const [slotContents, setSlotContents] = useState<Array<SlotContent>>(
     initialState?.slotContents || [null, null, null, null]
   );
@@ -27,6 +39,69 @@ export function useSlotManager(initialState?: InitialSlotState) {
   );
   const [selectedSlotIndex, setSelectedSlotIndex] = useState<number | null>(null);
   const [activeVideo, setActiveVideo] = useState<GeneratedVideo | null>(null);
+
+  /**
+   * WeakMap에 비디오 메타데이터 저장 (메모리 효율적)
+   */
+  const trackVideoMetadata = useCallback((video: GeneratedVideo, slotIndex: number): void => {
+    videoMetadataRef.current.set(video, { slotIndex, timestamp: Date.now() })
+  }, [])
+
+  /**
+   * WeakMap에서 비디오 메타데이터 조회
+   */
+  const getVideoMetadata = useCallback((video: GeneratedVideo) => {
+    return videoMetadataRef.current.get(video) || null
+  }, [])
+
+  /**
+   * 자동 슬롯 정리 타이머 설정 (30분 후 자동 정리)
+   */
+  const scheduleSlotCleanup = useCallback((slotIndex: number): void => {
+    const existingTimeout = slotCleanupTimeoutsRef.current.get(slotIndex)
+    if (existingTimeout) {
+      clearTimeout(existingTimeout)
+    }
+    
+    const timeout = setTimeout(() => {
+      setSlotContents(prev => {
+        const next = [...prev]
+        // 슬롯이 여전히 completed 상태이고 30분이 지났으면 정리
+        if (slotStates[slotIndex] === 'completed') {
+          next[slotIndex] = null
+        }
+        return next
+      })
+      setSlotStates(prev => {
+        const next = [...prev]
+        if (next[slotIndex] === 'completed') {
+          next[slotIndex] = 'empty'
+        }
+        return next
+      })
+      setSlotCompletedAt(prev => {
+        const next = [...prev]
+        if (slotStates[slotIndex] === 'completed') {
+          next[slotIndex] = null
+        }
+        return next
+      })
+      slotCleanupTimeoutsRef.current.delete(slotIndex)
+    }, 30 * 60 * 1000) // 30분
+    
+    slotCleanupTimeoutsRef.current.set(slotIndex, timeout)
+  }, [slotStates])
+
+  /**
+   * 슬롯 정리 타이머 취소
+   */
+  const cancelSlotCleanup = useCallback((slotIndex: number): void => {
+    const timeout = slotCleanupTimeoutsRef.current.get(slotIndex)
+    if (timeout) {
+      clearTimeout(timeout)
+      slotCleanupTimeoutsRef.current.delete(slotIndex)
+    }
+  }, [])
 
   /**
    * 이미지 업로드 시 슬롯 배치 로직
@@ -234,9 +309,14 @@ export function useSlotManager(initialState?: InitialSlotState) {
         next[targetSlot] = Date.now();
         return next;
       });
+      
+      // WeakMap에 비디오 메타데이터 추적 및 자동 정리 스케줄링
+      trackVideoMetadata(video, targetSlot);
+      scheduleSlotCleanup(targetSlot);
+      
       return true;
     },
-    [slotContents, slotCompletedAt]
+    [slotContents, slotCompletedAt, trackVideoMetadata, scheduleSlotCleanup]
   );
 
   /**
@@ -251,6 +331,9 @@ export function useSlotManager(initialState?: InitialSlotState) {
    * 슬롯 콘텐츠 제거 (단순 비우기)
    */
   const handleRemoveContent = useCallback((index: number) => {
+    // 자동 정리 타이머 취소
+    cancelSlotCleanup(index);
+    
     setSlotContents(prev => {
       const next = [...prev];
       next[index] = null;
@@ -266,7 +349,7 @@ export function useSlotManager(initialState?: InitialSlotState) {
       next[index] = null;
       return next;
     });
-  }, []);
+  }, [cancelSlotCleanup]);
 
   /**
    * 즐겨찾기 플래그를 슬롯 내 해당 비디오에 반영
@@ -392,7 +475,11 @@ export function useSlotManager(initialState?: InitialSlotState) {
       next[slotIndex] = Date.now();
       return next;
     });
-  }, []);
+    
+    // WeakMap에 비디오 메타데이터 추적 및 자동 정리 스케줄링
+    trackVideoMetadata(video, slotIndex);
+    scheduleSlotCleanup(slotIndex);
+  }, [trackVideoMetadata, scheduleSlotCleanup]);
 
   /**
    * 슬롯 상태를 completed로만 업데이트 (필요 시 외부에서 사용)
@@ -408,12 +495,18 @@ export function useSlotManager(initialState?: InitialSlotState) {
       next[slotIndex] = Date.now();
       return next;
     });
-  }, []);
+    
+    // 완료 시 자동 정리 스케줄링
+    scheduleSlotCleanup(slotIndex);
+  }, [scheduleSlotCleanup]);
 
   /**
    * 실패 시 슬롯을 초기화 (empty)
    */
   const resetSlot = useCallback((slotIndex: number) => {
+    // 자동 정리 타이머 취소
+    cancelSlotCleanup(slotIndex);
+    
     setSlotStates(prev => {
       const next = [...prev];
       next[slotIndex] = "empty";
@@ -429,7 +522,7 @@ export function useSlotManager(initialState?: InitialSlotState) {
       next[slotIndex] = null;
       return next;
     });
-  }, []);
+  }, [cancelSlotCleanup]);
 
   /**
    * 슬롯 상태를 직접 설정 (localStorage 복원용)
@@ -437,6 +530,18 @@ export function useSlotManager(initialState?: InitialSlotState) {
   const restoreSlotStates = useCallback((state: InitialSlotState) => {
     if (state.slotContents) {
       setSlotContents(state.slotContents);
+      
+      // 복원된 비디오들에 대해 WeakMap 메타데이터 추적
+      state.slotContents.forEach((slot, index) => {
+        if (slot?.type === 'video' && typeof slot.data === 'object') {
+          trackVideoMetadata(slot.data as GeneratedVideo, index);
+          
+          // completed 상태인 슬롯에 대해 자동 정리 스케줄링
+          if (state.slotStates?.[index] === 'completed') {
+            scheduleSlotCleanup(index);
+          }
+        }
+      });
     }
     if (state.slotStates) {
       setSlotStates(state.slotStates);
@@ -444,7 +549,7 @@ export function useSlotManager(initialState?: InitialSlotState) {
     if (state.slotCompletedAt) {
       setSlotCompletedAt(state.slotCompletedAt);
     }
-  }, []);
+  }, [trackVideoMetadata, scheduleSlotCleanup]);
 
   return {
     // 상태
@@ -476,6 +581,14 @@ export function useSlotManager(initialState?: InitialSlotState) {
     
     // 복원
     restoreSlotStates,
+    
+    // WeakMap 메타데이터 관리 (디버깅/모니터링용)
+    getVideoMetadata,
+    trackVideoMetadata,
+    
+    // 자동 정리 제어 (필요 시 수동 제어)
+    scheduleSlotCleanup,
+    cancelSlotCleanup,
   };
 }
 
