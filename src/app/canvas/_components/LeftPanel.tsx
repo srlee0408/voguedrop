@@ -15,7 +15,7 @@ interface LeftPanelProps {
   generationError?: string | null;
   onEffectModalOpen?: () => void;
   selectedEffects?: EffectTemplateWithMedia[];
-  onEffectRemove?: (effectId: number) => void;
+  onEffectRemove?: (effectId: string) => void;
 }
 
 export function LeftPanel({

@@ -71,29 +71,62 @@ export class ProjectService {
     // render_id 검증
     const validRenderId = renderId ? await this.validateRenderId(renderId) : null;
 
-    // 프로젝트 저장 (UPSERT)
+    // 기존 프로젝트 확인 및 저장/업데이트
     const supabase = await createClient();
-    const { data: savedProject, error: saveError } = await supabase
+    
+    // 동일한 사용자의 동일한 프로젝트명 확인
+    const { data: existingProject } = await supabase
       .from('project_saves')
-      .upsert({
-        user_id: userId,
-        project_name: projectName,
-        latest_render_id: validRenderId || null,
-        latest_video_url: null, // 렌더링 후 업데이트 예정
-        thumbnail_url: thumbnailUrl,
-        content_snapshot: contentSnapshot,
-        content_hash: contentHash,
-        updated_at: new Date().toISOString()
-      }, {
-        onConflict: 'user_id,project_name',
-        ignoreDuplicates: false
-      })
-      .select()
+      .select('id')
+      .eq('user_id', userId)
+      .eq('project_name', projectName)
       .single();
-
-    if (saveError) {
-      console.error('Error saving project:', saveError);
-      throw new Error('프로젝트 저장에 실패했습니다.');
+    
+    let savedProject;
+    if (existingProject) {
+      // 기존 프로젝트 업데이트
+      const { data, error: updateError } = await supabase
+        .from('project_saves')
+        .update({
+          latest_render_id: validRenderId || null,
+          latest_video_url: null, // 렌더링 후 업데이트 예정
+          thumbnail_url: thumbnailUrl,
+          content_snapshot: contentSnapshot,
+          content_hash: contentHash,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existingProject.id)
+        .select()
+        .single();
+      
+      if (updateError) {
+        console.error('Error updating project:', updateError);
+        throw new Error('프로젝트 업데이트에 실패했습니다.');
+      }
+      savedProject = data;
+    } else {
+      // 새 프로젝트 생성
+      const { data, error: insertError } = await supabase
+        .from('project_saves')
+        .insert({
+          id: crypto.randomUUID(),
+          user_id: userId,
+          project_name: projectName,
+          latest_render_id: validRenderId || null,
+          latest_video_url: null, // 렌더링 후 업데이트 예정
+          thumbnail_url: thumbnailUrl,
+          content_snapshot: contentSnapshot,
+          content_hash: contentHash,
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+      
+      if (insertError) {
+        console.error('Error inserting project:', insertError);
+        throw new Error('프로젝트 생성에 실패했습니다.');
+      }
+      savedProject = data;
     }
 
     // validRenderId가 있으면 video_renders 업데이트
@@ -113,7 +146,7 @@ export class ProjectService {
           projectName,
           userId,
           contentSnapshot,
-          savedProject.id
+          savedProject.id // number에서 string (uuid)으로 변경
         );
       } catch (error) {
         console.error('Error migrating video to Supabase:', error);
@@ -125,7 +158,7 @@ export class ProjectService {
     return {
       success: true,
       message: 'Project saved successfully',
-      projectSaveId: savedProject.id,
+      projectSaveId: savedProject.id, // number에서 string (uuid)으로 변경
       needsRender: !validRenderId && !renderOutputUrl,
       videoUrl: supabaseVideoUrl || renderOutputUrl || null,
       storageLocation: supabaseVideoUrl ? 'supabase' : renderOutputUrl ? 's3' : null
@@ -145,18 +178,24 @@ export class ProjectService {
   ): Promise<LoadProjectResponse> {
     // 입력 검증
     const validated = loadProjectRequestSchema.parse(request);
-    const { projectName } = validated;
+    const { projectName, projectId } = validated;
     const userId = user.id;
     
     const supabase = await createClient();
 
     // 프로젝트 조회
-    const { data: projectSave, error } = await supabase
+    let query = supabase
       .from('project_saves')
       .select('*')
-      .eq('user_id', userId)
-      .eq('project_name', projectName)
-      .single();
+      .eq('user_id', userId);
+
+    if (projectId) {
+      query = query.eq('id', projectId);
+    } else if (projectName) {
+      query = query.eq('project_name', projectName);
+    }
+
+    const { data: projectSave, error } = await query.single();
 
     if (error) {
       if (error.code === 'PGRST116') {
@@ -288,7 +327,7 @@ export class ProjectService {
     projectName: string,
     userId: string,
     contentSnapshot: ContentSnapshot,
-    projectSaveId: number
+    projectSaveId: string // number에서 string (uuid)으로 변경
   ): Promise<string | null> {
     // 1. S3에서 비디오 다운로드
     console.log('Downloading video from S3:', renderOutputUrl);
@@ -368,7 +407,7 @@ export class ProjectService {
           video_url: publicUrl
         }
       })
-      .eq('id', projectSaveId)
+      .eq('id', projectSaveId) // id에서 project_uuid로 변경
       .eq('user_id', userId);
 
     return publicUrl;

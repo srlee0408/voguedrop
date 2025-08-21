@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/shared/lib/supabase/server';
 
 interface ProjectListItem {
-  id: number;
+  id: string; // number에서 string으로 변경
   project_name: string;
   thumbnail_url: string | null;
   latest_video_url: string | null;
@@ -73,11 +73,11 @@ export async function GET() {
 export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const projectName = searchParams.get('projectName');
+    const projectId = searchParams.get('projectId'); // projectName에서 projectId로 변경
     
-    if (!projectName) {
+    if (!projectId) {
       return NextResponse.json(
-        { error: 'Project name is required' },
+        { error: 'Project ID is required' },
         { status: 400 }
       );
     }
@@ -98,7 +98,7 @@ export async function DELETE(request: NextRequest) {
       .from('project_saves')
       .delete()
       .eq('user_id', user.id)
-      .eq('project_name', projectName);
+      .eq('id', projectId);
     
     if (error) {
       throw error;

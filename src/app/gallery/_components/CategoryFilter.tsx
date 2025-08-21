@@ -6,13 +6,13 @@ import type { Category } from "@/shared/types/database"
 
 interface CategoryFilterProps {
   categories: Category[]
-  selectedCategory: number | null
+  selectedCategory: string | null
 }
 
 export function CategoryFilter({ categories, selectedCategory }: CategoryFilterProps) {
   const router = useRouter()
 
-  const handleCategoryClick = (categoryId: number | null) => {
+  const handleCategoryClick = (categoryId: string | null) => {
     if (categoryId === null) {
       router.push('/gallery')
     } else {

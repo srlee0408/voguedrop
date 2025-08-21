@@ -178,11 +178,11 @@ export function ProjectSelectorModal({ isOpen, onClose, onNewProject }: ProjectS
   };
   
   // 프로젝트 삭제
-  const handleDeleteProject = async (projectName: string) => {
+  const handleDeleteProject = async (projectId: string) => {
     try {
-      await deleteProject(projectName);
+      await deleteProject(projectId);
       // 목록에서 제거
-      setProjects(prev => prev.filter(p => p.project_name !== projectName));
+      setProjects(prev => prev.filter(p => p.id !== projectId));
     } catch {
       // 에러 처리는 UI에서 별도로 표시
     }
@@ -262,7 +262,7 @@ export function ProjectSelectorModal({ isOpen, onClose, onNewProject }: ProjectS
                   key={project.id}
                   project={project}
                   onClick={() => handleProjectSelect(project.project_name)}
-                  onDelete={() => handleDeleteProject(project.project_name)}
+                  onDelete={() => handleDeleteProject(project.id)}
                 />
               ))}
               

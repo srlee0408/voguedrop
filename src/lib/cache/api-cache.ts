@@ -11,7 +11,7 @@ const API_CACHE_DB_VERSION = 1;
 const API_CACHE_STORE_NAME = 'apiCache';
 
 // 캐시 엔트리 타입
-export interface APICacheEntry<T = any> {
+export interface APICacheEntry<T = unknown> {
   /** 캐시 키 */
   key: string;
   /** API 응답 데이터 */
@@ -291,7 +291,7 @@ export const apiCache = {
   /**
    * 사운드 라이브러리 캐싱
    */
-  setSoundLibrary: (filter: string, data: any, ttl: number = 30 * 60 * 1000) => 
+  setSoundLibrary: (filter: string, data: unknown, ttl: number = 30 * 60 * 1000) => 
     apiCacheManager.set(`sound-library-${filter}`, data, ttl),
 
   getSoundLibrary: (filter: string) => 
@@ -300,7 +300,7 @@ export const apiCache = {
   /**
    * 사운드 히스토리 캐싱
    */
-  setSoundHistory: (filter: string, data: any, ttl: number = 5 * 60 * 1000) => 
+  setSoundHistory: (filter: string, data: unknown, ttl: number = 5 * 60 * 1000) => 
     apiCacheManager.set(`sound-history-${filter}`, data, ttl),
 
   getSoundHistory: (filter: string) => 
@@ -309,7 +309,7 @@ export const apiCache = {
   /**
    * 업로드 음악 목록 캐싱
    */
-  setUploadedMusic: (data: any, ttl: number = 10 * 60 * 1000) => 
+  setUploadedMusic: (data: unknown, ttl: number = 10 * 60 * 1000) => 
     apiCacheManager.set('uploaded-music', data, ttl),
 
   getUploadedMusic: () => 

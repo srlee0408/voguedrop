@@ -3,8 +3,8 @@
 import { useState, useCallback, useEffect } from 'react';
 import { ProjectSwitchConfirmModal } from '@/shared/components/modals/ProjectSwitchConfirmModal';
 import { useClips } from '../_context/Providers';
-import { useAutoSave } from '../_hooks/useAutoSave';
-import type { AutoSaveStatus } from '../_hooks/useAutoSave';
+import { useManualSave } from '../_hooks/useManualSave';
+import type { SaveStatus } from '../_hooks/useManualSave';
 import type { VideoClip, TextClip, SoundClip } from '@/shared/types/video-editor';
 
 interface ProjectManagerProps {
@@ -12,11 +12,12 @@ interface ProjectManagerProps {
   timelineClips: VideoClip[];
   textClips: TextClip[];
   soundClips: SoundClip[];
-  soundLanes?: number[]; // 사운드 레인 배열
+  soundLanes?: number[];
   calculateTotalFrames: number;
-  autoSaveStatus: AutoSaveStatus;
-  setAutoSaveStatus: (status: AutoSaveStatus) => void;
-  setAutoSaveError: (error: string | null) => void;
+  saveStatus: SaveStatus;
+  setSaveStatus: (status: SaveStatus) => void;
+  setSaveError: (error: string | null) => void;
+  onSaveProject?: (saveFunction: () => Promise<boolean>) => void;
 }
 
 export default function ProjectManager({
@@ -26,9 +27,9 @@ export default function ProjectManager({
   soundClips,
   soundLanes = [0],
   calculateTotalFrames,
-  autoSaveStatus,
-  setAutoSaveStatus,
-  setAutoSaveError,
+  setSaveStatus,
+  setSaveError,
+  onSaveProject,
 }: ProjectManagerProps) {
   const [showSwitchConfirm, setShowSwitchConfirm] = useState(false);
   const [targetProjectName, setTargetProjectName] = useState<string>('');
@@ -37,12 +38,12 @@ export default function ProjectManager({
     setHasUnsavedChanges,
   } = useClips();
 
-  // 자동 저장 설정
+  // 수동 저장 설정
   const {
-    status: autoSaveStatusLocal,
-    errorMessage: autoSaveErrorLocal,
-    triggerSave,
-  } = useAutoSave({
+    status: saveStatusLocal,
+    errorMessage: saveErrorLocal,
+    saveProject,
+  } = useManualSave({
     projectTitle,
     videoClips: timelineClips,
     textClips,
@@ -50,25 +51,29 @@ export default function ProjectManager({
     soundLanes,
     aspectRatio: '9:16', // TODO: Get from VideoPreview component
     durationInFrames: calculateTotalFrames,
-    enabled: true,
-    debounceMs: 15000, // 15초 후 저장 (서버 부하 감소)
-    maxWaitMs: 120000, // 최대 2분 대기
   });
 
-  // 자동 저장 상태 동기화
+  // 수동 저장 함수를 부모 컴포넌트로 전달
   useEffect(() => {
-    setAutoSaveStatus(autoSaveStatusLocal);
-    setAutoSaveError(autoSaveErrorLocal);
-  }, [autoSaveStatusLocal, autoSaveErrorLocal, setAutoSaveStatus, setAutoSaveError]);
+    if (onSaveProject) {
+      onSaveProject(saveProject);
+    }
+  }, [onSaveProject, saveProject]);
+
+  // 저장 상태 동기화
+  useEffect(() => {
+    setSaveStatus(saveStatusLocal);
+    setSaveError(saveErrorLocal);
+  }, [saveStatusLocal, saveErrorLocal, setSaveStatus, setSaveError]);
 
 
-  // 프로젝트 저장 핸들러 (자동 저장 훅 활용)
+  // 프로젝트 저장 핸들러
   const handleSaveProject = useCallback(async () => {
-    // 자동 저장 훅의 triggerSave 사용
-    await triggerSave();
+    // 수동 저장 실행
+    const success = await saveProject();
     
     // 저장 성공 시 처리
-    if (autoSaveStatus === 'saved' || autoSaveStatus === 'saving') {
+    if (success) {
       setHasUnsavedChanges(false);
       
       // 저장 후 새 프로젝트로 이동
@@ -79,7 +84,7 @@ export default function ProjectManager({
         window.location.href = `/video-editor?projectName=${encodeURIComponent(targetProjectName)}`;
       }
     }
-  }, [triggerSave, autoSaveStatus, setHasUnsavedChanges, targetProjectName]);
+  }, [saveProject, setHasUnsavedChanges, targetProjectName]);
 
   // 저장하지 않고 전환
   const handleDontSaveProject = useCallback(() => {

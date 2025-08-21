@@ -2,7 +2,7 @@ import { Bell, Edit2, Check, Loader2, AlertCircle } from "lucide-react"
 import Link from "next/link"
 import { useState, useEffect, useRef } from "react"
 
-type AutoSaveStatus = 'idle' | 'saving' | 'saved' | 'error'
+type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 
 interface HeaderProps {
   onLibraryClick?: () => void
@@ -10,8 +10,9 @@ interface HeaderProps {
   projectTitle?: string
   onEditClick?: () => void
   onProjectTitleChange?: (title: string) => void
-  autoSaveStatus?: AutoSaveStatus
-  autoSaveError?: string | null
+  saveStatus?: SaveStatus
+  saveError?: string | null
+  onSaveProject?: () => void
 }
 
 export function Header({ 
@@ -20,8 +21,10 @@ export function Header({
   projectTitle,
   onEditClick,
   onProjectTitleChange,
-  autoSaveStatus = 'idle',
-  autoSaveError
+  saveStatus = 'idle',
+  saveError,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  onSaveProject: _ = () => {}
 }: HeaderProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false)
   const [tempTitle, setTempTitle] = useState(projectTitle || '')
@@ -33,7 +36,7 @@ export function Header({
     setTempTitle(projectTitle || '')
   }, [projectTitle])
   
-  // Notion-style: Show status temporarily
+  // Show save status temporarily
   useEffect(() => {
     // Clear any existing timeout
     if (hideTimeoutRef.current) {
@@ -41,16 +44,16 @@ export function Header({
       hideTimeoutRef.current = null
     }
     
-    if (autoSaveStatus === 'saving') {
+    if (saveStatus === 'saving') {
       // Show immediately when saving
       setShowSaveStatus(true)
-    } else if (autoSaveStatus === 'saved') {
+    } else if (saveStatus === 'saved') {
       // Keep showing for 2 seconds after saved, then hide
       setShowSaveStatus(true)
       hideTimeoutRef.current = setTimeout(() => {
         setShowSaveStatus(false)
       }, 2000)
-    } else if (autoSaveStatus === 'error') {
+    } else if (saveStatus === 'error') {
       // Show error persistently
       setShowSaveStatus(true)
     } else {
@@ -64,11 +67,11 @@ export function Header({
         clearTimeout(hideTimeoutRef.current)
       }
     }
-  }, [autoSaveStatus])
+  }, [saveStatus])
   
   // Format save status text (simplified)
   const getSaveStatusText = () => {
-    switch (autoSaveStatus) {
+    switch (saveStatus) {
       case 'saving':
         return 'Saving...'
       case 'saved':
@@ -82,7 +85,7 @@ export function Header({
   
   // Get save status color
   const getSaveStatusColor = () => {
-    switch (autoSaveStatus) {
+    switch (saveStatus) {
       case 'saving':
         return 'text-gray-400'
       case 'saved':
@@ -96,7 +99,7 @@ export function Header({
   
   // Get save status icon
   const getSaveStatusIcon = () => {
-    switch (autoSaveStatus) {
+    switch (saveStatus) {
       case 'saving':
         return <Loader2 className="w-3 h-3 animate-spin" />
       case 'saved':
@@ -155,7 +158,7 @@ export function Header({
               )}
             </div>
             
-            {/* Auto-save status*/}
+            {/* Save status */}
             <div 
               className={`flex items-center gap-1.5 text-xs ${getSaveStatusColor()} transition-all duration-300 ${
                 showSaveStatus ? 'opacity-100' : 'opacity-0 pointer-events-none'
@@ -163,8 +166,8 @@ export function Header({
             >
               {getSaveStatusIcon()}
               <span>{getSaveStatusText()}</span>
-              {autoSaveStatus === 'error' && autoSaveError && (
-                <span className="text-xs text-red-400" title={autoSaveError}>
+              {saveStatus === 'error' && saveError && (
+                <span className="text-xs text-red-400" title={saveError}>
                   ⓘ
                 </span>
               )}

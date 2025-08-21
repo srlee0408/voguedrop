@@ -23,7 +23,7 @@ export default async function GalleryPage({ searchParams }: PageProps) {
     getCategories()
   ])
 
-  const selectedCategory = params.category ? parseInt(params.category) : null
+  const selectedCategory = params.category || null // parseInt 제거
 
   // Group items by category
   const itemsByCategory = categories.reduce((acc, category) => {
@@ -35,7 +35,7 @@ export default async function GalleryPage({ searchParams }: PageProps) {
       }
     }
     return acc
-  }, {} as Record<number, { category: typeof categories[0], items: EffectTemplateWithMedia[] }>)
+  }, {} as Record<string, { category: typeof categories[0], items: EffectTemplateWithMedia[] }>) // Record<number, ...>에서 Record<string, ...>으로 변경
 
   return (
     <GalleryPageClient initialItems={items} initialCategories={categories}>

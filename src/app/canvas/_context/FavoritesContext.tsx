@@ -43,7 +43,7 @@ const FavoritesContext = createContext<FavoritesContextValue | undefined>(undefi
  * 
  * @example
  * ```tsx
- * function VideoCard({ videoId }: { videoId: number }) {
+ * function VideoCard({ videoId }: { videoId: string }) {
  *   const { favorites } = useFavorites();
  *   
  *   const isFavorite = favorites.favoriteVideos.includes(videoId);

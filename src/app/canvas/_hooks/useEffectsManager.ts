@@ -38,7 +38,7 @@ export function useEffectsManager(initialState?: InitialEffectsState): EffectsMa
     })
   }, [])
 
-  const removeEffect = useCallback((effectId: number): void => {
+  const removeEffect = useCallback((effectId: string): void => {
     setSelectedEffects((prev) => prev.filter((e) => e.id !== effectId))
   }, [])
 

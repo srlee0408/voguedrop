@@ -2,14 +2,14 @@ import { supabase } from '@/shared/lib/supabase';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 export interface VideoGeneration {
-  id: number;
+  id: string;
   user_id: string;
   status: 'pending' | 'processing' | 'completed' | 'failed';
   input_image_url: string;
   output_video_url?: string;
   prompt: string;
   selected_effects: Array<{
-    id: number;
+    id: string;
     name: string;
     prompt: string;
   }>;
@@ -26,7 +26,7 @@ export interface CreateVideoGenerationParams {
   inputImageUrl: string;
   prompt: string;
   selectedEffects: Array<{
-    id: number;
+    id: string;
     name: string;
     prompt: string;
   }>;
@@ -53,7 +53,7 @@ export async function createVideoGeneration({
       selected_effects: selectedEffects,
       model_type: modelType
     })
-    .select()
+    .select('*') // Changed from '*, id:id_uuid' to '*'
     .single();
 
   if (error) {
@@ -68,7 +68,7 @@ export async function createVideoGeneration({
  * 비디오 생성 상태를 업데이트합니다.
  */
 export async function updateVideoGeneration(
-  generationId: number,
+  generationId: string,
   updates: {
     status?: VideoGeneration['status'];
     outputVideoUrl?: string;
@@ -92,8 +92,8 @@ export async function updateVideoGeneration(
   const { data, error } = await supabase
     .from('video_generations')
     .update(updateData)
-    .eq('id', generationId)
-    .select()
+    .eq('id', generationId) // Changed from 'id_uuid' to 'id'
+    .select('*') // Changed from '*, id:id_uuid' to '*'
     .single();
 
   if (error) {
@@ -113,7 +113,7 @@ export async function getUserVideoGenerations(
 ): Promise<VideoGeneration[]> {
   const { data, error } = await supabase
     .from('video_generations')
-    .select('*')
+    .select('*') // Changed from '*, id:id_uuid' to '*'
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
     .limit(limit);
@@ -156,25 +156,26 @@ export async function checkDailyGenerationLimit(
 
 /**
  * 비디오의 즐겨찾기 상태를 토글합니다.
- * videoId는 job_id 또는 numeric id를 받을 수 있습니다.
+ * videoId는 이제 UUID string (id_uuid) 또는 job_id 입니다.
  */
 export async function toggleVideoFavorite(
-  videoId: number | string,
+  videoId: string,
   isFavorite: boolean,
   supabaseClient?: SupabaseClient
-): Promise<{ id: number; job_id: string; is_favorite: boolean }> {
+): Promise<{ id: string; job_id: string; is_favorite: boolean }> {
   // 인증된 클라이언트가 제공되면 사용, 아니면 기본 클라이언트 사용
   const client = supabaseClient || supabase;
   
   // 먼저 비디오가 존재하는지 확인 (필요한 필드만 선택)
   let selectQuery = client
     .from('video_generations')
-    .select('id, job_id, user_id');
+    .select('id, job_id, user_id'); // Changed from 'id:id_uuid, job_id, user_id' to 'id, job_id, user_id'
 
-  if (typeof videoId === 'string') {
-    selectQuery = selectQuery.eq('job_id', videoId);
+  // videoId가 UUID 형식인지 간단히 확인하여 job_id와 구분
+  if (videoId.includes('-')) { // A simple check for UUID format
+    selectQuery = selectQuery.eq('id', videoId); // Changed from 'id_uuid' to 'id'
   } else {
-    selectQuery = selectQuery.eq('id', videoId);
+    selectQuery = selectQuery.eq('job_id', videoId);
   }
 
   const { data: existingData, error: selectError } = await selectQuery.single();
@@ -190,8 +191,8 @@ export async function toggleVideoFavorite(
       is_favorite: isFavorite,
       updated_at: new Date().toISOString()
     })
-    .eq('id', existingData.id)  // 항상 numeric id로 업데이트
-    .select('id, job_id, is_favorite')
+    .eq('id', existingData.id)  // Changed from 'id_uuid' to 'id'
+    .select('id, job_id, is_favorite') // Changed from 'id:id_uuid, job_id, is_favorite' to 'id, job_id, is_favorite'
     .single();
 
   if (error) {

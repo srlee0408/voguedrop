@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/shared/lib/supabase/server';
 
 interface SoundGeneration {
-  id: number;
+  id: string;
   title: string | null;
   prompt: string;
   output_audio_url: string | null;

@@ -88,7 +88,7 @@ export default function VideoPreview({
   
   // 비디오 URL 목록 추출 및 미디어 캐싱 적용
   const videoUrls = useMemo(() => clips.map(clip => clip.url), [clips]);
-  const { loadStatus, allLoaded, cachedCount, loadingCount, totalCount } = useMediaCache(videoUrls, {
+  useMediaCache(videoUrls, {
     autoPreload: true,
     extractThumbnails: true,
     extractMetadata: true,
@@ -531,6 +531,7 @@ export default function VideoPreview({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          id: crypto.randomUUID(),
           projectName: projectTitle,
           videoClips: clips,
           textClips: textClips,

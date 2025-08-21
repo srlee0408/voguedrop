@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useClips, usePlayback, useProject, useHistory } from '../_context/Providers';
 import EditorLayout from './EditorLayout';
 import PreviewSection from './PreviewSection';
@@ -16,10 +16,10 @@ export default function VideoEditorClient() {
     setShowLibrary,
     setShowTextEditor,
     handleAddText: handleAddTextButton,
-    autoSaveStatus,
-    setAutoSaveStatus,
-    autoSaveError,
-    setAutoSaveError,
+    saveStatus,
+    setSaveStatus,
+    saveError,
+    setSaveError,
   } = useProject();
   
   // ClipContext에서 가져오기
@@ -63,6 +63,9 @@ export default function VideoEditorClient() {
   
   // 타임라인 스케일: 1초당 몇 px로 표시할지 결정
   const PIXELS_PER_SECOND = 40;
+  
+  // 수동 저장 함수 참조
+  const saveProjectRef = useRef<(() => Promise<boolean>) | null>(null);
   
   // editingTextClip이 변경될 때 모달을 열기
   useEffect(() => {
@@ -234,6 +237,29 @@ export default function VideoEditorClient() {
     // 임시로 간단한 구현
     window.location.href = `/video-editor?projectName=${encodeURIComponent(newProjectName)}`;
   }, []);
+  
+  // 수동 저장 핸들러
+  const handleSaveProject = useCallback(async () => {
+    if (saveProjectRef.current) {
+      await saveProjectRef.current();
+    }
+  }, []);
+  
+  // 키보드 단축키 설정
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd+S / Ctrl+S: 저장
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault();
+        handleSaveProject();
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [handleSaveProject]);
 
   return (
     <>
@@ -241,8 +267,9 @@ export default function VideoEditorClient() {
         projectTitle={projectTitle}
         onProjectTitleChange={setProjectTitle}
         onLibraryClick={() => setShowLibrary(true)}
-        autoSaveStatus={autoSaveStatus}
-        autoSaveError={autoSaveError}
+        saveStatus={saveStatus}
+        saveError={saveError}
+        onSaveProject={handleSaveProject}
         previewSection={
           <PreviewSection
             projectTitle={projectTitle}
@@ -284,9 +311,12 @@ export default function VideoEditorClient() {
         soundClips={soundClips}
         soundLanes={soundLanes}
         calculateTotalFrames={calculateTotalFrames}
-        autoSaveStatus={autoSaveStatus}
-        setAutoSaveStatus={setAutoSaveStatus}
-        setAutoSaveError={setAutoSaveError}
+        saveStatus={saveStatus}
+        setSaveStatus={setSaveStatus}
+        setSaveError={setSaveError}
+        onSaveProject={(saveFunc) => {
+          saveProjectRef.current = saveFunc;
+        }}
       />
     </>
   );

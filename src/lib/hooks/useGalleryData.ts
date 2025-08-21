@@ -86,7 +86,7 @@ export function useGalleryRefresh() {
  * 카테고리별 필터링 로직을 캡슐화합니다.
  */
 export function useFilteredGallery(
-  categoryId: number | null,
+  categoryId: string | null,
   initialItems?: EffectTemplateWithMedia[],
   initialCategories?: Category[]
 ) {
@@ -105,7 +105,7 @@ export function useFilteredGallery(
       acc[category.id] = { category, items: categoryItems }
     }
     return acc
-  }, {} as Record<number, { category: Category, items: EffectTemplateWithMedia[] }>)
+  }, {} as Record<string, { category: Category, items: EffectTemplateWithMedia[] }>)
   
   return {
     items: filteredItems || [],

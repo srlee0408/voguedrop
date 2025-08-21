@@ -127,7 +127,7 @@ export async function GET(request: NextRequest) {
       output_video_url: video.output_video_url,
       created_at: video.created_at,
       is_favorite: video.is_favorite,
-      selected_effects: video.selected_effects?.map((effect: { id: number; name: string }) => ({
+      selected_effects: video.selected_effects?.map((effect: { id: string; name: string }) => ({
         id: effect.id,
         name: effect.name
       })) || []

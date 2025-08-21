@@ -8,9 +8,16 @@ async function _getGalleryItemsInternal(): Promise<EffectTemplateWithMedia[]> {
     const { data, error } = await supabase
       .from('effect_templates')
       .select(`
-        *,
-        category:categories!category_id(*),
-        preview_media:media_assets!preview_media_id(*)
+        id,
+        name,
+        prompt,
+        category_id,
+        preview_media_id,
+        is_active,
+        created_at,
+        display_order,
+        category:categories!inner(*),
+        preview_media:media_assets!inner(*)
       `)
       .not('preview_media_id', 'is', null)
       .eq('is_active', true)
@@ -24,6 +31,9 @@ async function _getGalleryItemsInternal(): Promise<EffectTemplateWithMedia[]> {
 
     // Transform the data to match our interface
     const transformedData: EffectTemplateWithMedia[] = (data || []).map(item => {
+      const category = Array.isArray(item.category) ? item.category[0] : item.category;
+      const preview_media = Array.isArray(item.preview_media) ? item.preview_media[0] : item.preview_media;
+
       return {
         id: item.id,
         name: item.name,
@@ -33,8 +43,8 @@ async function _getGalleryItemsInternal(): Promise<EffectTemplateWithMedia[]> {
         is_active: item.is_active,
         created_at: item.created_at,
         display_order: item.display_order,
-        category: item.category,
-        preview_media: item.preview_media
+        category: category,
+        preview_media: preview_media
       }
     })
 
@@ -50,7 +60,7 @@ async function _getCategoriesInternal(): Promise<Category[]> {
   try {
     const { data, error } = await supabase
       .from('categories')
-      .select('*')
+      .select('id, name, created_at')
       .order('name')
 
     if (error) {

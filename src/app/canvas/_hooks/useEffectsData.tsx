@@ -1,11 +1,9 @@
-"use client"
-
 import { createContext, useContext, ReactNode, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import type { EffectTemplateWithMedia } from '@/shared/types/database'
 
 interface Category {
-  id: number
+  id: string
   name: string
 }
 
@@ -84,7 +82,7 @@ export function EffectsDataProvider({ children }: { children: ReactNode }) {
   const getRepresentativeEffects = useMemo(() => {
     return () => {
       const representativeEffects: EffectTemplateWithMedia[] = []
-      const seenCategories = new Set<number>()
+      const seenCategories = new Set<string>()
       
       // display_order로 정렬된 effects에서 각 카테고리의 첫 번째 효과만 선택
       for (const effect of effects) {

@@ -1,11 +1,11 @@
 export interface Category {
-  id: number
+  id: string
   name: string
   created_at: string
 }
 
 export interface MediaAsset {
-  id: number
+  id: string
   storage_path: string
   file_name: string | null
   media_type: string | null
@@ -13,11 +13,11 @@ export interface MediaAsset {
 }
 
 export interface EffectTemplate {
-  id: number
+  id: string
   name: string
-  category_id: number
+  category_id: string
   prompt: string
-  preview_media_id: number | null
+  preview_media_id: string | null
   display_order: number
   is_active: boolean
   created_at: string
@@ -30,7 +30,7 @@ export interface EffectTemplateWithMedia extends EffectTemplate {
 }
 
 export interface ProjectSave {
-  id: number
+  id: string
   user_id: string
   project_name: string
   latest_render_id: string | null
@@ -52,7 +52,7 @@ export interface ProjectSave {
 }
 
 export interface VideoRender {
-  id: number
+  id: string
   user_id: string
   project_name: string
   render_id: string
@@ -65,13 +65,13 @@ export interface VideoRender {
   text_clips: unknown
   sound_clips: unknown
   content_hash: string | null
-  project_save_id: number | null
+  project_save_id: string | null
   created_at: string
   completed_at: string | null
 }
 
 export interface UserUploadedVideo {
-  id: number
+  id: string
   user_id: string
   file_name: string
   storage_path: string

@@ -21,7 +21,7 @@ export function EffectModal({ isOpen, onClose, onSelectEffect, selectedEffects =
     }
   }
 
-  const isEffectSelected = (effectId: number) => {
+  const isEffectSelected = (effectId: string) => {
     return selectedEffects.some(e => e.id === effectId)
   }
 

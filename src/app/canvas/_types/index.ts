@@ -54,7 +54,7 @@ export interface EffectsManagerReturn {
   selectedEffects: EffectTemplateWithMedia[]
   canAddMore: boolean
   addEffect: (effect: EffectTemplateWithMedia) => void
-  removeEffect: (effectId: number) => void
+  removeEffect: (effectId: string) => void
   toggleEffect: (effect: EffectTemplateWithMedia) => void
   clearEffects: () => void
   restoreEffects: (effects: EffectTemplateWithMedia[]) => void

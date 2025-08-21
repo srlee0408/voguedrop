@@ -12,7 +12,7 @@ export interface Effect {
 interface EffectsSectionProps {
   onEffectClick?: () => void;
   selectedEffects?: EffectTemplateWithMedia[];
-  onEffectRemove?: (effectId: number) => void;
+  onEffectRemove?: (effectId: string) => void;
 }
 
 export function EffectsSection({ onEffectClick, selectedEffects, onEffectRemove }: EffectsSectionProps) {

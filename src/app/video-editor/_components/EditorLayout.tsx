@@ -3,7 +3,7 @@
 import { ReactNode } from 'react';
 import { Header } from '@/shared/components/layout/Header';
 import { useProject } from '../_context/Providers';
-import type { AutoSaveStatus } from '../_hooks/useAutoSave';
+import type { SaveStatus } from '../_hooks/useManualSave';
 
 interface EditorLayoutProps {
   previewSection: ReactNode;
@@ -11,8 +11,9 @@ interface EditorLayoutProps {
   projectTitle: string;
   onProjectTitleChange: (title: string) => void;
   onLibraryClick: () => void;
-  autoSaveStatus: AutoSaveStatus;
-  autoSaveError: string | null;
+  saveStatus: SaveStatus;
+  saveError: string | null;
+  onSaveProject?: () => void;
 }
 
 export default function EditorLayout({
@@ -21,8 +22,9 @@ export default function EditorLayout({
   projectTitle,
   onProjectTitleChange,
   onLibraryClick,
-  autoSaveStatus,
-  autoSaveError,
+  saveStatus,
+  saveError,
+  onSaveProject,
 }: EditorLayoutProps) {
   const {
     timelineHeight,
@@ -38,8 +40,9 @@ export default function EditorLayout({
         projectTitle={projectTitle}
         onProjectTitleChange={onProjectTitleChange}
         onLibraryClick={onLibraryClick}
-        autoSaveStatus={autoSaveStatus}
-        autoSaveError={autoSaveError}
+        saveStatus={saveStatus}
+        saveError={saveError}
+        onSaveProject={onSaveProject}
       />
       
       <div className="flex-1 flex flex-col overflow-hidden">

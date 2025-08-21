@@ -43,14 +43,11 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
   const [inputMode, setInputMode] = useState<'manual' | 'fromVideo'>('manual');
   const [selectedVideoClip, setSelectedVideoClip] = useState<string | null>(null);
   const [generationType, setGenerationType] = useState<SoundGenerationType>('sound_effect');
-  // historyFilter는 아직 UI 구현이 없으므로 setter 제거
   const [historyFilter] = useState<'all' | SoundGenerationType | 'from_video'>('all');
   
-  // Get timeline clips from ClipContext
   const clipContext = useContext(ClipContext);
   const timelineClips = clipContext?.timelineClips || [];
   
-  // Video-based sound generation hook
   const videoSoundGeneration = useVideoSoundGeneration();
   interface SoundVariation {
     id: string;
@@ -86,10 +83,6 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   
-  // API 캐시 import 추가 (상단에서 이미 임포트되어야 함)
-  // 기존 ref 기반 캐싱 제거
-  
-  // 진행률 계산 유틸리티 함수
   const calculateProgressForElapsedTime = (elapsedSeconds: number, expectedDuration: number = 15): number => {
     const checkpoints = [
       { time: 2, progress: 15 },
@@ -133,7 +126,6 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
     return Math.min(targetProgress, 90);
   };
 
-  // 프리셋 음악 옵션들
   const presetSounds = [
     { key: 'epicTheme', label: t('videoEditor.controls.soundOptions.epicTheme'), duration: 180 },
     { key: 'dramatic', label: t('videoEditor.controls.soundOptions.dramatic'), duration: 120 },
@@ -141,22 +133,18 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
     { key: 'sfx', label: t('videoEditor.controls.soundOptions.sfx'), duration: 60 },
   ];
 
-  // Generate 탭으로 전환 시 과거 생성 기록 불러오기
   useEffect(() => {
     if (activeTab === 'generate' && !isLoadingHistory) {
-      loadSoundHistory(false, historyFilter); // 캐시가 있으면 사용, 없으면 로드
+      loadSoundHistory(false, historyFilter);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, historyFilter]); // isLoadingHistory와 loadSoundHistory는 의도적으로 제외
+  }, [activeTab, historyFilter, isLoadingHistory]);
 
-  // Upload 탭으로 전환 시 업로드된 음악 목록 불러오기
   useEffect(() => {
     if (activeTab === 'upload') {
       loadUploadedMusic();
     }
-  }, [activeTab]); // loadUploadedMusic는 의도적으로 제외
+  }, [activeTab]);
 
-  // Duration 드롭다운 외부 클릭 감지
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
@@ -174,22 +162,20 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
   }, [showDurationDropdown]);
 
   const loadSoundHistory = async (forceRefresh = false, filterType = historyFilter) => {
-    if (isLoadingHistory) return; // 중복 호출 방지
+    if (isLoadingHistory) return;
     
     setIsLoadingHistory(true);
     
     try {
-      // 캐시에서 먼저 확인 (강제 새로고침이 아닌 경우)
       if (!forceRefresh) {
         const cachedData = await apiCache.getSoundHistory(filterType);
         if (cachedData) {
-          setSoundGroups(cachedData);
+          setSoundGroups(Array.isArray(cachedData) ? cachedData : []);
           setIsLoadingHistory(false);
           return;
         }
       }
 
-      // 캐시 미스 또는 강제 새로고침 - API 호출
       const url = filterType === 'all' 
         ? '/api/sound/history'
         : `/api/sound/history?type=${filterType}`;
@@ -198,13 +184,15 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.groups) {
-          // 새 데이터를 캐시에 저장 (5분 TTL)
           await apiCache.setSoundHistory(filterType, data.groups, 5 * 60 * 1000);
           setSoundGroups(data.groups);
         }
+      } else {
+        setSoundGroups([]);
       }
     } catch (error) {
       console.error('Failed to load sound history:', error);
+      setSoundGroups([]);
     } finally {
       setIsLoadingHistory(false);
     }
@@ -212,14 +200,12 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
 
   const loadUploadedMusic = async () => {
     try {
-      // 먼저 캐시에서 확인
       const cachedData = await apiCache.getUploadedMusic();
       if (cachedData) {
-        setUploadedAudios(cachedData);
+        setUploadedAudios(Array.isArray(cachedData) ? cachedData : []);
         return;
       }
 
-      // 캐시 미스 - API 호출
       const response = await fetch('/api/upload/music', {
         method: 'GET',
       });
@@ -231,28 +217,27 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
       const data = await response.json();
       
       if (data.success && data.music) {
-        // 서버에서 조회한 음악 파일들을 UploadedAudio 형식으로 변환
         const uploadedMusic: UploadedAudio[] = data.music.map((music: {
-          id: number;
+          id: string;
           file_name: string;
           url: string;
           duration: number | null;
           file_size: number;
         }) => ({
-          id: music.id.toString(),
+          id: music.id,
           name: music.file_name,
           url: music.url,
           duration: music.duration || 0,
           size: music.file_size,
         }));
         
-        // 캐시에 저장 (10분 TTL)
         await apiCache.setUploadedMusic(uploadedMusic, 10 * 60 * 1000);
         setUploadedAudios(uploadedMusic);
+      } else {
+        setUploadedAudios([]);
       }
     } catch (error) {
       console.error('Failed to load uploaded music:', error);
-      // 에러 발생 시 빈 배열로 초기화
       setUploadedAudios([]);
     }
   };
@@ -291,15 +276,12 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
           continue;
         }
 
-        // 파일 메타데이터 추출
         const duration = await getAudioDuration(file);
         
-        // FormData 생성
         const formData = new FormData();
         formData.append('file', file);
         formData.append('duration', duration.toString());
         
-        // 서버에 업로드
         const response = await fetch('/api/upload/music', {
           method: 'POST',
           body: formData,
@@ -312,9 +294,8 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
 
         const data = await response.json();
         
-        // 서버에서 반환된 데이터로 UploadedAudio 생성
         const newAudio: UploadedAudio = {
-          id: data.music.id.toString(),
+          id: data.music.id,
           name: data.music.file_name,
           url: data.music.url,
           duration: data.music.duration || duration,
@@ -325,17 +306,14 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
         newAudioIds.push(newAudio.id);
       }
       
-      // 새로 업로드된 파일들을 자동으로 선택
       setSelectedAudioIds(prev => {
         const newSet = new Set(prev);
         newAudioIds.forEach(id => newSet.add(id));
         return newSet;
       });
       
-      // 업로드 성공 알림 (선택사항)
       if (newAudioIds.length > 0) {
         console.log(`Successfully uploaded ${newAudioIds.length} audio file(s)`);
-        // 업로드 후 전체 목록 다시 로드
         await loadUploadedMusic();
       }
     } catch (error) {
@@ -424,7 +402,7 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
       if (preset) {
         onSelectSounds([{
           name: preset.label,
-          url: '', // 프리셋 음악은 URL이 아닌 키로 처리
+          url: '', 
           duration: preset.duration,
         }]);
         onClose();
@@ -465,7 +443,6 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
   };
 
   const handleSoundGenerate = async () => {
-    // Manual mode validation
     if (inputMode === 'manual') {
       if (!soundPrompt.trim()) {
         setGenerationError('Please enter a sound description.');
@@ -478,7 +455,6 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
       }
     }
     
-    // From video mode validation
     if (inputMode === 'fromVideo') {
       if (!selectedVideoClip) {
         setGenerationError('Please select a video clip.');
@@ -496,12 +472,10 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
     setGenerationError(null);
 
     try {
-      let response;
       let jobIds: string[];
       
       if (inputMode === 'manual') {
-        // 1. Manual mode: API 호출로 4개의 job 시작
-        response = await fetch('/api/sound/generate-async', {
+        const response = await fetch('/api/sound/generate-async', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -522,32 +496,28 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
 
         jobIds = data.jobIds;
       } else {
-        // From video mode: 비디오 기반 생성
         const selectedClip = timelineClips.find(c => c.id === selectedVideoClip);
         if (!selectedClip) {
           throw new Error('Selected video clip not found');
         }
         
-        // 비디오 기반 생성 (프롬프트는 서버에서 처리)
         const completedJobIds = await videoSoundGeneration.generateFromVideo(
           selectedClip,
           soundDuration
         );
         
         if (completedJobIds.length > 0) {
-          // 생성 완료 시 히스토리 새로고침
           loadSoundHistory(true);
           setIsGeneratingSound(false);
-          setSoundPrompt(''); // 입력 초기화
-          setSoundTitle(''); // 타이틀 초기화
-          setSelectedVideoClip(null); // 선택 초기화
-          return; // 비디오 모드는 hook에서 처리 완료
+          setSoundPrompt('');
+          setSoundTitle('');
+          setSelectedVideoClip(null);
+          return;
         } else {
           throw new Error('Video-based sound generation failed');
         }
       }
       
-      // 내부적으로 job progress 추적
       const jobProgresses: JobProgress[] = jobIds.map((jobId: string, index: number) => ({
         jobId,
         variationNumber: index + 1,
@@ -555,10 +525,9 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
         status: 'processing' as const
       }));
 
-      // 2. 각 job별로 진행률 시뮬레이션 시작
       const startTimes = new Map<string, number>();
       jobIds.forEach((jobId: string) => {
-        startTimes.set(jobId, Date.now() + Math.random() * 2000); // 약간의 랜덤 딜레이
+        startTimes.set(jobId, Date.now() + Math.random() * 2000);
       });
       
       const progressInterval = setInterval(() => {
@@ -573,7 +542,6 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
         });
       }, 500);
 
-      // 3. 각 job별로 상태 폴링
       const pollIntervals = new Map<string, NodeJS.Timeout>();
       const pollCounts = new Map<string, number>();
       const maxPolls = 60;
@@ -594,11 +562,9 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
             const status = await statusResponse.json();
             
             if (status.status === 'completed') {
-              // 이 job의 polling 중지
               clearInterval(interval);
               pollIntervals.delete(jobId);
               
-              // 완료 상태 업데이트
               const jobIndex = jobProgresses.findIndex(j => j.jobId === jobId);
               if (jobIndex !== -1) {
                 jobProgresses[jobIndex].status = 'completed';
@@ -633,7 +599,6 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
         pollIntervals.set(jobId, interval);
       });
       
-      // 모든 job이 완료되었는지 확인하는 effect
       const checkAllCompleted = setInterval(() => {
         const allDone = jobProgresses.every(job => job.status === 'completed' || job.status === 'failed');
         const hasSuccess = jobProgresses.some(job => job.status === 'completed');
@@ -647,11 +612,10 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
             setGenerationError('All sound generation failed.');
             setIsGeneratingSound(false);
           } else {
-            // 생성 완료 시 히스토리 새로고침
             loadSoundHistory(true);
             setIsGeneratingSound(false);
-            setSoundPrompt(''); // 입력 초기화
-            setSoundTitle(''); // 타이틀 초기화
+            setSoundPrompt('');
+            setSoundTitle('');
           }
         }
       }, 1000);
@@ -666,8 +630,6 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
   const handleRemoveAudio = (audioId: string) => {
     const audio = uploadedAudios.find(a => a.id === audioId);
     if (audio) {
-      // data URL은 revoke할 필요 없음 (blob URL만 revoke 필요)
-      // URL.revokeObjectURL(audio.url);
       setUploadedAudios(prev => prev.filter(a => a.id !== audioId));
       setSelectedAudioIds(prev => {
         const newSet = new Set(prev);
@@ -711,7 +673,6 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
         </div>
         
         <div className="flex-1 overflow-auto p-6">
-          {/* 탭 선택 */}
           <div className="flex gap-2 mb-6">
             <button
               onClick={() => setActiveTab('preset')}
@@ -746,7 +707,6 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
           </div>
           
           {activeTab === 'preset' ? (
-            /* 프리셋 음악 선택 */
             <div>
               <h3 className="font-medium mb-4">Select Preset Music</h3>
               <div className="grid grid-cols-2 gap-3">
@@ -776,12 +736,10 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
               </div>
             </div>
           ) : activeTab === 'generate' ? (
-            /* AI 생성 섹션 */
             <div>
               <div className="mb-6">
                 <h3 className="font-medium mb-4">AI Sound Generation</h3>
                 
-                {/* Input Mode Selection */}
                 <div className="flex gap-2 mb-4">
                   <button
                     onClick={() => {
@@ -816,13 +774,9 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
                   </button>
                 </div>
                 
-                {/* 인라인 생성 폼 */}
                 <div className="space-y-4">
-                  {/* Conditional Input based on mode */}
                   {inputMode === 'manual' ? (
-                    /* Manual Input Mode */
                     <div className="space-y-3">
-                      {/* Generation Type Selection */}
                       <div className="flex gap-2 p-3 bg-gray-700/50 rounded-lg">
                         <button
                           onClick={() => setGenerationType('sound_effect')}
@@ -853,7 +807,6 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
                         </button>
                       </div>
                       
-                      {/* Title Input */}
                       <div className="p-4 bg-gray-700/50 rounded-lg">
                         <div className="text-sm text-gray-400 mb-2">
                           Title <span className="text-gray-500">(optional)</span>
@@ -869,7 +822,6 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
                         />
                       </div>
                       
-                      {/* Prompt and Controls */}
                       <div className="p-4 bg-gray-700/50 rounded-lg">
                         <div className="flex items-center justify-between mb-2">
                           <div className="text-sm text-gray-400">
@@ -902,7 +854,6 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
                             }}
                           />
                           
-                          {/* Duration 선택 - Sound Effect일 때만 표시 */}
                           {generationType === 'sound_effect' && (
                             <div className="relative duration-dropdown-container">
                               <button
@@ -934,7 +885,6 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
                             </div>
                           )}
                           
-                          {/* Generate 버튼 */}
                           <button
                             onClick={handleSoundGenerate}
                             disabled={isGeneratingSound || !soundPrompt.trim()}
@@ -956,9 +906,7 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
                       </div>
                     </div>
                   ) : (
-                    /* From Video Mode */
                     <>
-                      {/* Video Clip Selector */}
                       <VideoClipSelector
                         clips={timelineClips}
                         selectedClipId={selectedVideoClip}
@@ -966,9 +914,7 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
                         disabled={isGeneratingSound || videoSoundGeneration.isGenerating}
                       />
                       
-                      {/* Duration and Generate Controls */}
                       <div className="flex items-center gap-3 p-4 bg-gray-700/50 rounded-lg">
-                        {/* Duration 선택 */}
                         <div className="relative duration-dropdown-container">
                           <button
                             onClick={() => setShowDurationDropdown(!showDurationDropdown)}
@@ -1000,7 +946,6 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
                         
                         <div className="flex-1"></div>
                         
-                        {/* Generate 버튼 */}
                         <button
                           onClick={handleSoundGenerate}
                           disabled={isGeneratingSound || videoSoundGeneration.isGenerating || !selectedVideoClip}
@@ -1022,7 +967,6 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
                     </>
                   )}
                   
-                  {/* 에러 메시지 */}
                   {(generationError || videoSoundGeneration.error) && (
                     <div className="p-3 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400 text-sm">
                       {generationError || videoSoundGeneration.error}
@@ -1031,7 +975,6 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
                 </div>
               </div>
 
-              {/* Generated Sounds History - 최근 30개 그룹만 표시 */}
               <div>
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="font-medium">
@@ -1154,7 +1097,6 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
               </div>
             </div>
           ) : (
-            /* 업로드 섹션 */
             <>
               <div className="mb-6">
             <h3 className="font-medium mb-4">Upload Audio</h3>

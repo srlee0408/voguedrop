@@ -36,7 +36,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // 4. 사용자의 히스토리 조회 (user_id 조건으로 보안 강화)
     const { data: history, error: dbError, count } = await serviceSupabase
       .from('image_brush_history')
-      .select('*', { count: 'exact' })
+      .select('*, id', { count: 'exact' })
       .eq('user_id', user.id) // 보안: 사용자 데이터만 조회
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
@@ -108,7 +108,7 @@ export async function DELETE(request: NextRequest): Promise<NextResponse> {
     const { data: item, error: checkError } = await serviceSupabase
       .from('image_brush_history')
       .select('user_id, result_url')
-      .eq('id', id)
+      .eq('id', id)  
       .eq('user_id', user.id) // 보안: 처음부터 user_id 조건 포함
       .single();
 

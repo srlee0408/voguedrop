@@ -3,7 +3,7 @@
 import { createContext, useContext, useState, useCallback, useMemo, ReactNode, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { loadProject } from '@/lib/api/projects';
-import type { AutoSaveStatus } from '../_hooks/useAutoSave';
+import type { SaveStatus } from '../_hooks/useManualSave';
 
 /**
  * 프로젝트 관리 Context의 타입 정의
@@ -29,15 +29,15 @@ interface ProjectContextType {
   /** 프로젝트 이름으로 데이터를 로드하는 함수 */
   loadProjectData: (projectName: string) => Promise<void>;
   
-  // 자동 저장 상태
-  /** 자동 저장 상태 ('idle' | 'saving' | 'saved' | 'error') */
-  autoSaveStatus: AutoSaveStatus;
-  /** 자동 저장 상태 설정 함수 */
-  setAutoSaveStatus: React.Dispatch<React.SetStateAction<AutoSaveStatus>>;
-  /** 자동 저장 중 발생한 에러 메시지 */
-  autoSaveError: string | null;
-  /** 자동 저장 에러 설정 함수 */
-  setAutoSaveError: React.Dispatch<React.SetStateAction<string | null>>;
+  // 저장 상태
+  /** 저장 상태 ('idle' | 'saving' | 'saved' | 'error') */
+  saveStatus: SaveStatus;
+  /** 저장 상태 설정 함수 */
+  setSaveStatus: React.Dispatch<React.SetStateAction<SaveStatus>>;
+  /** 저장 중 발생한 에러 메시지 */
+  saveError: string | null;
+  /** 저장 에러 설정 함수 */
+  setSaveError: React.Dispatch<React.SetStateAction<string | null>>;
   
   // 타임라인 UI 상태
   /** 타임라인 영역의 높이 (픽셀 단위, 100-240px 범위) */
@@ -105,7 +105,7 @@ const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
  * 
  * **제공하는 기능:**
  * - 프로젝트 로드: URL 파라미터나 직접 호출로 프로젝트 데이터 복원
- * - 자동 저장: 편집 상태 변경 감지 및 자동 저장 진행률 표시
+ * - 수동 저장: 저장 상태 및 진행률 표시
  * - UI 제어: 타임라인 높이 조절, 모달 열기/닫기
  * - 이벤트 기반 통신: CustomEvent로 ClipContext와 데이터 교환
  * 
@@ -153,9 +153,9 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const [projectLoadError, setProjectLoadError] = useState<string | null>(null);
   const [projectLoaded, setProjectLoaded] = useState(false);
   
-  // 자동 저장 상태
-  const [autoSaveStatus, setAutoSaveStatus] = useState<AutoSaveStatus>('idle');
-  const [autoSaveError, setAutoSaveError] = useState<string | null>(null);
+  // 저장 상태
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
+  const [saveError, setSaveError] = useState<string | null>(null);
   
   // 타임라인 높이 관리 (page.tsx에서 그대로)
   const maxTimelineHeight = 400;
@@ -319,11 +319,11 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     projectLoadError,
     loadProjectData,
     
-    // 자동 저장 상태
-    autoSaveStatus,
-    setAutoSaveStatus,
-    autoSaveError,
-    setAutoSaveError,
+    // 저장 상태
+    saveStatus,
+    setSaveStatus,
+    saveError,
+    setSaveError,
     
     // 타임라인 UI 상태
     timelineHeight,
@@ -358,8 +358,8 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     projectTitle,
     isLoadingProject,
     projectLoadError,
-    autoSaveStatus,
-    autoSaveError,
+    saveStatus,
+    saveError,
     timelineHeight,
     isResizing,
     dragStartY,
@@ -391,14 +391,14 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
  * 
  * **제공하는 기능:**
  * - 프로젝트 정보: projectTitle, isLoadingProject, projectLoadError
- * - 자동 저장 상태: autoSaveStatus, autoSaveError
+ * - 저장 상태: saveStatus, saveError
  * - UI 제어: timelineHeight, 리사이징 관련 상태/함수
  * - 모달 관리: 각종 라이브러리/에디터 모달 상태/함수
  * - DOM 참조: containerRef
  * 
  * **주요 사용 사례:**
  * - 프로젝트 제목 표시/수정
- * - 자동 저장 상태 표시 (저장 중, 완료, 에러)
+ * - 저장 상태 표시 (저장 중, 완료, 에러)
  * - 타임라인 높이 조절 UI
  * - 모달 열기/닫기 (비디오, 사운드, 텍스트 추가)
  * - 프로젝트 로드 상태 처리
@@ -412,12 +412,12 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
  *   const { 
  *     projectTitle, 
  *     setProjectTitle, 
- *     autoSaveStatus,
+ *     saveStatus,
  *     isLoadingProject 
  *   } = useProject();
  *   
  *   const getStatusText = () => {
- *     switch (autoSaveStatus) {
+ *     switch (saveStatus) {
  *       case 'saving': return '저장 중...';
  *       case 'saved': return '저장됨';
  *       case 'error': return '저장 실패';

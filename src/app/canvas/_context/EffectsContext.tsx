@@ -46,7 +46,7 @@ const EffectsContext = createContext<EffectsContextValue | undefined>(undefined)
  * function EffectSelector() {
  *   const { effects } = useEffects();
  *   
- *   const handleEffectToggle = (effectId: number) => {
+ *   const handleEffectToggle = (effectId: string) => {
  *     if (effects.selectedEffects.includes(effectId)) {
  *       effects.removeEffect(effectId);
  *     } else {

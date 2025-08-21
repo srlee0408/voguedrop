@@ -19,7 +19,10 @@ export const saveProjectRequestSchema = z.object({
  * 프로젝트 로드 요청 스키마
  */
 export const loadProjectRequestSchema = z.object({
-  projectName: z.string().min(1, '프로젝트 이름이 필요합니다.'),
+  projectName: z.string().optional(),
+  projectId: z.string().uuid().optional(),
+}).refine(data => data.projectName || data.projectId, {
+  message: 'projectName 또는 projectId 둘 중 하나는 반드시 필요합니다.',
 });
 
 /**

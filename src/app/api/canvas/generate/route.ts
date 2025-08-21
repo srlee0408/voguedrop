@@ -10,7 +10,7 @@ export const maxDuration = 60; // Vercel 함수 타임아웃 60초
 
 interface GenerateVideoRequest {
   imageUrl: string;
-  effectIds: number[];
+  effectIds: string[];
   basePrompt?: string;
   modelType?: 'seedance' | 'hailo';
   userId?: string;
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 3. 효과 ID로 프롬프트 조회 및 결합
-    let selectedEffects: Array<{ id: number; name: string; prompt: string }> = [];
+    let selectedEffects: Array<{ id: string; name: string; prompt: string }> = [];
     let combinedPrompt = basePrompt || '';
     
     if (effectIds.length > 0) {
@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
             })),
             model_type: model
           })
-          .select()
+          .select('id, name, prompt')
           .single();
 
         if (error) {
@@ -198,7 +198,7 @@ export async function POST(request: NextRequest) {
               updated_at: new Date().toISOString()
             })
             .eq('id', generations[index].id)
-            .select()
+            .select('*, id')
             .single();
           
           if (updateError) {

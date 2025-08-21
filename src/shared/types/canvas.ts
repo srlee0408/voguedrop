@@ -7,9 +7,9 @@ export interface GeneratedVideo {
 }
 
 export interface EffectTemplate {
-  id: number;
+  id: string;
   name: string;
-  categoryId: number;
+  categoryId: string;
   previewUrl?: string;
   displayOrder: number;
 }

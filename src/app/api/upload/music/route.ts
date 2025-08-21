@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
         },
         uploaded_at: new Date().toISOString()
       })
-      .select()
+      .select('*')
       .single();
 
     if (dbError) {

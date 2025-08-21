@@ -108,14 +108,14 @@ export interface LibraryVideo {
   is_favorite: boolean;
   aspect_ratio?: string;
   selected_effects: Array<{
-    id: number;
+    id: string;
     name: string;
   }>;
 }
 
 // 프로젝트 저장 타입 추가
 export interface LibraryProject {
-  id: number;
+  id: string;
   project_name: string;
   updated_at: string;
   latest_video_url?: string;  // project_saves에서 직접 가져옴
@@ -134,7 +134,7 @@ export interface LibraryProject {
 
 // 사용자 업로드 영상 타입
 export interface UserUploadedVideo {
-  id: number;
+  id: string;
   user_id: string;
   file_name: string;
   storage_path: string;

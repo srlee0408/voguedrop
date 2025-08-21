@@ -2,7 +2,7 @@ import { ProjectSave } from '@/shared/types/database';
 import { VideoClip, TextClip, SoundClip } from '@/shared/types/video-editor';
 
 export interface ProjectListItem {
-  id: number;
+  id: string;
   project_name: string;
   thumbnail_url: string | null;
   latest_video_url: string | null;
@@ -124,9 +124,9 @@ export async function loadProject(projectName: string): Promise<ProjectSave> {
 }
 
 // 프로젝트 삭제
-export async function deleteProject(projectName: string): Promise<void> {
+export async function deleteProject(projectId: string): Promise<void> {
   try {
-    const response = await fetch(`/api/video/projects?projectName=${encodeURIComponent(projectName)}`, {
+    const response = await fetch(`/api/video/projects?projectId=${encodeURIComponent(projectId)}`, {
       method: 'DELETE'
     });
     

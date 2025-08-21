@@ -2,15 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/shared/lib/supabase'
 
 interface EffectWithRelations {
-  id: number
+  id: string
   name: string
-  category_id: number
-  preview_media_id: number | null
+  category_id: string
+  preview_media_id: string | null
   display_order: number
   is_active: boolean
   created_at: string
   category: {
-    id: number
+    id: string
     name: string
   }
   preview_media?: {
