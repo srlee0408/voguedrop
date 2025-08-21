@@ -75,13 +75,9 @@ export class ProjectService {
     // 기존 프로젝트 확인 및 저장/업데이트
     const supabase = await createClient();
     
-    // projectId가 있으면 해당 프로젝트 확인, 없으면 프로젝트명으로 확인
-    console.log('[ProjectService] saveProject 요청:', { projectId, projectName, userId });
-    
     let existingProject;
     if (projectId) {
       // projectId로 기존 프로젝트 찾기 (UUID 기반)
-      console.log('[ProjectService] projectId로 기존 프로젝트 검색:', projectId);
       const { data } = await supabase
         .from('project_saves')
         .select('id')
@@ -89,10 +85,8 @@ export class ProjectService {
         .eq('id', projectId)
         .single();
       existingProject = data;
-      console.log('[ProjectService] projectId 검색 결과:', existingProject);
     } else {
       // projectId가 없으면 프로젝트명으로 찾기 (하위 호환성)
-      console.log('[ProjectService] projectName으로 기존 프로젝트 검색:', projectName);
       const { data } = await supabase
         .from('project_saves')
         .select('id')
@@ -100,13 +94,11 @@ export class ProjectService {
         .eq('project_name', projectName)
         .single();
       existingProject = data;
-      console.log('[ProjectService] projectName 검색 결과:', existingProject);
     }
     
     let savedProject;
     if (existingProject) {
       // 기존 프로젝트 업데이트
-      console.log('[ProjectService] 기존 프로젝트 업데이트 실행 - projectName:', projectName);
       const { data, error: updateError } = await supabase
         .from('project_saves')
         .update({
@@ -124,9 +116,8 @@ export class ProjectService {
       
       if (updateError) {
         console.error('Error updating project:', updateError);
-        throw new Error('프로젝트 업데이트에 실패했습니다.');
+        throw new Error('Failed to update project');
       }
-      console.log('[ProjectService] 프로젝트 업데이트 성공:', { id: data?.id, projectName: data?.project_name });
       savedProject = data;
     } else {
       // 새 프로젝트 생성

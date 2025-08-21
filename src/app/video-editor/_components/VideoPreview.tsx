@@ -519,12 +519,12 @@ export default function VideoPreview({
   // Save Project 핸들러 (외부에서 전달받은 저장 함수 사용)
   const handleSaveProject = useCallback(async () => {
     if (clips.length === 0 && textClips.length === 0 && soundClips.length === 0) {
-      toast.error('저장할 콘텐츠가 없습니다.');
+      toast.error('No content to save');
       return;
     }
 
     if (!onSaveProject) {
-      toast.error('저장 함수가 설정되지 않았습니다.');
+      toast.error('Save function not configured');
       return;
     }
 

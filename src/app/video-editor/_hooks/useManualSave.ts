@@ -69,7 +69,7 @@ export function useManualSave({
     
     // 저장할 내용이 없으면 건너뛰기
     if (videoClips.length === 0 && textClips.length === 0 && soundClips.length === 0) {
-      toast.info('저장할 내용이 없습니다.');
+      toast.info('No content to save');
       return false;
     }
     
@@ -99,7 +99,7 @@ export function useManualSave({
       if (result.success) {
         setStatus('saved');
         setLastSavedAt(new Date());
-        toast.success('프로젝트가 저장되었습니다.');
+        toast.success('Project saved successfully');
         
         // 저장 성공 콜백 호출
         if (onSaveSuccess && result.projectSaveId) {
@@ -113,11 +113,11 @@ export function useManualSave({
         
         return true;
       } else {
-        throw new Error(result.error || '프로젝트 저장에 실패했습니다.');
+        throw new Error(result.error || 'Failed to save project');
       }
     } catch (error) {
       setStatus('error');
-      const message = error instanceof Error ? error.message : '프로젝트 저장에 실패했습니다.';
+      const message = error instanceof Error ? error.message : 'Failed to save project';
       setErrorMessage(message);
       toast.error(message);
       
