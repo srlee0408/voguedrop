@@ -42,7 +42,7 @@ export function useLibraryData(isOpen: boolean): UseLibraryDataReturn {
       setIsLoading(true);
       setError(null);
       
-      const response = await fetch('/api/canvas/library?limit=100');
+      const response = await fetch('/api/canvas/library?limit=50');
       
       if (!response.ok) {
         throw new Error('Failed to fetch library data');
