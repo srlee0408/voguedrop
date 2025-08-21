@@ -212,7 +212,14 @@ export class ProjectService {
           position: s.position,
           duration: s.duration,
           volume: s.volume,
-          startTime: s.startTime || 0
+          startTime: s.startTime || 0,
+          endTime: s.endTime,
+          fadeInDuration: s.fadeInDuration || 0,
+          fadeOutDuration: s.fadeOutDuration || 0,
+          fadeInType: s.fadeInType || 'linear',
+          fadeOutType: s.fadeOutType || 'linear',
+          maxDuration: s.maxDuration,
+          waveformData: s.waveformData
         };
       }).sort((a, b) => (a.position as number) - (b.position as number))
     };

@@ -227,7 +227,31 @@ export function ClipProvider({ children }: ClipProviderProps) {
     
     // 사운드 클립 복원
     if (contentSnapshot.sound_clips) {
-      setSoundClips(contentSnapshot.sound_clips);
+      const restoredSoundClips = contentSnapshot.sound_clips.map((clip: SoundClip) => ({
+        ...clip,
+        isAnalyzing: !clip.waveformData, // waveformData가 없을 때만 분석 필요
+      }));
+      
+      setSoundClips(restoredSoundClips);
+      
+      // 폴백: waveformData가 없는 클립만 재분석 (하위 호환성)
+      restoredSoundClips.forEach(async (clip: SoundClip) => {
+        if (clip.url && !clip.waveformData) {
+          try {
+            const analysisResult = await analyzeAudioFile(clip.url);
+            setSoundClips(prev => prev.map(c => 
+              c.id === clip.id 
+                ? { ...c, waveformData: analysisResult.waveformData, isAnalyzing: false }
+                : c
+            ));
+          } catch (error) {
+            console.error('Failed to re-analyze audio:', error);
+            setSoundClips(prev => prev.map(c => 
+              c.id === clip.id ? { ...c, isAnalyzing: false } : c
+            ));
+          }
+        }
+      });
     }
     
     // 히스토리 초기화 (새 프로젝트를 로드했으므로)
