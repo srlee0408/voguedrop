@@ -5,54 +5,144 @@ import { useSearchParams } from 'next/navigation';
 import { loadProject } from '@/lib/api/projects';
 import type { AutoSaveStatus } from '../_hooks/useAutoSave';
 
+/**
+ * 프로젝트 관리 Context의 타입 정의
+ * 
+ * 이 Context는 Video Editor의 프로젝트 메타데이터, UI 상태, 모달 관리 등
+ * 편집 내용 외의 모든 상태를 중앙 집중식으로 관리합니다.
+ * 프로젝트 로드/저장, 자동 저장, UI 레이아웃, 모달 표시 등을 담당합니다.
+ * 
+ * @interface ProjectContextType
+ */
 interface ProjectContextType {
   // 프로젝트 메타데이터
+  /** 현재 프로젝트의 제목 ("Untitled Project" 기본값) */
   projectTitle: string;
+  /** 프로젝트 제목 설정 함수 */
   setProjectTitle: React.Dispatch<React.SetStateAction<string>>;
   
   // 프로젝트 로드 상태
+  /** 프로젝트 데이터를 로딩 중인지 여부 */
   isLoadingProject: boolean;
+  /** 프로젝트 로드 중 발생한 에러 메시지 (null이면 에러 없음) */
   projectLoadError: string | null;
+  /** 프로젝트 이름으로 데이터를 로드하는 함수 */
   loadProjectData: (projectName: string) => Promise<void>;
   
   // 자동 저장 상태
+  /** 자동 저장 상태 ('idle' | 'saving' | 'saved' | 'error') */
   autoSaveStatus: AutoSaveStatus;
+  /** 자동 저장 상태 설정 함수 */
   setAutoSaveStatus: React.Dispatch<React.SetStateAction<AutoSaveStatus>>;
+  /** 자동 저장 중 발생한 에러 메시지 */
   autoSaveError: string | null;
+  /** 자동 저장 에러 설정 함수 */
   setAutoSaveError: React.Dispatch<React.SetStateAction<string | null>>;
   
   // 타임라인 UI 상태
+  /** 타임라인 영역의 높이 (픽셀 단위, 100-240px 범위) */
   timelineHeight: number;
+  /** 타임라인 리사이징 중인지 여부 */
   isResizing: boolean;
+  /** 드래그 시작 시점의 Y 좌표 */
   dragStartY: number;
+  /** 드래그 시작 시점의 높이 */
   initialHeight: number;
+  /** 타임라인 최대 높이 제한 (240px) */
   maxTimelineHeight: number;
   
   // 타임라인 리사이징 함수
+  /** 리사이저 드래그 시작 핸들러 */
   handleResizerMouseDown: (e: React.MouseEvent) => void;
+  /** 타임라인 높이 직접 설정 함수 */
   setTimelineHeight: React.Dispatch<React.SetStateAction<number>>;
   
   // 모달 상태
+  /** 비디오 라이브러리 모달 표시 여부 */
   showVideoLibrary: boolean;
+  /** 사운드 라이브러리 모달 표시 여부 */
   showSoundLibrary: boolean;
+  /** 텍스트 에디터 모달 표시 여부 */
   showTextEditor: boolean;
+  /** 일반 라이브러리 모달 표시 여부 */
   showLibrary: boolean;
+  /** 비디오 라이브러리 모달 상태 설정 함수 */
   setShowVideoLibrary: React.Dispatch<React.SetStateAction<boolean>>;
+  /** 사운드 라이브러리 모달 상태 설정 함수 */
   setShowSoundLibrary: React.Dispatch<React.SetStateAction<boolean>>;
+  /** 텍스트 에디터 모달 상태 설정 함수 */
   setShowTextEditor: React.Dispatch<React.SetStateAction<boolean>>;
+  /** 일반 라이브러리 모달 상태 설정 함수 */
   setShowLibrary: React.Dispatch<React.SetStateAction<boolean>>;
   
   // 모달 열기 핸들러
+  /** 비디오 클립 추가 버튼 클릭 핸들러 (비디오 라이브러리 모달 열기) */
   handleAddClip: () => void;
+  /** 사운드 클립 추가 버튼 클릭 핸들러 (사운드 라이브러리 모달 열기) */
   handleAddSound: () => void;
+  /** 텍스트 클립 추가 버튼 클릭 핸들러 (텍스트 에디터 모달 열기) */
   handleAddText: () => void;
   
   // 컨테이너 ref
+  /** 에디터 메인 컨테이너의 DOM 참조 */
   containerRef: React.RefObject<HTMLDivElement | null>;
 }
 
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
 
+/**
+ * 프로젝트 관리를 담당하는 Context Provider
+ * 
+ * 이 Provider는 Video Editor의 프로젝트 메타데이터, UI 레이아웃, 모달 상태 등
+ * 편집 내용 외의 모든 상태를 관리합니다. ClipContext와 독립적으로 동작하며,
+ * URL 파라미터를 통한 프로젝트 로드, 자동 저장 상태 추적 등을 제공합니다.
+ * 
+ * **관리하는 상태:**
+ * - 프로젝트 메타데이터: 제목, 로드 상태, 저장 상태
+ * - UI 레이아웃: 타임라인 높이, 리사이징 상태
+ * - 모달 관리: 비디오/사운드/텍스트 라이브러리, 에디터 모달
+ * - DOM 참조: 메인 컨테이너 ref
+ * 
+ * **제공하는 기능:**
+ * - 프로젝트 로드: URL 파라미터나 직접 호출로 프로젝트 데이터 복원
+ * - 자동 저장: 편집 상태 변경 감지 및 자동 저장 진행률 표시
+ * - UI 제어: 타임라인 높이 조절, 모달 열기/닫기
+ * - 이벤트 기반 통신: CustomEvent로 ClipContext와 데이터 교환
+ * 
+ * **의존성:**
+ * - Next.js useSearchParams: URL 파라미터에서 프로젝트 정보 읽기
+ * - API 함수: loadProject()로 서버에서 프로젝트 데이터 로드
+ * - ClipContext: 'projectDataLoaded' 이벤트로 클립 데이터 전달
+ * 
+ * @param {Object} props - Provider 속성
+ * @param {ReactNode} props.children - 하위 컴포넌트들
+ * @returns {React.ReactElement} Context Provider 컴포넌트
+ * 
+ * @example
+ * ```tsx
+ * // 기본 사용법
+ * function VideoEditor() {
+ *   return (
+ *     <ProjectProvider>
+ *       <ClipProvider>
+ *         <EditorInterface />
+ *       </ClipProvider>
+ *     </ProjectProvider>
+ *   );
+ * }
+ * 
+ * // URL 파라미터로 프로젝트 로드
+ * // /video-editor?projectName=MyProject&title=My%20Video
+ * function ProjectLoader() {
+ *   const { isLoadingProject, projectLoadError, projectTitle } = useProject();
+ *   
+ *   if (isLoadingProject) return <div>Loading project...</div>;
+ *   if (projectLoadError) return <div>Error: {projectLoadError}</div>;
+ *   
+ *   return <div>Editing: {projectTitle}</div>;
+ * }
+ * ```
+ */
 export function ProjectProvider({ children }: { children: ReactNode }) {
   // 프로젝트 제목 (page.tsx에서 그대로)
   const [projectTitle, setProjectTitle] = useState('Untitled Project');
@@ -251,6 +341,85 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * 프로젝트 관리 Context를 사용하는 훅
+ * 
+ * 이 훅을 통해 프로젝트 메타데이터, UI 상태, 모달 관리 등에 접근할 수 있습니다.
+ * ProjectProvider 내부에서만 사용 가능하며, ClipContext와 독립적으로 동작합니다.
+ * 
+ * **제공하는 기능:**
+ * - 프로젝트 정보: projectTitle, isLoadingProject, projectLoadError
+ * - 자동 저장 상태: autoSaveStatus, autoSaveError
+ * - UI 제어: timelineHeight, 리사이징 관련 상태/함수
+ * - 모달 관리: 각종 라이브러리/에디터 모달 상태/함수
+ * - DOM 참조: containerRef
+ * 
+ * **주요 사용 사례:**
+ * - 프로젝트 제목 표시/수정
+ * - 자동 저장 상태 표시 (저장 중, 완료, 에러)
+ * - 타임라인 높이 조절 UI
+ * - 모달 열기/닫기 (비디오, 사운드, 텍스트 추가)
+ * - 프로젝트 로드 상태 처리
+ * 
+ * @returns {ProjectContextType} 프로젝트 관리 상태와 함수들
+ * @throws {Error} ProjectProvider 없이 사용할 경우 에러 발생
+ * 
+ * @example
+ * ```tsx
+ * function ProjectHeader() {
+ *   const { 
+ *     projectTitle, 
+ *     setProjectTitle, 
+ *     autoSaveStatus,
+ *     isLoadingProject 
+ *   } = useProject();
+ *   
+ *   const getStatusText = () => {
+ *     switch (autoSaveStatus) {
+ *       case 'saving': return '저장 중...';
+ *       case 'saved': return '저장됨';
+ *       case 'error': return '저장 실패';
+ *       default: return '';
+ *     }
+ *   };
+ *   
+ *   if (isLoadingProject) {
+ *     return <div>프로젝트 로딩 중...</div>;
+ *   }
+ *   
+ *   return (
+ *     <div>
+ *       <input 
+ *         value={projectTitle}
+ *         onChange={(e) => setProjectTitle(e.target.value)}
+ *         placeholder="프로젝트 제목 입력"
+ *       />
+ *       <span>{getStatusText()}</span>
+ *     </div>
+ *   );
+ * }
+ * 
+ * function TimelineResizer() {
+ *   const { 
+ *     timelineHeight, 
+ *     handleResizerMouseDown, 
+ *     isResizing 
+ *   } = useProject();
+ *   
+ *   return (
+ *     <div 
+ *       onMouseDown={handleResizerMouseDown}
+ *       style={{ 
+ *         cursor: isResizing ? 'ns-resize' : 'ns-resize',
+ *         height: `${timelineHeight}px`
+ *       }}
+ *     >
+ *       타임라인 리사이저
+ *     </div>
+ *   );
+ * }
+ * ```
+ */
 export function useProject() {
   const context = useContext(ProjectContext);
   if (!context) {

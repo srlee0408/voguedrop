@@ -15,13 +15,28 @@ import {
 import { analyzeAudioFile } from '../_utils/audio-analysis';
 import { calculateTimelineDuration } from '../_utils/timeline-helpers';
 
+/**
+ * 클립 관리 Context의 타입 정의
+ * 
+ * 이 Context는 Video Editor의 핵심 기능인 클립 관리를 담당합니다.
+ * 비디오 클립, 텍스트 클립, 사운드 클립의 생성, 수정, 삭제, 복제, 분할 등의
+ * 모든 작업을 중앙 집중식으로 관리합니다.
+ * 
+ * @interface ClipContextType
+ */
 interface ClipContextType {
   // 상태
+  /** 타임라인에 배치된 비디오 클립 배열 (위치와 길이 정보 포함) */
   timelineClips: VideoClip[];
+  /** 화면에 오버레이되는 텍스트 클립 배열 (스타일과 위치 정보 포함) */
   textClips: TextClip[];
+  /** 오디오 트랙에 배치된 사운드 클립 배열 (볼륨과 페이드 정보 포함) */
   soundClips: SoundClip[];
+  /** 현재 선택된 텍스트 클립의 ID (null이면 선택 없음) */
   selectedTextClip: string | null;
+  /** 프로젝트에 저장되지 않은 변경사항이 있는지 여부 */
   hasUnsavedChanges: boolean;
+  /** 마지막으로 수정된 시간 (자동 저장 표시용) */
   lastModifiedAt: Date | null;
   
   // Setter 함수들
@@ -78,13 +93,54 @@ interface ClipContextType {
 
 export const ClipContext = createContext<ClipContextType | undefined>(undefined);
 
+/** 타임라인 스케일: 1초당 픽셀 수 (40px = 1초) */
 const PIXELS_PER_SECOND = 40;
-const MAX_TIMELINE_DURATION_SECONDS = 120; // 2분 제한
+/** 최대 타임라인 길이: 2분 제한 */
+const MAX_TIMELINE_DURATION_SECONDS = 120;
 
+/**
+ * ClipProvider 컴포넌트의 Props
+ * @interface ClipProviderProps
+ */
 interface ClipProviderProps {
+  /** 하위 컴포넌트들 */
   children: ReactNode;
 }
 
+/**
+ * 클립 관리를 담당하는 Context Provider
+ * 
+ * 이 Provider는 Video Editor에서 사용되는 모든 클립(비디오, 텍스트, 사운드)의
+ * 상태와 조작 함수를 제공합니다. 다음과 같은 주요 기능을 포함합니다:
+ * 
+ * **관리하는 상태:**
+ * - 비디오 클립: 타임라인 상의 비디오 세그먼트들
+ * - 텍스트 클립: 화면에 오버레이되는 텍스트 요소들  
+ * - 사운드 클립: 오디오 트랙의 사운드 요소들
+ * - 선택/편집 상태: 현재 작업 중인 클립 정보
+ * - 변경사항 추적: 자동 저장을 위한 상태 관리
+ * 
+ * **제공하는 기능:**
+ * - CRUD 작업: 클립 생성, 읽기, 수정, 삭제
+ * - 고급 편집: 복제, 분할, 리사이즈, 위치 조정
+ * - 타임라인 관리: 2분 제한, 충돌 감지, 자동 배치
+ * - 프로젝트 연동: 저장/복원, 히스토리 관리
+ * 
+ * @param {ClipProviderProps} props - Provider 속성
+ * @returns {React.ReactElement} Context Provider 컴포넌트
+ * 
+ * @example
+ * ```tsx
+ * function VideoEditor() {
+ *   return (
+ *     <ClipProvider>
+ *       <Timeline />
+ *       <PreviewSection />
+ *     </ClipProvider>
+ *   );
+ * }
+ * ```
+ */
 export function ClipProvider({ children }: ClipProviderProps) {
   // 상태 (page.tsx에서 그대로 가져옴)
   const [timelineClips, setTimelineClips] = useState<VideoClip[]>([]);
@@ -824,6 +880,43 @@ export function ClipProvider({ children }: ClipProviderProps) {
   );
 }
 
+/**
+ * 클립 관리 Context를 사용하는 훅
+ * 
+ * 이 훅을 통해 비디오, 텍스트, 사운드 클립의 상태와 조작 함수에 접근할 수 있습니다.
+ * ClipProvider 내부에서만 사용 가능하며, 다음과 같은 기능을 제공합니다:
+ * 
+ * - 클립 상태 접근: timelineClips, textClips, soundClips
+ * - 클립 조작: 추가, 삭제, 복제, 분할, 리사이즈
+ * - 편집 상태: 선택된 클립, 편집 중인 클립
+ * - 히스토리 연동: 변경사항 저장, 실행 취소/다시 실행
+ * 
+ * @returns {ClipContextType} 클립 관리 상태와 함수들
+ * @throws {Error} ClipProvider 없이 사용할 경우 에러 발생
+ * 
+ * @example
+ * ```tsx
+ * function Timeline() {
+ *   const { timelineClips, handleAddToTimeline, handleDeleteVideoClip } = useClips();
+ *   
+ *   const addVideo = (video: LibraryVideo) => {
+ *     handleAddToTimeline([{ type: 'clip', data: video }]);
+ *   };
+ *   
+ *   return (
+ *     <div>
+ *       {timelineClips.map(clip => (
+ *         <VideoClipComponent 
+ *           key={clip.id} 
+ *           clip={clip}
+ *           onDelete={() => handleDeleteVideoClip(clip.id)}
+ *         />
+ *       ))}
+ *     </div>
+ *   );
+ * }
+ * ```
+ */
 export function useClips() {
   const context = useContext(ClipContext);
   if (!context) {

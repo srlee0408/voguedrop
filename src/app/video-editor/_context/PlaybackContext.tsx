@@ -5,25 +5,84 @@ import { PlayerRef } from '@remotion/player';
 import { useClips } from './ClipContext';
 import { calculateTimelineDuration } from '../_utils/timeline-helpers';
 
+/**
+ * 재생 제어 Context의 타입 정의
+ * 
+ * 이 Context는 Video Editor의 재생/일시정지, 시간 탐색 등
+ * 모든 재생 관련 상태와 기능을 중앙 집중식으로 관리합니다.
+ * Remotion Player와의 동기화를 담당하며, 프레임 단위의 정밀한 제어를 제공합니다.
+ * 
+ * @interface PlaybackContextType
+ */
 interface PlaybackContextType {
   // 재생 상태
+  /** 현재 비디오가 재생 중인지 여부 */
   isPlaying: boolean;
+  /** 현재 재생 시간 (초 단위) */
   currentTime: number;
+  /** 전체 비디오 길이 (초 단위) - 모든 클립을 고려한 최대 길이 */
   totalDuration: number;
+  /** Remotion Player 참조 객체 (play, pause, seekTo 제어용) */
   playerRef: React.MutableRefObject<PlayerRef | null>;
+  /** 이전 프레임 번호 저장 (재생 완료 감지용) */
   prevFrameRef: React.MutableRefObject<number>;
   
   // 재생 제어 함수
+  /** 재생/일시정지 토글 함수 (끝에서 재생 시 처음부터 시작) */
   handlePlayPause: () => void;
+  /** 특정 시간으로 이동하는 함수 (프레임 단위 정밀 제어) */
   handleSeek: (time: number) => void;
+  /** 재생 상태 설정 함수 */
   setIsPlaying: React.Dispatch<React.SetStateAction<boolean>>;
+  /** 현재 시간 설정 함수 */
   setCurrentTime: React.Dispatch<React.SetStateAction<number>>;
 }
 
 const PlaybackContext = createContext<PlaybackContextType | undefined>(undefined);
 
+/** 타임라인 스케일: 1초당 픽셀 수 (40px = 1초) */
 const PIXELS_PER_SECOND = 40;
 
+/**
+ * 재생 제어를 담당하는 Context Provider
+ * 
+ * 이 Provider는 Video Editor의 재생/일시정지, 시간 탐색, 진행률 추적 등
+ * 모든 재생 관련 기능을 제공합니다. Remotion Player와 완전히 동기화되며,
+ * 30fps 기준의 프레임 단위 정밀 제어를 지원합니다.
+ * 
+ * **관리하는 상태:**
+ * - 재생 상태: isPlaying, currentTime, totalDuration
+ * - Player 참조: Remotion Player 인스턴스 제어
+ * - 프레임 추적: 이전 프레임 저장으로 재생 완료 감지
+ * 
+ * **제공하는 기능:**
+ * - 재생 제어: 재생/일시정지, 시간 탐색 (seek)
+ * - 자동 완료 감지: 재생 끝 도달 시 자동 정지
+ * - 프레임 동기화: 중복 업데이트 방지 및 성능 최적화
+ * - 상태 폴링: 100ms 간격으로 재생 상태 업데이트
+ * 
+ * **ClipContext 의존성:**
+ * - 총 재생 시간은 모든 클립(비디오, 텍스트, 사운드)의 최대 끝 시간으로 계산
+ * - 클립 변경 시 자동으로 totalDuration 재계산
+ * 
+ * @param {Object} props - Provider 속성
+ * @param {ReactNode} props.children - 하위 컴포넌트들
+ * @returns {React.ReactElement} Context Provider 컴포넌트
+ * 
+ * @example
+ * ```tsx
+ * function VideoEditor() {
+ *   return (
+ *     <ClipProvider>
+ *       <PlaybackProvider>
+ *         <VideoPreview />
+ *         <PlayerControls />
+ *       </PlaybackProvider>
+ *     </ClipProvider>
+ *   );
+ * }
+ * ```
+ */
 export function PlaybackProvider({ children }: { children: ReactNode }) {
   // 재생 상태 관리 (page.tsx에서 그대로)
   const [isPlaying, setIsPlaying] = useState(false);
@@ -199,6 +258,56 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * 재생 제어 Context를 사용하는 훅
+ * 
+ * 이 훅을 통해 비디오 재생/일시정지, 시간 탐색, 재생 상태 등에 접근할 수 있습니다.
+ * PlaybackProvider 내부에서만 사용 가능하며, Remotion Player와 완전히 동기화됩니다.
+ * 
+ * **제공하는 기능:**
+ * - 재생 상태: isPlaying, currentTime, totalDuration
+ * - 재생 제어: handlePlayPause, handleSeek
+ * - Player 참조: playerRef (직접 Remotion API 호출 시 사용)
+ * - 프레임 추적: prevFrameRef (고급 제어 시 사용)
+ * 
+ * @returns {PlaybackContextType} 재생 제어 상태와 함수들
+ * @throws {Error} PlaybackProvider 없이 사용할 경우 에러 발생
+ * 
+ * @example
+ * ```tsx
+ * function PlayerControls() {
+ *   const { 
+ *     isPlaying, 
+ *     currentTime, 
+ *     totalDuration, 
+ *     handlePlayPause, 
+ *     handleSeek 
+ *   } = usePlayback();
+ *   
+ *   const formatTime = (seconds: number) => {
+ *     const mins = Math.floor(seconds / 60);
+ *     const secs = Math.floor(seconds % 60);
+ *     return `${mins}:${secs.toString().padStart(2, '0')}`;
+ *   };
+ *   
+ *   return (
+ *     <div>
+ *       <button onClick={handlePlayPause}>
+ *         {isPlaying ? 'Pause' : 'Play'}
+ *       </button>
+ *       <input 
+ *         type="range"
+ *         min={0}
+ *         max={totalDuration}
+ *         value={currentTime}
+ *         onChange={(e) => handleSeek(Number(e.target.value))}
+ *       />
+ *       <span>{formatTime(currentTime)} / {formatTime(totalDuration)}</span>
+ *     </div>
+ *   );
+ * }
+ * ```
+ */
 export function usePlayback() {
   const context = useContext(PlaybackContext);
   if (!context) {
