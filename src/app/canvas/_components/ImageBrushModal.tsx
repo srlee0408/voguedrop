@@ -2,8 +2,13 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import Image from 'next/image'
-import { X, Brush, Eraser, RotateCcw, Loader2, Sliders, ArrowRight, Upload } from 'lucide-react'
+import { X, Brush, Eraser, RotateCcw, Loader2, Sliders, ArrowRight, Upload, Download } from 'lucide-react'
 import type { ImageBrushModalState, BrushTool, CanvasMouseEvent } from '@/shared/types/image-brush'
+import { 
+  calculateProgressForElapsedTime, 
+  animateToComplete,
+  PROGRESS_UPDATE_INTERVAL 
+} from '@/lib/utils/image-brush-progress'
 
 interface ImageBrushModalProps {
   isOpen: boolean
@@ -409,16 +414,24 @@ export function ImageBrushModal({
       // 마스크 Base64
       const maskBase64 = maskCanvas.toDataURL('image/png')
 
-      // 진행률 시뮬레이션 (I2I 모드는 더 천천히)
-      const progressIncrement = state.mode === 'i2i' ? 5 : 10;
-      const progressDelay = state.mode === 'i2i' ? 1000 : 500;
+      // 시간 기반 진행률 업데이트 (하이브리드 방식)
+      const startTime = Date.now();
       
       const progressInterval = setInterval(() => {
-        setState(prev => ({ 
-          ...prev, 
-          progress: Math.min(prev.progress + progressIncrement, 90) 
-        }))
-      }, progressDelay)
+        const elapsedSeconds = (Date.now() - startTime) / 1000;
+        const targetProgress = calculateProgressForElapsedTime(elapsedSeconds, state.mode);
+        
+        setState(prev => {
+          const currentProgress = prev.progress;
+          // 현재값과 목표값 중 큰 값 선택 (역행 방지)
+          const newProgress = Math.max(currentProgress, targetProgress);
+          
+          return {
+            ...prev,
+            progress: Math.min(Math.floor(newProgress), 90)
+          };
+        });
+      }, PROGRESS_UPDATE_INTERVAL)
 
       // API 호출
       const requestBody: {
@@ -473,16 +486,31 @@ export function ImageBrushModal({
 
       const result = await response.json()
       
-      setState(prev => ({ 
-        ...prev, 
-        progress: 100,
-        isProcessing: false 
-      }))
+      // 완료 애니메이션 실행 (90% -> 100%)
+      const currentProgress = state.progress;
       
-      // Update result image
-      if (result.imageUrl) {
-        setResultImage(result.imageUrl)
-      }
+      animateToComplete(
+        currentProgress,
+        (progress) => {
+          // 진행률 업데이트만 전달
+          setState(prev => ({ 
+            ...prev, 
+            progress
+          }));
+        },
+        () => {
+          // 애니메이션 완료 후 처리
+          setState(prev => ({ 
+            ...prev, 
+            isProcessing: false 
+          }));
+          
+          // Update result image
+          if (result.imageUrl) {
+            setResultImage(result.imageUrl);
+          }
+        }
+      );
 
     } catch (error) {
       console.error('Image brush error:', error)
@@ -516,6 +544,34 @@ export function ImageBrushModal({
         ctx.fillRect(0, 0, maskCanvas.width, maskCanvas.height)
         updatePreview()
       }
+    }
+  }
+  
+  // Download result image
+  const handleDownloadResult = async () => {
+    if (!resultImage) return
+    
+    try {
+      // Fetch the image
+      const response = await fetch(resultImage)
+      const blob = await response.blob()
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `voguedrop-image-brush-${Date.now()}.png`
+      
+      // Trigger download
+      document.body.appendChild(link)
+      link.click()
+      
+      // Cleanup
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Download failed:', error)
+      setState(prev => ({ ...prev, error: 'Failed to download image' }))
     }
   }
 
@@ -624,6 +680,15 @@ export function ImageBrushModal({
               <div className="flex-1 p-4 flex items-center justify-center bg-gray-900/50">
                 {resultImage ? (
                   <div className="relative max-w-full max-h-[calc(95vh-200px)]">
+                    {/* Download button overlay */}
+                    <button
+                      onClick={handleDownloadResult}
+                      className="absolute top-2 right-2 z-10 p-2 bg-black/70 hover:bg-black/90 text-white rounded-lg transition-all duration-200 backdrop-blur-sm"
+                      title="Download result"
+                    >
+                      <Download className="w-5 h-5" />
+                    </button>
+                    
                     <Image 
                       src={resultImage} 
                       alt="AI Generated Result" 

@@ -16,6 +16,7 @@ VogueDrop은 AI 기반 패션 콘텐츠 생성 플랫폼입니다. 패션 크리
 - `docs/frontend-architecture.md` - UI 구현 가이드
 - `docs/ui-ux-spec.md` - 디자인 시스템과 UX 패턴
 - `docs/video-render-setup-guide.md` - Remotion 렌더링 설정
+- `docs/PROJECT_GUIDE.md` - 프로젝트 구조 및 패턴 정리
 
 ## 주요 개발 명령어
 ```bash
