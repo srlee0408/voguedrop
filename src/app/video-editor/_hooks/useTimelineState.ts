@@ -1,39 +1,27 @@
 import { useState } from 'react';
 
 /**
- * Core timeline state management hook
- * Manages active clips, selection, and playback state
+ * Legacy timeline state management hook
+ * 
+ * @deprecated This hook is being phased out in favor of ClipContext for selection state.
+ * Only maintains active clip state for drag/resize operations that are local to Timeline.
+ * 
+ * @description
+ * Previously managed both active clips (drag/resize) and selection state.
+ * Selection state has been moved to ClipContext for global keyboard shortcut access.
+ * 
+ * @manages
+ * - activeClip: Currently dragged/resized clip ID
+ * - activeClipType: Type of the active clip (video/text/sound)
+ * 
+ * @usage
+ * Only used by Timeline component for local drag/resize operations.
+ * For selection state, use ClipContext via useClips() hook.
  */
 export function useTimelineState() {
   // Active clip state (currently being dragged/resized)
   const [activeClip, setActiveClip] = useState<string | null>(null);
   const [activeClipType, setActiveClipType] = useState<'video' | 'text' | 'sound' | null>(null);
-  
-  // Selected clip state (for toolbar actions)
-  const [selectedClip, setSelectedClip] = useState<string | null>(null);
-  const [selectedClipType, setSelectedClipType] = useState<'video' | 'text' | 'sound' | null>(null);
-  
-  // Multi-selection state
-  const [rectSelectedClips, setRectSelectedClips] = useState<{ 
-    id: string; 
-    type: 'video' | 'text' | 'sound' 
-  }[]>([]);
-
-  // Clear all selections
-  const clearSelection = () => {
-    setSelectedClip(null);
-    setSelectedClipType(null);
-    setRectSelectedClips([]);
-  };
-
-  // Handle single clip selection
-  const selectClip = (clipId: string, clipType: 'video' | 'text' | 'sound') => {
-    if (rectSelectedClips.length > 0) {
-      setRectSelectedClips([]);
-    }
-    setSelectedClip(clipId);
-    setSelectedClipType(clipType);
-  };
 
   // Set active clip for operations
   const setActiveClipInfo = (clipId: string | null, clipType: 'video' | 'text' | 'sound' | null) => {
@@ -45,14 +33,8 @@ export function useTimelineState() {
     // State
     activeClip,
     activeClipType,
-    selectedClip,
-    selectedClipType,
-    rectSelectedClips,
     
     // Actions
     setActiveClipInfo,
-    selectClip,
-    clearSelection,
-    setRectSelectedClips,
   };
 }

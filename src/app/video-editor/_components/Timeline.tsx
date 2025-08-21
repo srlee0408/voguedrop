@@ -6,9 +6,9 @@ import TimelineControls from './TimelineControls';
 import TimelineTrack from './TimelineTrack';
 import TimelinePlayhead from './TimelinePlayhead';
 import TimelineSelectionBox from './TimelineSelectionBox';
-import { useTimelineState } from '../_hooks/useTimelineState';
 import { useDragAndDrop } from '../_hooks/useDragAndDrop';
 import { useSelectionState } from '../_hooks/useSelectionState';
+import { useClips } from '../_context/Providers';
 import { calculateTimelineDuration, generateTimeMarkers } from '../_utils/timeline-helpers';
 
 interface TimelineProps {
@@ -97,18 +97,42 @@ export default function Timeline({
 }: TimelineProps) {
   // 줌 레벨 상태 관리
   const [pixelsPerSecond, setPixelsPerSecond] = useState(initialPixelsPerSecond);
-  // Use custom hooks for state management
+  // Use Context for selection state management
   const {
-    activeClip,
-    activeClipType,
-    selectedClip,
+    selectedClipId,
     selectedClipType,
-    rectSelectedClips,
-    setActiveClipInfo,
-    selectClip,
-    clearSelection,
-    setRectSelectedClips,
-  } = useTimelineState();
+    multiSelectedClips,
+    handleSelectClip,
+    handleClearSelection,
+  } = useClips();
+  
+  // Local state for drag/resize operations
+  const [activeClip, setActiveClip] = useState<string | null>(null);
+  const [activeClipType, setActiveClipType] = useState<'video' | 'text' | 'sound' | null>(null);
+  
+  // Convert multi-selection to legacy format for compatibility
+  const rectSelectedClips = multiSelectedClips;
+  const selectedClip = selectedClipId;
+  
+  // Helper functions
+  const selectClip = (clipId: string, clipType: 'video' | 'text' | 'sound') => {
+    handleSelectClip(clipId, clipType);
+  };
+  
+  const clearSelection = () => {
+    handleClearSelection();
+  };
+  
+  const setActiveClipInfo = (clipId: string | null, clipType: 'video' | 'text' | 'sound' | null) => {
+    setActiveClip(clipId);
+    setActiveClipType(clipType);
+  };
+  
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const setRectSelectedClips = (_clips: Array<{id: string, type: 'video' | 'text' | 'sound'}>) => {
+    // This function is handled by the rectangle selection in useSelectionState
+    // For now, we'll handle multiple selections through the Context
+  };
 
   const {
     isDragging,

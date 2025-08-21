@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { useClips, usePlayback, useProject } from '../_context/Providers';
+import { useClips, usePlayback, useProject, useHistory } from '../_context/Providers';
 import EditorLayout from './EditorLayout';
 import PreviewSection from './PreviewSection';
 import TimelineSection from './TimelineSection';
@@ -34,12 +34,26 @@ export default function VideoEditorClient() {
     handleDeleteVideoClip,
     handleUpdateTextPosition,
     handleUpdateTextSize,
+    // 키보드 단축키용 새로운 함수들
+    handleDeleteSelectedClips,
+    handleDuplicateSelectedClip,
+    handleCopyClip,
+    handlePasteClip,
   } = useClips();
   
   // PlaybackContext에서 가져오기
   const {
     currentTime,
+    handlePlayPause,
   } = usePlayback();
+  
+  // HistoryContext에서 가져오기
+  const {
+    canUndo,
+    canRedo,
+    handleUndo,
+    handleRedo,
+  } = useHistory();
   
   // 타임라인 스케일: 1초당 몇 px로 표시할지 결정
   const PIXELS_PER_SECOND = 40;
@@ -79,6 +93,108 @@ export default function VideoEditorClient() {
   const handleEditSoundClip = () => {
     // TODO: Implement sound editing modal
   };
+
+  // 키보드 단축키 이벤트 리스너
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // 입력 필드에서 키 이벤트를 무시 (텍스트 편집 중일 때)
+      const target = event.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+        return;
+      }
+
+      const isMac = /Mac|iPod|iPhone|iPad/.test(navigator.userAgent);
+      const isCtrlOrCmd = isMac ? event.metaKey : event.ctrlKey;
+
+      switch (event.key) {
+        case 'Delete':
+        case 'Backspace':
+          event.preventDefault();
+          handleDeleteSelectedClips();
+          break;
+
+        case 'z':
+        case 'Z':
+          if (isCtrlOrCmd) {
+            event.preventDefault();
+            if (event.shiftKey) {
+              // Ctrl/Cmd + Shift + Z = Redo
+              if (canRedo) {
+                handleRedo();
+              }
+            } else {
+              // Ctrl/Cmd + Z = Undo
+              if (canUndo) {
+                handleUndo();
+              }
+            }
+          }
+          break;
+
+        case 'y':
+        case 'Y':
+          if (isCtrlOrCmd) {
+            event.preventDefault();
+            // Ctrl/Cmd + Y = Redo (Windows 스타일)
+            if (canRedo) {
+              handleRedo();
+            }
+          }
+          break;
+
+        case 'c':
+        case 'C':
+          if (isCtrlOrCmd) {
+            event.preventDefault();
+            handleCopyClip();
+          }
+          break;
+
+        case 'v':
+        case 'V':
+          if (isCtrlOrCmd) {
+            event.preventDefault();
+            handlePasteClip(currentTime);
+          }
+          break;
+
+        case 'd':
+        case 'D':
+          if (isCtrlOrCmd) {
+            event.preventDefault();
+            handleDuplicateSelectedClip();
+          }
+          break;
+
+        case ' ':
+          event.preventDefault();
+          handlePlayPause();
+          break;
+
+        default:
+          break;
+      }
+    };
+
+    // 전역 키보드 이벤트 리스너 등록
+    document.addEventListener('keydown', handleKeyDown);
+
+    // 컴포넌트 언마운트 시 이벤트 리스너 제거
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [
+    handleDeleteSelectedClips,
+    handleDuplicateSelectedClip,
+    handleCopyClip,
+    handlePasteClip,
+    handleUndo,
+    handleRedo,
+    handlePlayPause,
+    canUndo,
+    canRedo,
+    currentTime
+  ]);
   
   // 총 프레임 계산
   const calculateTotalFrames = useMemo(() => {

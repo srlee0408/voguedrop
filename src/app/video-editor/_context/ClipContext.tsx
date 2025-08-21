@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useCallback, useMemo, useEffect, ReactNode } from 'react';
-import { VideoClip, TextClip, SoundClip, LibraryVideo, LibraryProject, UserUploadedVideo, LibraryItem } from '@/shared/types/video-editor';
+import { VideoClip, TextClip, SoundClip, LibraryVideo, LibraryProject, UserUploadedVideo, LibraryItem, ClipboardData } from '@/shared/types/video-editor';
 import { toast } from 'sonner';
 import {
   duplicateVideoClip,
@@ -14,6 +14,11 @@ import {
 } from '../_utils/clip-operations';
 import { analyzeAudioFile } from '../_utils/audio-analysis';
 import { calculateTimelineDuration } from '../_utils/timeline-helpers';
+import {
+  magneticPositioning,
+  freePositioning,
+  soundPositioning,
+} from '../_utils/timeline-utils';
 
 /**
  * 클립 관리 Context의 타입 정의
@@ -38,6 +43,16 @@ interface ClipContextType {
   hasUnsavedChanges: boolean;
   /** 마지막으로 수정된 시간 (자동 저장 표시용) */
   lastModifiedAt: Date | null;
+  
+  // 클립 선택 상태 (키보드 단축키용)
+  /** 현재 선택된 클립의 ID (null이면 선택 없음) */
+  selectedClipId: string | null;
+  /** 현재 선택된 클립의 타입 */
+  selectedClipType: 'video' | 'text' | 'sound' | null;
+  /** 다중 선택된 클립들의 배열 */
+  multiSelectedClips: Array<{id: string, type: 'video' | 'text' | 'sound'}>;
+  /** 클립보드에 복사된 클립 데이터 */
+  clipboard: ClipboardData | null;
   
   // Setter 함수들
   setTimelineClips: React.Dispatch<React.SetStateAction<VideoClip[]>>;
@@ -85,6 +100,20 @@ interface ClipContextType {
   // 편집 상태
   editingTextClip?: TextClip;
   setEditingTextClip: React.Dispatch<React.SetStateAction<TextClip | undefined>>;
+  
+  // 클립 선택 관리 함수 (키보드 단축키용)
+  /** 클립 선택 함수 */
+  handleSelectClip: (id: string, type: 'video' | 'text' | 'sound') => void;
+  /** 선택 해제 함수 */
+  handleClearSelection: () => void;
+  /** 선택된 클립 삭제 함수 */
+  handleDeleteSelectedClips: () => void;
+  /** 선택된 클립 복제 함수 */
+  handleDuplicateSelectedClip: () => void;
+  /** 선택된 클립 복사 함수 */
+  handleCopyClip: () => void;
+  /** 클립 붙여넣기 함수 */
+  handlePasteClip: (atTime: number) => void;
   
   // 히스토리 저장 콜백 (HistoryContext에서 주입)
   saveToHistory?: () => void;
@@ -150,6 +179,12 @@ export function ClipProvider({ children }: ClipProviderProps) {
   const [editingTextClip, setEditingTextClip] = useState<TextClip | undefined>(undefined);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [lastModifiedAt, setLastModifiedAt] = useState<Date | null>(null);
+  
+  // 키보드 단축키용 선택 상태
+  const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
+  const [selectedClipType, setSelectedClipType] = useState<'video' | 'text' | 'sound' | null>(null);
+  const [multiSelectedClips, setMultiSelectedClips] = useState<Array<{id: string, type: 'video' | 'text' | 'sound'}>>([]);
+  const [clipboard, setClipboard] = useState<ClipboardData | null>(null);
   
   // 변경사항이 있을 때 자동으로 추적
   useEffect(() => {
@@ -751,6 +786,187 @@ export function ClipProvider({ children }: ClipProviderProps) {
     saveToHistory();
   }, [saveToHistory]);
   
+  // 클립 선택 관리 함수들 (키보드 단축키용)
+  
+  /** 클립 선택 함수 - 단일 클립을 선택하고 다중 선택을 초기화 */
+  const handleSelectClip = useCallback((id: string, type: 'video' | 'text' | 'sound') => {
+    setSelectedClipId(id);
+    setSelectedClipType(type);
+    setMultiSelectedClips([]); // 단일 선택 시 다중 선택 해제
+  }, []);
+  
+  /** 선택 해제 함수 - 모든 선택을 초기화 */
+  const handleClearSelection = useCallback(() => {
+    setSelectedClipId(null);
+    setSelectedClipType(null);
+    setMultiSelectedClips([]);
+  }, []);
+  
+  /** 선택된 클립 삭제 함수 - 현재 선택된 클립(들)을 삭제 */
+  const handleDeleteSelectedClips = useCallback(() => {
+    if (multiSelectedClips.length > 0) {
+      // 다중 선택된 클립들 삭제
+      multiSelectedClips.forEach(({ id, type }) => {
+        if (type === 'video') {
+          handleDeleteVideoClip(id);
+        } else if (type === 'text') {
+          handleDeleteTextClip(id);
+        } else if (type === 'sound') {
+          handleDeleteSoundClip(id);
+        }
+      });
+      setMultiSelectedClips([]);
+    } else if (selectedClipId && selectedClipType) {
+      // 단일 선택된 클립 삭제
+      if (selectedClipType === 'video') {
+        handleDeleteVideoClip(selectedClipId);
+      } else if (selectedClipType === 'text') {
+        handleDeleteTextClip(selectedClipId);
+      } else if (selectedClipType === 'sound') {
+        handleDeleteSoundClip(selectedClipId);
+      }
+      handleClearSelection();
+    }
+    saveToHistory();
+  }, [
+    selectedClipId, 
+    selectedClipType, 
+    multiSelectedClips, 
+    handleDeleteVideoClip, 
+    handleDeleteTextClip, 
+    handleDeleteSoundClip, 
+    handleClearSelection, 
+    saveToHistory
+  ]);
+  
+  /** 선택된 클립 복제 함수 - 현재 선택된 클립을 복제 */
+  const handleDuplicateSelectedClip = useCallback(() => {
+    if (!selectedClipId || !selectedClipType) return;
+    
+    if (selectedClipType === 'video') {
+      handleDuplicateVideoClip(selectedClipId);
+    } else if (selectedClipType === 'text') {
+      handleDuplicateTextClip(selectedClipId);
+    } else if (selectedClipType === 'sound') {
+      handleDuplicateSoundClip(selectedClipId);
+    }
+    saveToHistory();
+  }, [
+    selectedClipId, 
+    selectedClipType, 
+    handleDuplicateVideoClip, 
+    handleDuplicateTextClip, 
+    handleDuplicateSoundClip, 
+    saveToHistory
+  ]);
+  
+  /** 선택된 클립 복사 함수 - 클립보드에 복사 */
+  const handleCopyClip = useCallback(() => {
+    if (!selectedClipId || !selectedClipType) return;
+    
+    let clipToCopy: VideoClip | TextClip | SoundClip | undefined;
+    
+    if (selectedClipType === 'video') {
+      clipToCopy = timelineClips.find(clip => clip.id === selectedClipId);
+    } else if (selectedClipType === 'text') {
+      clipToCopy = textClips.find(clip => clip.id === selectedClipId);
+    } else if (selectedClipType === 'sound') {
+      clipToCopy = soundClips.find(clip => clip.id === selectedClipId);
+    }
+    
+    if (clipToCopy) {
+      setClipboard({
+        type: selectedClipType,
+        clip: clipToCopy,
+        copiedAt: Date.now()
+      });
+      toast.success('Clip copied to clipboard');
+    }
+  }, [selectedClipId, selectedClipType, timelineClips, textClips, soundClips]);
+  
+  /** 클립 붙여넣기 함수 - 지정된 시간에 클립보드의 클립을 붙여넣기 */
+  const handlePasteClip = useCallback(async (atTime: number) => {
+    if (!clipboard) {
+      toast.error('No clip in clipboard');
+      return;
+    }
+    
+    // 클립보드 만료 체크 (10분)
+    const clipboardAge = Date.now() - clipboard.copiedAt;
+    if (clipboardAge > 10 * 60 * 1000) {
+      setClipboard(null);
+      toast.error('Clipboard expired');
+      return;
+    }
+    
+    const requestedPosition = Math.round(atTime * PIXELS_PER_SECOND);
+    const newId = `${clipboard.type}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    if (clipboard.type === 'video') {
+      const originalClip = clipboard.clip as VideoClip;
+      
+      // magneticPositioning을 사용하여 겹치지 않는 위치 찾기
+      const { targetPosition, adjustedClips } = magneticPositioning(
+        timelineClips,
+        '', // 새 클립이므로 빈 ID
+        requestedPosition,
+        originalClip.duration
+      );
+      
+      const newClip: VideoClip = {
+        ...originalClip,
+        id: newId,
+        position: targetPosition,
+      };
+      
+      // 조정된 클립들과 새 클립을 함께 적용
+      const allClips = [...adjustedClips, newClip].sort((a, b) => a.position - b.position);
+      setTimelineClips(allClips);
+      
+    } else if (clipboard.type === 'text') {
+      const originalClip = clipboard.clip as TextClip;
+      
+      // freePositioning을 사용하여 겹치지 않는 위치 찾기
+      const targetPosition = freePositioning(
+        textClips,
+        '', // 새 클립이므로 빈 ID
+        requestedPosition,
+        originalClip.duration
+      );
+      
+      const newClip: TextClip = {
+        ...originalClip,
+        id: newId,
+        position: targetPosition,
+      };
+      setTextClips(prev => [...prev, newClip]);
+      
+    } else if (clipboard.type === 'sound') {
+      const originalClip = clipboard.clip as SoundClip;
+      
+      // soundPositioning을 사용하여 겹치지 않는 위치 찾기
+      const { targetPosition, adjustedClips } = soundPositioning(
+        soundClips,
+        '', // 새 클립이므로 빈 ID
+        requestedPosition,
+        originalClip.duration
+      );
+      
+      const newClip: SoundClip = {
+        ...originalClip,
+        id: newId,
+        position: targetPosition,
+      };
+      
+      // 조정된 클립들과 새 클립을 함께 적용
+      const allClips = [...adjustedClips, newClip].sort((a, b) => a.position - b.position);
+      setSoundClips(allClips);
+    }
+    
+    saveToHistory();
+    toast.success('Clip pasted successfully');
+  }, [clipboard, timelineClips, textClips, soundClips, saveToHistory]);
+  
   // Context value를 useMemo로 최적화
   const value = useMemo(() => ({
     // 상태
@@ -761,6 +977,12 @@ export function ClipProvider({ children }: ClipProviderProps) {
     editingTextClip,
     hasUnsavedChanges,
     lastModifiedAt,
+    
+    // 선택 상태 (키보드 단축키용)
+    selectedClipId,
+    selectedClipType,
+    multiSelectedClips,
+    clipboard,
     
     // Setter 함수
     setTimelineClips,
@@ -806,6 +1028,14 @@ export function ClipProvider({ children }: ClipProviderProps) {
     handleUpdateSoundVolume,
     handleUpdateSoundFade,
     
+    // 클립 선택 관리 (키보드 단축키용)
+    handleSelectClip,
+    handleClearSelection,
+    handleDeleteSelectedClips,
+    handleDuplicateSelectedClip,
+    handleCopyClip,
+    handlePasteClip,
+    
     // 히스토리 저장 (나중에 연결)
     saveToHistory,
     setSaveToHistoryCallback,
@@ -817,6 +1047,10 @@ export function ClipProvider({ children }: ClipProviderProps) {
     editingTextClip,
     hasUnsavedChanges,
     lastModifiedAt,
+    selectedClipId,
+    selectedClipType,
+    multiSelectedClips,
+    clipboard,
     handleAddToTimeline,
     handleDeleteVideoClip,
     handleDuplicateVideoClip,
@@ -847,6 +1081,12 @@ export function ClipProvider({ children }: ClipProviderProps) {
     handleReorderSoundClips,
     handleUpdateSoundVolume,
     handleUpdateSoundFade,
+    handleSelectClip,
+    handleClearSelection,
+    handleDeleteSelectedClips,
+    handleDuplicateSelectedClip,
+    handleCopyClip,
+    handlePasteClip,
     saveToHistory,
     setSaveToHistoryCallback,
   ]);

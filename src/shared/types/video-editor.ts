@@ -151,3 +151,18 @@ export type LibraryItem =
   | { type: 'clip'; data: LibraryVideo }
   | { type: 'project'; data: LibraryProject }
   | { type: 'upload'; data: UserUploadedVideo };
+
+/**
+ * 클립보드에 복사된 클립 데이터
+ * 키보드 단축키를 통한 복사/붙여넣기 기능에 사용됩니다.
+ * 
+ * @interface ClipboardData
+ */
+export interface ClipboardData {
+  /** 복사된 클립의 타입 */
+  type: 'video' | 'text' | 'sound';
+  /** 복사된 클립 데이터 (타입에 따라 VideoClip, TextClip, SoundClip 중 하나) */
+  clip: VideoClip | TextClip | SoundClip;
+  /** 복사된 시점의 타임스탬프 (밀리초) */
+  copiedAt: number;
+}

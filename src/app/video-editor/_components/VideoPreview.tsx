@@ -53,7 +53,9 @@ export default function VideoPreview({
   onSelectTextClip,
   projectTitle = 'Untitled Project',
   currentTime,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   isPlaying,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onPlayStateChange
 }: VideoPreviewProps) {
   // SSR-CSR hydration 안정화를 위한 마운트 플래그
@@ -86,42 +88,7 @@ export default function VideoPreview({
     setIsMounted(true);
   }, []);
 
-  // 스페이스바 키보드 단축키 이벤트 리스너
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      // 텍스트 입력 중이 아닐 때만 동작
-      const target = event.target as HTMLElement;
-      if (target.tagName === 'INPUT' || 
-          target.tagName === 'TEXTAREA' || 
-          target.isContentEditable) {
-        return;
-      }
-      
-      // 스페이스바 감지
-      if (event.key === ' ' || event.code === 'Space') {
-        event.preventDefault(); // 기본 스크롤 동작 방지
-        
-        // 재생/일시정지 토글
-        if (onPlayStateChange && playerRef?.current) {
-          if (isPlaying) {
-            playerRef.current.pause();
-            onPlayStateChange(false);
-          } else {
-            playerRef.current.play();
-            onPlayStateChange(true);
-          }
-        }
-      }
-    };
-
-    // 이벤트 리스너 등록
-    window.addEventListener('keydown', handleKeyDown);
-
-    // 클린업
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isPlaying, onPlayStateChange, playerRef]);
+  // 스페이스바 재생 단축키는 VideoEditorClient에서 통합 관리됩니다
 
   // 초기/클립 변경 시 기본 선택: 첫 번째 클립
   useEffect(() => {
