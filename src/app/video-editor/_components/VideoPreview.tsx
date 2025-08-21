@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useMemo, useState, useRef } from 'react';
+import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
 import { Player, PlayerRef } from '@remotion/player';
+import { useClips } from '../_context/ClipContext';
 import { CompositePreview } from './remotion/CompositePreview';
 import { TextClip as TextClipType, SoundClip as SoundClipType } from '@/shared/types/video-editor';
 import TextOverlayEditor from './TextOverlayEditor';
@@ -75,10 +76,15 @@ export default function VideoPreview({
   const [renderOutputUrl, setRenderOutputUrl] = useState<string | null>(null);
   const [isRenderModalOpen, setIsRenderModalOpen] = useState(false);
   
-  // Export 관련 상태 (저장 상태 제거)
+  // 저장 관련 상태
+  const [isSaving, setIsSaving] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   
   const containerRef = useRef<HTMLDivElement>(null);
   const { ITEM_WIDTH, ITEM_HEIGHT, ITEM_GAP } = CAROUSEL_CONFIG;
+  
+  // ClipContext에서 저장 관련 상태 가져오기
+  const { hasUnsavedChanges, setHasUnsavedChanges, lastModifiedAt } = useClips();
   
   // 비디오 URL 목록 추출 (프리로딩 비활성화 - Remotion이 자체 처리)
   // const videoUrls = useMemo(() => clips.map(clip => clip.url), [clips]);
@@ -87,6 +93,14 @@ export default function VideoPreview({
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  // 자동 저장 감지: hasUnsavedChanges가 false로 변경되고 lastModifiedAt이 있으면 자동 저장된 것으로 간주
+  useEffect(() => {
+    if (!hasUnsavedChanges && lastModifiedAt && !isSaving) {
+      // 자동 저장이 발생한 것으로 감지되면 lastSavedAt 업데이트
+      setLastSavedAt(lastModifiedAt);
+    }
+  }, [hasUnsavedChanges, lastModifiedAt, isSaving]);
 
   // 스페이스바 재생 단축키는 VideoEditorClient에서 통합 관리됩니다
 
@@ -495,7 +509,71 @@ export default function VideoPreview({
     }
   };
 
-  // handleSaveFile 제거 - Export Video로 통합됨
+  // Save Project 핸들러 (렌더링 없이 프로젝트만 저장)
+  const handleSaveProject = useCallback(async () => {
+    if (clips.length === 0 && textClips.length === 0 && soundClips.length === 0) {
+      toast.error('No content to save');
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      // 프로젝트 저장 API 호출 (렌더링 없이)
+      const response = await fetch('/api/video/save', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          projectName: projectTitle,
+          videoClips: clips,
+          textClips: textClips,
+          soundClips: memoizedSoundClips,
+          aspectRatio: selectedAspectRatio,
+          durationInFrames: calculateTotalFrames,
+          // renderId와 renderOutputUrl 없이 저장
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Save failed');
+      }
+
+      const result = await response.json();
+
+      if (result.success) {
+        // 저장 성공 처리
+        setHasUnsavedChanges(false);
+        setLastSavedAt(new Date());
+        toast.success('Project saved successfully');
+        console.log('Project saved:', result);
+      } else {
+        throw new Error('Save operation failed');
+      }
+    } catch (error) {
+      console.error('Save error:', error);
+      toast.error(`Save failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [clips, textClips, soundClips.length, memoizedSoundClips, selectedAspectRatio, calculateTotalFrames, projectTitle, setHasUnsavedChanges]);
+
+  // 저장 단축키 지원 (Cmd+S / Ctrl+S)
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === 's') {
+        event.preventDefault();
+        handleSaveProject();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [handleSaveProject]);
 
   if (!is_mounted) return null;
 
@@ -682,6 +760,18 @@ export default function VideoPreview({
               <div className="bg-black/50 px-2 py-1 rounded text-xs font-medium">
                 Editor
               </div>
+              {/* 저장 상태 표시 */}
+              {lastSavedAt && (
+                <div className="text-xs text-gray-400">
+                  Saved {lastSavedAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                </div>
+              )}
+              {hasUnsavedChanges && (
+                <div className="text-xs text-orange-400 flex items-center gap-1">
+                  <i className="ri-circle-fill text-[6px]"></i>
+                  Unsaved changes
+                </div>
+              )}
             </div>
             {/* 비디오 컨트롤 버튼들 */}
             <div className="flex gap-2">
@@ -695,6 +785,26 @@ export default function VideoPreview({
                 </button>
                 <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
                   Preview
+                </div>
+              </div>
+              
+              {/* Save Project 버튼 */}
+              <div className="relative group">
+                <button 
+                  className={`p-2 bg-black/50 rounded hover:bg-black/70 transition-colors ${
+                    hasUnsavedChanges ? 'ring-2 ring-primary/50' : ''
+                  }`}
+                  onClick={handleSaveProject}
+                  disabled={isSaving}
+                >
+                  {isSaving ? (
+                    <div className="w-4 h-4 border-2 border-gray-500 border-t-primary rounded-full animate-spin" />
+                  ) : (
+                    <i className="ri-save-line text-primary"></i>
+                  )}
+                </button>
+                <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                  {isSaving ? 'Saving...' : 'Save Project'}
                 </div>
               </div>
               
