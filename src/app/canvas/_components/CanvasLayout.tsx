@@ -5,7 +5,14 @@ import { Header } from '@/shared/components/layout/Header'
 import { LeftPanel } from './LeftPanel'
 import { Canvas } from './Canvas'
 import { CanvasModals } from './CanvasModals'
-import { useCanvas } from '../_context/CanvasContext'
+import {
+  useSlot,
+  useSettings,
+  useModals,
+  useFavorites,
+  useEffects,
+  useGeneration
+} from '../_context/CanvasProviders'
 import { useBeforeUnload } from '../_hooks/useBeforeUnload'
 import { ProjectSelectorModal } from '@/shared/components/modals/ProjectSelectorModal'
 import type { GeneratedVideo } from '@/shared/types/canvas'
@@ -17,12 +24,13 @@ import type { GeneratedVideo } from '@/shared/types/canvas'
 export function CanvasLayout(): React.ReactElement {
   const [showProjectSelector, setShowProjectSelector] = useState(false)
   
+  // 분리된 Context들에서 필요한 상태만 구독
+  const { modals } = useModals();
+  const { settings } = useSettings();
+  const { favorites } = useFavorites();
+  const { effects } = useEffects();
+  const { slotManager } = useSlot();
   const {
-    modals,
-    settings,
-    favorites,
-    effects,
-    slotManager,
     videoGeneration,
     currentGeneratingImage,
     setCurrentGeneratingImage,
@@ -30,7 +38,7 @@ export function CanvasLayout(): React.ReactElement {
     setSelectedVideoId,
     isDownloading,
     handleDownload,
-  } = useCanvas()
+  } = useGeneration();
 
   // 페이지 이탈 방지
   useBeforeUnload(

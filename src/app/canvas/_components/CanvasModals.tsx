@@ -9,7 +9,14 @@ import { CameraModal } from '@/shared/components/modals/CameraModal'
 import { ModelModal } from '@/shared/components/modals/ModelModal'
 import { ProjectTitleModal } from '@/shared/components/modals/ProjectTitleModal'
 import { ImageBrushModal } from './ImageBrushModal'
-import { useCanvas } from '../_context/CanvasContext'
+import {
+  useSlot,
+  useSettings,
+  useModals,
+  useFavorites,
+  useEffects,
+  useGeneration
+} from '../_context/CanvasProviders'
 
 /**
  * Canvas 페이지의 모든 모달을 관리하는 컨테이너 컴포넌트
@@ -17,17 +24,19 @@ import { useCanvas } from '../_context/CanvasContext'
  */
 export function CanvasModals(): React.ReactElement {
   const router = useRouter()
+  
+  // 분리된 Context들에서 필요한 상태만 구독
+  const { modals } = useModals();
+  const { settings } = useSettings();
+  const { favorites } = useFavorites();
+  const { effects } = useEffects();
+  const { slotManager } = useSlot();
   const { 
-    modals, 
-    settings, 
-    favorites, 
-    effects,
-    slotManager,
     currentGeneratingImage, 
     setCurrentGeneratingImage,
     currentEditingSlotIndex,
     setCurrentEditingSlotIndex 
-  } = useCanvas()
+  } = useGeneration();
 
   return (
     <>

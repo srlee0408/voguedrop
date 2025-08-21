@@ -2,7 +2,6 @@
 export { useModalManager } from './useModalManager'
 export { useFavoritesManager } from './useFavoritesManager'
 export { useEffectsManager } from './useEffectsManager'
-export { useCanvasSettings } from './useCanvasSettings'
 export { useSlotManager } from './useSlotManager'
 export { useVideoGeneration } from './useVideoGeneration'
 export { useBeforeUnload } from './useBeforeUnload'
