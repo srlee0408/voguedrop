@@ -765,7 +765,7 @@ export function ImageBrushModal({
                 disabled={state.isProcessing}
               >
                 <option value="flux">Image Modification</option>
-                <option value="i2i" disabled>Style Transfer (Coming Soon)</option>
+                <option value="i2i">Style Transfer</option>
               </select>
             </div>
 

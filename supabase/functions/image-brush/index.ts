@@ -29,20 +29,31 @@ interface ImageBrushResponse {
   processingTime?: number;
 }
 
-// Helper function to convert base64 to blob
+// Helper function to convert base64 to blob with safe decoding
 function base64ToBlob(base64: string): Uint8Array {
-  // Remove data URL prefix if present
-  const base64Data = base64.includes(',') ? base64.split(',')[1] : base64;
-  
-  // Decode base64
-  const binaryString = atob(base64Data);
-  const bytes = new Uint8Array(binaryString.length);
-  
-  for (let i = 0; i < binaryString.length; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
+  try {
+    // Remove data URL prefix if present
+    let base64Data = base64.includes(',') ? base64.split(',')[1] : base64;
+    
+    // Add padding if necessary (inspired by test-5.py)
+    const missingPadding = base64Data.length % 4;
+    if (missingPadding) {
+      base64Data += '='.repeat(4 - missingPadding);
+    }
+    
+    // Decode base64
+    const binaryString = atob(base64Data);
+    const bytes = new Uint8Array(binaryString.length);
+    
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    
+    return bytes;
+  } catch (error) {
+    console.error('Base64 decoding error:', error);
+    throw new Error('Failed to decode base64 image data');
   }
-  
-  return bytes;
 }
 
 // Helper function to download image from URL
@@ -94,7 +105,7 @@ const WORKFLOW_TEMPLATE = {
     },
     "class_type": "LoadImage",
     "_meta": {
-      "title": "텍스처 이미지 로드"
+      "title": "이미지 로드"
     }
   },
   "590": {
@@ -104,7 +115,7 @@ const WORKFLOW_TEMPLATE = {
     },
     "class_type": "LoadImage",
     "_meta": {
-      "title": "레퍼런스 이미지 로드"
+      "title": "이미지 로드"
     }
   },
   "645": {
@@ -127,7 +138,7 @@ const WORKFLOW_TEMPLATE = {
       "width": ["645", 1],
       "height": ["645", 2],
       "interpolation": "lanczos",
-      "method": "fill / crop",
+      "method": "pad",
       "condition": "always",
       "multiple_of": 0,
       "image": ["422", 0]
@@ -249,7 +260,7 @@ const WORKFLOW_TEMPLATE = {
   },
   "663": {
     "inputs": {
-      "clip_name": "sigclip_vision_patch14_384.safetensors"
+      "clip_name": "igclip_vision_patch14_384.safetensors"
     },
     "class_type": "CLIPVisionLoader",
     "_meta": {
@@ -358,7 +369,7 @@ const WORKFLOW_TEMPLATE = {
   "698": {
     "inputs": {
       "image": "mask.png",
-      "channel": "alpha",
+      "channel": "red",
       "upload": "image"
     },
     "class_type": "LoadImageMask",
@@ -381,22 +392,26 @@ const WORKFLOW_TEMPLATE = {
 // Load and prepare workflow JSON
 function loadWorkflowJson(): any {
   // Deep clone the template
-  const workflowData = JSON.parse(JSON.stringify(WORKFLOW_TEMPLATE));
+  let workflowData = JSON.parse(JSON.stringify(WORKFLOW_TEMPLATE));
   
-  // Replace seed with random value
+  // Replace {seed} placeholder with random value
   const seed = Math.floor(Math.random() * 999999);
-  if (workflowData['689'] && workflowData['689']['inputs']) {
-    workflowData['689']['inputs']['seed'] = seed;
-  }
+  
+  // Convert to string to replace placeholder
+  let workflowString = JSON.stringify(workflowData);
+  workflowString = workflowString.replace('"{seed}"', seed.toString());
+  
+  // Parse back to object
+  workflowData = JSON.parse(workflowString);
   
   return workflowData;
 }
 
 // RunPod API call for I2I
 async function callRunPodAPI(
-  textureImage: string,    // input-1.png: texture to be applied
-  referenceImage: string,  // input-2.png: reference image with style
-  maskImage: string,       // mask.png: mask with alpha channel
+  textureImage: string,    // input-1.png: texture/clothing to be applied (인페인트될 소재)
+  originalImage: string,   // input-2.png: original/reference image to be inpainted (인페인트 당할 대상)
+  maskImage: string,       // mask.png: mask marking the area to be inpainted
   prompt: string,          // User prompt for additional guidance
   apiKey: string,
   endpointId: string
@@ -412,18 +427,18 @@ async function callRunPodAPI(
   }
   
   // Prepare request data according to RunPod format
-  // workflow는 JSON 문자열로, images는 순수 base64만
+  // workflow는 JSON 객체로 직접 전달 (test-5.py 방식 따름)
   const requestData = {
     input: {
-      workflow: JSON.stringify(workflowData),  // JSON 텍스트로 전송
+      workflow: workflowData,  // JSON 객체를 그대로 전송
       images: [
         {
-          name: "input-1.png",  // 인페인트될 텍스처
+          name: "input-1.png",  // 인페인트될 텍스처/옷
           image: textureImage.split(',')[1] || textureImage  // base64 encoded string
         },
         {
-          name: "input-2.png",  // 인페인트 당할 레퍼런스
-          image: referenceImage.split(',')[1] || referenceImage  // base64 encoded string
+          name: "input-2.png",  // 인페인트 당할 원본/레퍼런스
+          image: originalImage.split(',')[1] || originalImage  // base64 encoded string
         },
         {
           name: "mask.png",  // 인페인트될 부분 마스크
@@ -479,7 +494,7 @@ async function pollRunPodResult(
   startTime: number
 ): Promise<string> {
   const RUNPOD_STATUS_URL = `https://api.runpod.ai/v2/${endpointId}/status/${jobId}`;
-  const maxAttempts = 240; // 8 minutes (2 seconds * 240) - RunPod extreme cold start 고려
+  const maxAttempts = 120; // 10 minutes (5 seconds * 120) - RunPod extreme cold start 고려
   let attempts = 0;
   let coldStartLogged = false;
   let warningLogged = false;
@@ -487,8 +502,8 @@ async function pollRunPodResult(
   while (attempts < maxAttempts) {
     attempts++;
     
-    // Wait before checking
-    await new Promise(resolve => setTimeout(resolve, 2000)); // 2 seconds
+    // Wait before checking (reduced API calls like test-5.py)
+    await new Promise(resolve => setTimeout(resolve, 5000)); // 5 seconds
     
     // Check status
     const statusResponse = await fetch(RUNPOD_STATUS_URL, {
@@ -513,41 +528,67 @@ async function pollRunPodResult(
       const output = statusData.output;
       console.log('RunPod output structure:', Object.keys(output || {}));
       
-      // Try different output formats
-      if (output?.images?.[0]?.data) {
-        console.log(`RunPod generation completed in ${Date.now() - startTime}ms`);
-        return output.images[0].data; // Base64 image data
-      } else if (output?.images?.[0]) {
-        // Maybe the image is directly in the array
-        console.log('Found image in alternative format');
-        return output.images[0];
-      } else if (output?.image) {
-        // Single image format
+      // Try different output formats (based on test-5.py logic)
+      
+      // 1. Check for images array format (most common)
+      if (output?.images && Array.isArray(output.images)) {
+        console.log(`Found ${output.images.length} images in output`);
+        
+        for (const imageItem of output.images) {
+          // Handle dict format with 'data' key
+          if (typeof imageItem === 'object' && imageItem.data) {
+            console.log(`RunPod generation completed in ${Date.now() - startTime}ms`);
+            return imageItem.data; // Base64 image data
+          }
+          // Handle direct base64 string in array
+          else if (typeof imageItem === 'string' && imageItem.length > 100) {
+            console.log('Found direct base64 in images array');
+            return imageItem;
+          }
+        }
+      }
+      
+      // 2. Single image format
+      if (output?.image) {
         console.log('Found single image format');
         return output.image;
-      } else if (typeof output === 'string') {
-        // Direct string output
+      }
+      
+      // 3. Direct string output
+      if (typeof output === 'string' && output.length > 100) {
         console.log('Found direct string output');
         return output;
       }
       
-      console.error('Unexpected output structure:', JSON.stringify(output).substring(0, 200));
-      throw new Error('No image found in RunPod result');
+      // 4. Search for base64 in other keys (fallback)
+      if (output && typeof output === 'object') {
+        console.log('Searching for base64 data in output keys...');
+        for (const [key, value] of Object.entries(output)) {
+          // Check if value looks like base64 image data
+          if (typeof value === 'string' && value.length > 1000) {
+            console.log(`Found potential image data in key '${key}'`);
+            return value;
+          }
+        }
+      }
+      
+      console.error('Unexpected output structure:', JSON.stringify(output).substring(0, 500));
+      throw new Error('No valid image found in RunPod result');
       
     } else if (status === 'FAILED') {
       const errorMsg = statusData.error || 'Unknown error';
       throw new Error(`RunPod job failed: ${errorMsg}`);
       
     } else if (status === 'IN_QUEUE' || status === 'IN_PROGRESS') {
-      // Cold start 감지 및 로깅
-      if (!coldStartLogged && attempts > 15 && status === 'IN_QUEUE') {
+      // Cold start 감지 및 로깅 (5초 간격이므로 6번 = 30초)
+      if (!coldStartLogged && attempts > 6 && status === 'IN_QUEUE') {
         console.log('RunPod cold start detected - model is loading (this may take 30-60 seconds)');
         coldStartLogged = true;
       }
       
       // 장시간 대기 경고
-      if (!warningLogged && attempts > 60 && status === 'IN_QUEUE') {
-        console.warn(`RunPod job stuck in queue for ${attempts * 2} seconds. Possible issues:`);
+      if (!warningLogged && attempts > 24 && status === 'IN_QUEUE') {
+        console.warn(`RunPod job stuck in queue for ${attempts * 5} seconds. Possible issues:`);
         console.warn('1. No available workers in the endpoint');
         console.warn('2. Endpoint configuration issue');
         console.warn('3. RunPod service disruption');
@@ -555,15 +596,15 @@ async function pollRunPodResult(
       }
       
       // 극단적인 대기 시간에 대한 처리
-      if (attempts > 120 && status === 'IN_QUEUE') {
+      if (attempts > 48 && status === 'IN_QUEUE') {
         // 4분 이상 IN_QUEUE 상태면 문제가 있을 가능성 높음
-        console.error(`RunPod job stuck in IN_QUEUE for ${attempts * 2} seconds`);
+        console.error(`RunPod job stuck in IN_QUEUE for ${attempts * 5} seconds`);
         
         // Job 취소 시도 (선택사항)
         // const cancelUrl = `https://api.runpod.ai/v2/${endpointId}/cancel/${jobId}`;
         // await fetch(cancelUrl, { method: 'POST', headers: { 'Authorization': `Bearer ${apiKey}` }});
         
-        throw new Error(`RunPod job stuck in queue for too long (${attempts * 2} seconds). The endpoint may not have available workers or there may be a configuration issue.`);
+        throw new Error(`RunPod job stuck in queue for too long (${attempts * 5} seconds). The endpoint may not have available workers or there may be a configuration issue.`);
       }
       
       // Continue polling
@@ -873,9 +914,9 @@ serve(async (req) => {
       // Call RunPod API
       console.log('Calling RunPod API for I2I processing...');
       const resultBase64 = await callRunPodAPI(
-        image,              // Target image
-        referenceImage!,    // Reference image (validated above)
-        mask,              // Mask
+        referenceImage!,    // Texture/clothing to be applied (input-1.png)
+        image,              // Reference image to be inpainted (input-2.png)
+        mask,              // Mask for inpainting area
         prompt || '',      // Optional prompt for additional guidance
         runpodApiKey,
         runpodEndpointId
