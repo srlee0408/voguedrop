@@ -14,7 +14,7 @@ import { useModals } from './ModalContext';
 import { useFavorites } from './FavoritesContext';
 import { useEffects } from './EffectsContext';
 import { useGeneration } from './GenerationContext';
-import { getCanvasState } from '@/shared/lib/canvas-storage';
+import { getCanvasStateSync } from '@/shared/lib/canvas-storage';
 
 /**
  * CanvasProviders 컴포넌트의 Props
@@ -46,7 +46,7 @@ function PersistenceConnector({ children }: { children: ReactNode }) {
 
   // 클라이언트 사이드에서만 localStorage 복원
   useEffect(() => {
-    const savedState = getCanvasState();
+    const savedState = getCanvasStateSync();
     if (savedState) {
       // 효과 복원
       if (savedState.selectedEffects?.length > 0) {

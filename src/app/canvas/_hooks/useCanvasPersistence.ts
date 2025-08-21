@@ -2,9 +2,9 @@
 
 import { useEffect, useCallback, useRef } from 'react'
 import { 
-  getCanvasState, 
-  saveCanvasState, 
-  clearCanvasState,
+  getCanvasStateSync, 
+  saveCanvasStateSync, 
+  clearCanvasStateSync,
   debounce,
   type CanvasStorageData 
 } from '@/shared/lib/canvas-storage'
@@ -52,7 +52,7 @@ export function useCanvasPersistence({
   // 디바운스된 저장 함수
   const debouncedSave = useRef(
     debounce((data: Partial<CanvasStorageData>) => {
-      saveCanvasState(data)
+      saveCanvasStateSync(data)
     }, 300)
   ).current
   
@@ -60,7 +60,7 @@ export function useCanvasPersistence({
   useEffect(() => {
     if (!isInitialized.current) {
       isInitialized.current = true
-      const savedState = getCanvasState()
+      const savedState = getCanvasStateSync()
       
       if (savedState && onRestore) {
         // generating 상태인 슬롯들을 empty로 리셋 (새로고침 시 진행 중이던 작업은 취소)
@@ -111,7 +111,7 @@ export function useCanvasPersistence({
   
   // 상태 초기화 함수
   const reset = useCallback(() => {
-    clearCanvasState()
+    clearCanvasStateSync()
     if (onRestore) {
       onRestore({
         uploadedImage: null,

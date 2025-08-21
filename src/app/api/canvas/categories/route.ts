@@ -16,10 +16,15 @@ export async function GET() {
       )
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       categories: categories || [],
       total: categories?.length || 0
     })
+
+    // 카테고리 데이터는 자주 변경되지 않으므로 30분 캐싱
+    response.headers.set('Cache-Control', 'public, max-age=1800, stale-while-revalidate=86400')
+    
+    return response
 
   } catch (error) {
     console.error('API error:', error)

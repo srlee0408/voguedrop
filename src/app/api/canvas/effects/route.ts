@@ -74,11 +74,16 @@ export async function GET(request: NextRequest) {
         }
       })
 
-      return NextResponse.json({
+      const response = NextResponse.json({
         effects: effectsWithMedia,
         category: 'all',
         total: effectsWithMedia.length
       })
+
+      // 효과 데이터는 자주 변경되지 않으므로 30분 캐싱
+      response.headers.set('Cache-Control', 'public, max-age=1800, stale-while-revalidate=86400')
+      
+      return response
     }
 
     // 특정 카테고리 조회 - join을 사용해서 한 번에 모든 데이터 가져오기
@@ -125,11 +130,16 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       effects: effectsWithMedia,
       category: category,
       total: effectsWithMedia.length
     })
+
+    // 효과 데이터는 자주 변경되지 않으므로 30분 캐싱
+    response.headers.set('Cache-Control', 'public, max-age=1800, stale-while-revalidate=86400')
+    
+    return response
 
   } catch (error) {
     console.error('API error:', error)
