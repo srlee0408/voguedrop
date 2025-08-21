@@ -16,6 +16,10 @@ import type { SaveStatus } from '../_hooks/useManualSave';
  */
 interface ProjectContextType {
   // 프로젝트 메타데이터
+  /** 현재 프로젝트의 UUID (저장된 프로젝트인 경우) */
+  projectId: string | null;
+  /** 프로젝트 ID 설정 함수 */
+  setProjectId: React.Dispatch<React.SetStateAction<string | null>>;
   /** 현재 프로젝트의 제목 ("Untitled Project" 기본값) */
   projectTitle: string;
   /** 프로젝트 제목 설정 함수 */
@@ -26,8 +30,8 @@ interface ProjectContextType {
   isLoadingProject: boolean;
   /** 프로젝트 로드 중 발생한 에러 메시지 (null이면 에러 없음) */
   projectLoadError: string | null;
-  /** 프로젝트 이름으로 데이터를 로드하는 함수 */
-  loadProjectData: (projectName: string) => Promise<void>;
+  /** 프로젝트 이름 또는 ID로 데이터를 로드하는 함수 */
+  loadProjectData: (projectNameOrId: string, isId?: boolean) => Promise<void>;
   
   // 저장 상태
   /** 저장 상태 ('idle' | 'saving' | 'saved' | 'error') */
@@ -144,9 +148,12 @@ const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
  * ```
  */
 export function ProjectProvider({ children }: { children: ReactNode }) {
-  // 프로젝트 제목 (page.tsx에서 그대로)
+  // 프로젝트 메타데이터
+  const [projectId, setProjectId] = useState<string | null>(null);
   const [projectTitle, setProjectTitle] = useState('Untitled Project');
   const searchParams = useSearchParams();
+  
+  console.log('[ProjectContext] 상태 업데이트:', { projectId, projectTitle });
   
   // 프로젝트 로드 상태
   const [isLoadingProject, setIsLoadingProject] = useState(false);
@@ -189,14 +196,20 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   }, []);
   
   // 프로젝트 데이터 로드 함수
-  const loadProjectData = useCallback(async (projectName: string) => {
+  const loadProjectData = useCallback(async (projectNameOrId: string, isId: boolean = false) => {
     setIsLoadingProject(true);
     setProjectLoadError(null);
     
     try {
-      const project = await loadProject(projectName);
+      const project = await loadProject(projectNameOrId, isId);
       
-      // 프로젝트 제목 설정
+      // 프로젝트 메타데이터 설정
+      console.log('[ProjectContext] 프로젝트 로드 완료:', { 
+        id: project.id, 
+        name: project.project_name 
+      });
+      console.log('[ProjectContext] setProjectId 호출:', project.id);
+      setProjectId(project.id);
       setProjectTitle(project.project_name);
       
       // ClipContext에서 데이터 복원을 위해 이벤트 발생
@@ -219,13 +232,18 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const title = searchParams.get('title');
     const projectName = searchParams.get('projectName');
+    const projectIdParam = searchParams.get('projectId');
     
+    // projectId 파라미터가 있고 아직 로드하지 않았다면
+    if (projectIdParam && !projectLoaded && !isLoadingProject) {
+      loadProjectData(decodeURIComponent(projectIdParam), true); // isId = true
+    }
     // projectName 파라미터가 있고 아직 로드하지 않았다면
-    if (projectName && !projectLoaded && !isLoadingProject) {
-      loadProjectData(decodeURIComponent(projectName));
+    else if (projectName && !projectLoaded && !isLoadingProject) {
+      loadProjectData(decodeURIComponent(projectName), false); // isId = false
     }
     // title 파라미터만 있다면 (이전 방식 호환)
-    else if (title && !projectName) {
+    else if (title && !projectName && !projectIdParam) {
       setProjectTitle(decodeURIComponent(title));
     }
   }, [searchParams, projectLoaded, isLoadingProject, loadProjectData]);
@@ -311,6 +329,8 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   // Context value를 useMemo로 최적화 - 의존성 배열 단순화
   const value = useMemo(() => ({
     // 프로젝트 메타데이터
+    projectId,
+    setProjectId,
     projectTitle,
     setProjectTitle,
     
@@ -355,6 +375,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     containerRef,
   }), [
     // 자주 변경되는 상태만 포함
+    projectId,
     projectTitle,
     isLoadingProject,
     projectLoadError,

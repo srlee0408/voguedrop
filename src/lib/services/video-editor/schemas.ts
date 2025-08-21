@@ -4,6 +4,7 @@ import { z } from 'zod';
  * 프로젝트 저장 요청 스키마
  */
 export const saveProjectRequestSchema = z.object({
+  projectId: z.string().uuid().optional(), // 기존 프로젝트 업데이트용 UUID
   projectName: z.string().min(1, '프로젝트 이름이 필요합니다.'),
   videoClips: z.array(z.unknown()).default([]),
   textClips: z.array(z.unknown()).default([]),
@@ -56,7 +57,7 @@ export const renderStatusRequestSchema = z.object({
 export const saveProjectResponseSchema = z.object({
   success: z.boolean(),
   message: z.string(),
-  projectSaveId: z.number(),
+  projectSaveId: z.string().uuid(), // number에서 string (UUID)로 변경
   needsRender: z.boolean(),
   videoUrl: z.string().nullable(),
   storageLocation: z.enum(['supabase', 's3']).nullable(),
@@ -68,7 +69,7 @@ export const saveProjectResponseSchema = z.object({
 export const loadProjectResponseSchema = z.object({
   success: z.boolean(),
   project: z.object({
-    id: z.number(),
+    id: z.string().uuid(), // number에서 string (UUID)로 변경
     project_name: z.string(),
     content_snapshot: z.object({
       version: z.string(),

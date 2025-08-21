@@ -10,6 +10,7 @@ interface PreviewSectionProps {
   onRemoveClip: (id: string) => void;
   onUpdateTextPosition: (id: string, x: number, y: number) => void;
   onUpdateTextSize: (id: string, fontSize: number, fontSizeRatio: number) => void;
+  onSaveProject?: () => Promise<void>; // 저장 함수 전달
 }
 
 export default function PreviewSection({
@@ -19,6 +20,7 @@ export default function PreviewSection({
   onRemoveClip,
   onUpdateTextPosition,
   onUpdateTextSize,
+  onSaveProject,
 }: PreviewSectionProps) {
   const {
     timelineClips,
@@ -54,6 +56,7 @@ export default function PreviewSection({
         selectedTextClip={selectedTextClip}
         onSelectTextClip={handleSelectTextClip}
         projectTitle={projectTitle}
+        onSaveProject={onSaveProject}
       />
     </div>
   );

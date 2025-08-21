@@ -15,7 +15,7 @@ export interface SaveProjectResponse {
   success: boolean;
   message?: string;
   error?: string;
-  projectSaveId?: number;
+  projectSaveId?: string; // number에서 string (UUID)로 변경
   needsRender?: boolean;
   videoUrl?: string | null;
   storageLocation?: string | null;
@@ -23,6 +23,7 @@ export interface SaveProjectResponse {
 
 // 프로젝트 저장 파라미터 타입
 export interface SaveProjectParams {
+  projectId?: string | null;
   projectName: string;
   videoClips: VideoClip[];
   textClips: TextClip[];
@@ -36,24 +37,37 @@ export interface SaveProjectParams {
 
 // 프로젝트 저장
 export async function saveProject(params: SaveProjectParams): Promise<SaveProjectResponse> {
+  console.log('[API] saveProject 호출됨 - params:', { 
+    projectId: params.projectId, 
+    projectName: params.projectName 
+  });
+  
   try {
+    const requestBody = {
+      projectId: params.projectId,
+      projectName: params.projectName,
+      videoClips: params.videoClips,
+      textClips: params.textClips,
+      soundClips: params.soundClips,
+      soundLanes: params.soundLanes,
+      aspectRatio: params.aspectRatio,
+      durationInFrames: params.durationInFrames,
+      renderId: params.renderId,
+      renderOutputUrl: params.renderOutputUrl,
+    };
+    
+    console.log('[API] 서버로 전송할 데이터:', { 
+      projectId: requestBody.projectId, 
+      projectName: requestBody.projectName 
+    });
+    
     const response = await fetch('/api/video/save', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       credentials: 'include', // 쿠키 포함
-      body: JSON.stringify({
-        projectName: params.projectName,
-        videoClips: params.videoClips,
-        textClips: params.textClips,
-        soundClips: params.soundClips,
-        soundLanes: params.soundLanes,
-        aspectRatio: params.aspectRatio,
-        durationInFrames: params.durationInFrames,
-        renderId: params.renderId,
-        renderOutputUrl: params.renderOutputUrl,
-      }),
+      body: JSON.stringify(requestBody),
     });
     
     if (!response.ok) {
@@ -106,9 +120,10 @@ export async function fetchUserProjects(): Promise<ProjectListItem[]> {
 }
 
 // 특정 프로젝트 로드
-export async function loadProject(projectName: string): Promise<ProjectSave> {
+export async function loadProject(projectNameOrId: string, isId: boolean = false): Promise<ProjectSave> {
   try {
-    const response = await fetch(`/api/video/save?projectName=${encodeURIComponent(projectName)}`);
+    const queryParam = isId ? `projectId=${encodeURIComponent(projectNameOrId)}` : `projectName=${encodeURIComponent(projectNameOrId)}`;
+    const response = await fetch(`/api/video/save?${queryParam}`);
     
     if (!response.ok) {
       const error = await response.json();

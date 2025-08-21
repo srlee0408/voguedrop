@@ -34,6 +34,7 @@ export class ProjectService {
     // 입력 검증
     const validated = saveProjectRequestSchema.parse(request);
     const {
+      projectId,
       projectName,
       videoClips,
       textClips,
@@ -74,20 +75,42 @@ export class ProjectService {
     // 기존 프로젝트 확인 및 저장/업데이트
     const supabase = await createClient();
     
-    // 동일한 사용자의 동일한 프로젝트명 확인
-    const { data: existingProject } = await supabase
-      .from('project_saves')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('project_name', projectName)
-      .single();
+    // projectId가 있으면 해당 프로젝트 확인, 없으면 프로젝트명으로 확인
+    console.log('[ProjectService] saveProject 요청:', { projectId, projectName, userId });
+    
+    let existingProject;
+    if (projectId) {
+      // projectId로 기존 프로젝트 찾기 (UUID 기반)
+      console.log('[ProjectService] projectId로 기존 프로젝트 검색:', projectId);
+      const { data } = await supabase
+        .from('project_saves')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('id', projectId)
+        .single();
+      existingProject = data;
+      console.log('[ProjectService] projectId 검색 결과:', existingProject);
+    } else {
+      // projectId가 없으면 프로젝트명으로 찾기 (하위 호환성)
+      console.log('[ProjectService] projectName으로 기존 프로젝트 검색:', projectName);
+      const { data } = await supabase
+        .from('project_saves')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('project_name', projectName)
+        .single();
+      existingProject = data;
+      console.log('[ProjectService] projectName 검색 결과:', existingProject);
+    }
     
     let savedProject;
     if (existingProject) {
       // 기존 프로젝트 업데이트
+      console.log('[ProjectService] 기존 프로젝트 업데이트 실행 - projectName:', projectName);
       const { data, error: updateError } = await supabase
         .from('project_saves')
         .update({
+          project_name: projectName, // 프로젝트명 업데이트 추가
           latest_render_id: validRenderId || null,
           latest_video_url: null, // 렌더링 후 업데이트 예정
           thumbnail_url: thumbnailUrl,
@@ -103,13 +126,15 @@ export class ProjectService {
         console.error('Error updating project:', updateError);
         throw new Error('프로젝트 업데이트에 실패했습니다.');
       }
+      console.log('[ProjectService] 프로젝트 업데이트 성공:', { id: data?.id, projectName: data?.project_name });
       savedProject = data;
     } else {
       // 새 프로젝트 생성
+      const newProjectId = crypto.randomUUID();
       const { data, error: insertError } = await supabase
         .from('project_saves')
         .insert({
-          id: crypto.randomUUID(),
+          id: newProjectId,
           user_id: userId,
           project_name: projectName,
           latest_render_id: validRenderId || null,

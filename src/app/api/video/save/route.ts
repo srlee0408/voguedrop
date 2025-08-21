@@ -57,10 +57,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const { searchParams } = new URL(request.url);
     const projectName = searchParams.get('projectName');
+    const projectId = searchParams.get('projectId');
     
-    if (!projectName) {
+    if (!projectName && !projectId) {
       return NextResponse.json(
-        { error: 'Project name is required' },
+        { error: 'Project name or project ID is required' },
         { status: 400 }
       );
     }
@@ -79,7 +80,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     // 2. 요청 데이터 검증
-    const validated = loadProjectRequestSchema.parse({ projectName });
+    const validated = loadProjectRequestSchema.parse({ 
+      projectName: projectName || undefined, 
+      projectId: projectId || undefined 
+    });
 
     // 3. 서비스 실행
     const service = new ProjectService();

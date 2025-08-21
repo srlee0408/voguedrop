@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { useClips, usePlayback, useProject, useHistory } from '../_context/Providers';
 import EditorLayout from './EditorLayout';
 import PreviewSection from './PreviewSection';
@@ -9,6 +10,8 @@ import ModalManager from './ModalManager';
 import ProjectManager from './ProjectManager';
 
 export default function VideoEditorClient() {
+  const router = useRouter();
+  
   // Context에서 가져오기
   const {
     projectTitle,
@@ -238,8 +241,15 @@ export default function VideoEditorClient() {
     window.location.href = `/video-editor?projectName=${encodeURIComponent(newProjectName)}`;
   }, []);
   
+  // 저장 성공 후 URL 업데이트
+  const handleSaveSuccess = useCallback((savedProjectId: string) => {
+    console.log('[VideoEditorClient] 저장 성공 - URL 업데이트:', savedProjectId);
+    router.replace(`/video-editor?projectId=${savedProjectId}`, { scroll: false });
+  }, [router]);
+
   // 수동 저장 핸들러
   const handleSaveProject = useCallback(async () => {
+    console.log('[VideoEditorClient] handleSaveProject 호출됨 - saveProjectRef.current 존재:', !!saveProjectRef.current);
     if (saveProjectRef.current) {
       await saveProjectRef.current();
     }
@@ -278,6 +288,7 @@ export default function VideoEditorClient() {
             onRemoveClip={handleDeleteVideoClip}
             onUpdateTextPosition={handleUpdateTextPosition}
             onUpdateTextSize={handleUpdateTextSize}
+            onSaveProject={handleSaveProject}
           />
         }
         timelineSection={
@@ -315,8 +326,10 @@ export default function VideoEditorClient() {
         setSaveStatus={setSaveStatus}
         setSaveError={setSaveError}
         onSaveProject={(saveFunc) => {
+          console.log('[VideoEditorClient] saveProjectRef 업데이트 받음 - timestamp:', Date.now());
           saveProjectRef.current = saveFunc;
         }}
+        onSaveSuccess={handleSaveSuccess}
       />
     </>
   );

@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { ProjectSwitchConfirmModal } from '@/shared/components/modals/ProjectSwitchConfirmModal';
 import { useClips } from '../_context/Providers';
+import { useProject } from '../_context/Providers';
 import { useManualSave } from '../_hooks/useManualSave';
 import type { SaveStatus } from '../_hooks/useManualSave';
 import type { VideoClip, TextClip, SoundClip } from '@/shared/types/video-editor';
@@ -18,6 +19,7 @@ interface ProjectManagerProps {
   setSaveStatus: (status: SaveStatus) => void;
   setSaveError: (error: string | null) => void;
   onSaveProject?: (saveFunction: () => Promise<boolean>) => void;
+  onSaveSuccess?: (savedProjectId: string) => void; // 저장 성공 콜백
 }
 
 export default function ProjectManager({
@@ -30,6 +32,7 @@ export default function ProjectManager({
   setSaveStatus,
   setSaveError,
   onSaveProject,
+  onSaveSuccess,
 }: ProjectManagerProps) {
   const [showSwitchConfirm, setShowSwitchConfirm] = useState(false);
   const [targetProjectName, setTargetProjectName] = useState<string>('');
@@ -38,12 +41,25 @@ export default function ProjectManager({
     setHasUnsavedChanges,
   } = useClips();
 
+  const {
+    projectId,
+  } = useProject();
+
+  console.log('[ProjectManager] 현재 상태:', { 
+    projectId, 
+    projectTitle,
+    projectIdType: typeof projectId,
+    projectIdNull: projectId === null,
+    projectIdUndefined: projectId === undefined
+  });
+
   // 수동 저장 설정
   const {
     status: saveStatusLocal,
     errorMessage: saveErrorLocal,
     saveProject,
   } = useManualSave({
+    projectId,
     projectTitle,
     videoClips: timelineClips,
     textClips,
@@ -51,11 +67,13 @@ export default function ProjectManager({
     soundLanes,
     aspectRatio: '9:16', // TODO: Get from VideoPreview component
     durationInFrames: calculateTotalFrames,
+    onSaveSuccess,
   });
 
   // 수동 저장 함수를 부모 컴포넌트로 전달
   useEffect(() => {
     if (onSaveProject) {
+      console.log('[ProjectManager] saveProject 함수 전달 - projectId:', projectId, 'timestamp:', Date.now());
       onSaveProject(saveProject);
     }
   }, [onSaveProject, saveProject]);

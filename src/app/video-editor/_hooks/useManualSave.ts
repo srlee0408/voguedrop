@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useRef, useEffect } from 'react';
 import { saveProject } from '@/lib/api/projects';
 import { VideoClip, TextClip, SoundClip } from '@/shared/types/video-editor';
 import { toast } from 'sonner';
@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 interface UseManualSaveParams {
+  projectId?: string | null; // 기존 프로젝트 UUID (수정 시 사용)
   projectTitle: string;
   videoClips: VideoClip[];
   textClips: TextClip[];
@@ -13,6 +14,7 @@ interface UseManualSaveParams {
   soundLanes?: number[];
   aspectRatio: '9:16' | '1:1' | '16:9';
   durationInFrames: number;
+  onSaveSuccess?: (savedProjectId: string) => void; // 저장 성공 콜백
 }
 
 interface UseManualSaveReturn {
@@ -23,6 +25,7 @@ interface UseManualSaveReturn {
 }
 
 export function useManualSave({
+  projectId,
   projectTitle,
   videoClips,
   textClips,
@@ -30,14 +33,35 @@ export function useManualSave({
   soundLanes = [0],
   aspectRatio,
   durationInFrames,
+  onSaveSuccess,
 }: UseManualSaveParams): UseManualSaveReturn {
   const [status, setStatus] = useState<SaveStatus>('idle');
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   
+  // useRef로 최신 값들을 항상 참조할 수 있도록 함
+  const projectIdRef = useRef(projectId);
+  const projectTitleRef = useRef(projectTitle);
+  
+  // refs 업데이트
+  useEffect(() => {
+    projectIdRef.current = projectId;
+    projectTitleRef.current = projectTitle;
+    console.log('[useManualSave] Refs 업데이트 - projectId:', projectId, 'projectTitle:', projectTitle);
+  }, [projectId, projectTitle]);
+  
+  console.log('[useManualSave] Hook 실행됨 - projectId:', projectId, 'projectTitle:', projectTitle, 'timestamp:', Date.now());
+  
   // 수동 저장 함수
   const performSave = useCallback(async (): Promise<boolean> => {
+    // ref에서 최신 값 가져오기
+    const currentProjectId = projectIdRef.current;
+    const currentProjectTitle = projectTitleRef.current;
+    
+    console.log('[useManualSave] ⭐ performSave 함수 호출됨! - ref projectId:', currentProjectId, 'ref projectTitle:', currentProjectTitle);
+    console.log('[useManualSave] 클로저 projectId:', projectId, '클로저 projectTitle:', projectTitle);
+    
     // 이미 저장 중이면 중복 실행 방지
     if (isSaving) {
       return false;
@@ -54,20 +78,33 @@ export function useManualSave({
     setErrorMessage(null);
     
     try {
-      const result = await saveProject({
-        projectName: projectTitle,
+      const saveParams = {
+        projectId: currentProjectId || undefined, // ref에서 가져온 최신 값 사용
+        projectName: currentProjectTitle,
         videoClips,
         textClips,
         soundClips,
         soundLanes,
         aspectRatio,
         durationInFrames,
+      };
+      
+      console.log('[useManualSave] 저장 요청 파라미터:', { 
+        projectId: saveParams.projectId, 
+        projectName: saveParams.projectName 
       });
+      
+      const result = await saveProject(saveParams);
       
       if (result.success) {
         setStatus('saved');
         setLastSavedAt(new Date());
         toast.success('프로젝트가 저장되었습니다.');
+        
+        // 저장 성공 콜백 호출
+        if (onSaveSuccess && result.projectSaveId) {
+          onSaveSuccess(result.projectSaveId);
+        }
         
         // 3초 후 idle 상태로 변경
         setTimeout(() => {
@@ -93,7 +130,10 @@ export function useManualSave({
     } finally {
       setIsSaving(false);
     }
-  }, [projectTitle, videoClips, textClips, soundClips, soundLanes, aspectRatio, durationInFrames, isSaving]);
+  }, [videoClips, textClips, soundClips, soundLanes, aspectRatio, durationInFrames, isSaving]); // projectId, projectTitle은 ref로 관리하므로 제외
+  
+  // useCallback 의존성 변경 추적
+  console.log('[useManualSave] useCallback 의존성:', { projectId, projectTitle });
   
   return {
     status,

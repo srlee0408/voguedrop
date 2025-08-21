@@ -40,6 +40,7 @@ interface VideoPreviewProps {
   selectedTextClip?: string | null;
   onSelectTextClip?: (id: string | null) => void;
   projectTitle?: string;
+  onSaveProject?: () => Promise<void>; // 외부에서 전달받는 저장 함수
 }
 
 export default function VideoPreview({ 
@@ -57,7 +58,8 @@ export default function VideoPreview({
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   isPlaying,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  onPlayStateChange
+  onPlayStateChange,
+  onSaveProject
 }: VideoPreviewProps) {
   // SSR-CSR hydration 안정화를 위한 마운트 플래그
   const [is_mounted, setIsMounted] = useState(false);
@@ -84,7 +86,7 @@ export default function VideoPreview({
   const { ITEM_WIDTH, ITEM_HEIGHT, ITEM_GAP } = CAROUSEL_CONFIG;
   
   // ClipContext에서 저장 관련 상태 가져오기
-  const { hasUnsavedChanges, setHasUnsavedChanges, lastModifiedAt } = useClips();
+  const { hasUnsavedChanges, lastModifiedAt } = useClips();
   
   // 비디오 URL 목록 추출 및 미디어 캐싱 적용
   const videoUrls = useMemo(() => clips.map(clip => clip.url), [clips]);
@@ -514,57 +516,29 @@ export default function VideoPreview({
     }
   };
 
-  // Save Project 핸들러 (렌더링 없이 프로젝트만 저장)
+  // Save Project 핸들러 (외부에서 전달받은 저장 함수 사용)
   const handleSaveProject = useCallback(async () => {
     if (clips.length === 0 && textClips.length === 0 && soundClips.length === 0) {
-      toast.error('No content to save');
+      toast.error('저장할 콘텐츠가 없습니다.');
+      return;
+    }
+
+    if (!onSaveProject) {
+      toast.error('저장 함수가 설정되지 않았습니다.');
       return;
     }
 
     setIsSaving(true);
 
     try {
-      // 프로젝트 저장 API 호출 (렌더링 없이)
-      const response = await fetch('/api/video/save', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          id: crypto.randomUUID(),
-          projectName: projectTitle,
-          videoClips: clips,
-          textClips: textClips,
-          soundClips: memoizedSoundClips,
-          aspectRatio: selectedAspectRatio,
-          durationInFrames: calculateTotalFrames,
-          // renderId와 renderOutputUrl 없이 저장
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Save failed');
-      }
-
-      const result = await response.json();
-
-      if (result.success) {
-        // 저장 성공 처리
-        setHasUnsavedChanges(false);
-        setLastSavedAt(new Date());
-        toast.success('Project saved successfully');
-        console.log('Project saved:', result);
-      } else {
-        throw new Error('Save operation failed');
-      }
+      await onSaveProject();
     } catch (error) {
       console.error('Save error:', error);
-      toast.error(`Save failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      // 에러는 이미 onSaveProject에서 처리됨
     } finally {
       setIsSaving(false);
     }
-  }, [clips, textClips, soundClips.length, memoizedSoundClips, selectedAspectRatio, calculateTotalFrames, projectTitle, setHasUnsavedChanges]);
+  }, [clips, textClips, soundClips, onSaveProject]);
 
   // 저장 단축키 지원 (Cmd+S / Ctrl+S)
   useEffect(() => {
