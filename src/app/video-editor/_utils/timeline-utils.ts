@@ -463,7 +463,6 @@ export const magneticPositioning = <T extends BaseClip>(
   }
   
   // 5. 빈 공간에 배치
-  console.log('빈 공간에 배치');
   return {
     targetPosition: Math.max(0, requestedPosition),
     adjustedClips: otherClips

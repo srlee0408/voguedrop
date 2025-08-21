@@ -94,13 +94,6 @@ export function useVideoSoundGeneration(): UseVideoSoundGenerationReturn {
       // VideoClip에 job_id가 없으므로, URL 기반으로 추출하거나 다른 식별자 사용
       const videoJobId = extractJobIdFromClip(clip);
       
-      // 디버깅을 위한 로그
-      console.log('VideoClip for sound generation:', {
-        clipId: clip.id,
-        clipUrl: clip.url,
-        extractedJobId: videoJobId
-      });
-      
       if (!videoJobId) {
         throw new Error(`비디오 정보를 찾을 수 없습니다. (Clip ID: ${clip.id})`);
       }
@@ -245,14 +238,12 @@ function extractJobIdFromClip(clip: VideoClip): string | null {
     // nanoid는 URL-safe 문자를 사용: A-Za-z0-9_-
     const jobIdMatch = clip.id.match(/clip-(job_[a-zA-Z0-9_-]+)-\d+-\d+/);
     if (jobIdMatch && jobIdMatch[1]) {
-      console.log('Extracted job_id from clip.id:', jobIdMatch[1]);
       return jobIdMatch[1]; // "job_xxxxx" 반환
     }
     
     // 레거시 형식 지원: clip-job_xxxxx (timestamp와 index 없는 경우)
     const legacyMatch = clip.id.match(/clip-(job_[a-zA-Z0-9_-]+)/);
     if (legacyMatch && legacyMatch[1]) {
-      console.log('Extracted job_id from legacy clip.id:', legacyMatch[1]);
       return legacyMatch[1];
     }
   }
@@ -261,14 +252,12 @@ function extractJobIdFromClip(clip: VideoClip): string | null {
   if (clip.url) {
     const match = clip.url.match(/job_[a-zA-Z0-9_-]+/);
     if (match) {
-      console.log('Extracted job_id from URL:', match[0]);
       return match[0]; // "job_xyz123" 형태로 반환
     }
   }
   
   // clip.id가 직접 job_id인 경우 (레거시 지원)
   if (clip.id && clip.id.startsWith('job_')) {
-    console.log('Using clip.id as job_id directly:', clip.id);
     return clip.id;
   }
   

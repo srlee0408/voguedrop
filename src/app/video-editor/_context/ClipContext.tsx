@@ -309,12 +309,6 @@ export function ClipProvider({ children }: ClipProviderProps) {
         title = video.selected_effects?.[0]?.name || extractTitleFromUrl(video.output_video_url) || 'Video Clip';
         sourceType = 'clip'; // AI generated clip
         
-        // 디버깅 로그
-        console.log('Creating VideoClip from library video:', {
-          originalJobId: video.job_id,
-          newClipId: clipId,
-          sourceType
-        });
       } else if (item.type === 'project') {
         const project = item.data as LibraryProject;
         // 프로젝트는 render_id 또는 project_id 사용
@@ -324,14 +318,6 @@ export function ClipProvider({ children }: ClipProviderProps) {
         title = project.project_name || 'Project';
         sourceType = 'project'; // Project-based video
         
-        // 디버깅 로그
-        console.log('Creating VideoClip from project:', {
-          projectId: project.id,
-          newClipId: clipId,
-          hasVideo: !!url,
-          hasThumbnail: !!project.thumbnail_url,
-          thumbnailUrl: project.thumbnail_url
-        });
         
         if (!url) {
           toast.error(`Project "${title}" doesn't have a rendered video`);
@@ -346,14 +332,6 @@ export function ClipProvider({ children }: ClipProviderProps) {
         title = upload.file_name || 'Uploaded Video';
         sourceType = 'upload'; // User uploaded video
         
-        // 디버깅 로그
-        console.log('Creating VideoClip from upload:', {
-          uploadId: upload.id,
-          newClipId: clipId,
-          hasVideo: !!url,
-          hasThumbnail: !!upload.thumbnail_url,
-          thumbnailUrl: upload.thumbnail_url
-        });
         
         if (!url) {
           toast.error(`Upload "${title}" doesn't have a valid video URL`);

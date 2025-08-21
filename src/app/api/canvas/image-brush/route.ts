@@ -87,8 +87,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const edgeFunctionUrl = `${functionsUrl}/image-brush`;
-    
-    console.log('Calling Edge Function:', edgeFunctionUrl);
 
     // 8. Edge Function 호출 (타임아웃 5분으로 증가)
     const controller = new AbortController();

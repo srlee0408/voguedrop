@@ -36,7 +36,6 @@ export function LibraryUpload({ onUploadComplete }: LibraryUploadProps) {
       let metadata;
       try {
         metadata = await extractVideoMetadata(file);
-        console.log('Extracted video metadata:', metadata);
       } catch (metadataError) {
         console.warn('Failed to extract video metadata:', metadataError);
         metadata = null;
@@ -47,7 +46,6 @@ export function LibraryUpload({ onUploadComplete }: LibraryUploadProps) {
       let thumbnailBlob: Blob | null = null;
       try {
         thumbnailBlob = await extractVideoThumbnail(file);
-        console.log('Extracted thumbnail:', thumbnailBlob);
       } catch (thumbnailError) {
         console.warn('Failed to extract thumbnail:', thumbnailError);
       }

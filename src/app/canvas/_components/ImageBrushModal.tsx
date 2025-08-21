@@ -473,13 +473,6 @@ export function ImageBrushModal({
 
       const result = await response.json()
       
-      // Debug: Log all returned URLs
-      console.log('Image Brush Result:', {
-        resultUrl: result.imageUrl,
-        originalUrl: result.originalImageUrl,
-        maskUrl: result.maskImageUrl
-      })
-      
       setState(prev => ({ 
         ...prev, 
         progress: 100,

@@ -46,8 +46,6 @@ export async function POST(request: NextRequest) {
     // 3. 서비스 클라이언트로 민감한 정보 조회 (보안: 서버에서만 접근)
     const serviceSupabase = createServiceClient();
     
-    console.log('Fetching video generation for job_id:', video_job_id, 'user_id:', user.id);
-    
     // video_generations 테이블에서 프롬프트와 효과 정보 조회
     const { data: videoGeneration, error: fetchError } = await serviceSupabase
       .from('video_generations')
@@ -67,8 +65,6 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       );
     }
-    
-    console.log('Found video generation, prompt length:', videoGeneration.prompt?.length);
     
     // job_id에서 앞 5자리 추출하여 타이틀로 사용
     const titlePrefix = extractJobIdPrefix(video_job_id);
@@ -90,8 +86,6 @@ export async function POST(request: NextRequest) {
         // 공백이 없거나 너무 많이 잘리면 그냥 447자에서 자르기
         musicPrompt = truncated + '...';
       }
-      
-      console.log('Trimmed video prompt from', videoGeneration.prompt.length, 'to', musicPrompt.length, 'characters');
     }
     
     // 5. Group ID 생성 (4개의 variation)
