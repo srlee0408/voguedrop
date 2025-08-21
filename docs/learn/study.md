@@ -1,5 +1,6 @@
 # 배운 것.
 1. JSDoc 주석 작성
+- 새로운 컨텍스트들의 역할과 관리하는 상태에 대해 JSDoc 주석 등을 추가
 2. 파일 구조화
  - app/canvas/_components: Canvas 기능에서만 사용되는 컴포넌트
  - src/shared/components: 모든 기능에서 공통으로 사용하는 UI 컴포넌트
