@@ -48,7 +48,8 @@ export default function RootLayout({
         </AuthProvider>
         <StagewiseToolbar config={{ plugins: [ReactPlugin] }} />
         <Toaster 
-          position="top-center"
+          position="top-right"
+          closeButton
           richColors
           toastOptions={{
             duration: 4000,
