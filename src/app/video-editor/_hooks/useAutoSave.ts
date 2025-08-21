@@ -47,46 +47,22 @@ export function useAutoSave({
   const retryCountRef = useRef(0);
   const lastContentHashRef = useRef<string>('');
   
-  // Generate content hash to detect real changes
+  // Generate optimized content hash to detect real changes
   const generateContentHash = useCallback(() => {
-    const content = {
-      videoClips: videoClips.map(c => ({
-        id: c.id,
-        position: c.position,
-        duration: c.duration,
-        url: c.url,
-        startTime: c.startTime,
-        endTime: c.endTime,
-      })),
-      textClips: textClips.map(c => ({
-        id: c.id,
-        content: c.content,
-        position: c.position,
-        duration: c.duration,
-        style: c.style,
-        effect: c.effect,
-      })),
-      soundClips: soundClips.map(c => ({
-        id: c.id,
-        url: c.url,
-        position: c.position,
-        duration: c.duration,
-        volume: c.volume,
-        laneIndex: c.laneIndex ?? 0, // 레인 인덱스 추가
-        startTime: c.startTime,
-        endTime: c.endTime,
-        fadeInDuration: c.fadeInDuration,
-        fadeOutDuration: c.fadeOutDuration,
-        fadeInType: c.fadeInType,
-        fadeOutType: c.fadeOutType,
-        maxDuration: c.maxDuration,
-        waveformData: c.waveformData,
-      })),
-      soundLanes, // 사운드 레인 정보 추가
-      aspectRatio,
-      durationInFrames,
-    };
-    return JSON.stringify(content);
+    // 주요 변경 사항만 추적하여 해시 생성 성능 개선
+    const videoHash = videoClips.length > 0 
+      ? `v${videoClips.length}_${videoClips[0]?.id}_${videoClips[videoClips.length - 1]?.id}_${videoClips.reduce((acc, c) => acc + c.position + c.duration, 0)}`
+      : 'v0';
+    
+    const textHash = textClips.length > 0
+      ? `t${textClips.length}_${textClips.reduce((acc, c) => acc + c.content.length + c.position + c.duration, 0)}`
+      : 't0';
+    
+    const soundHash = soundClips.length > 0
+      ? `s${soundClips.length}_${soundClips.reduce((acc, c) => acc + c.position + c.duration + (c.volume || 0), 0)}_${soundLanes.join(',')}`
+      : 's0';
+    
+    return `${videoHash}|${textHash}|${soundHash}|${aspectRatio}|${durationInFrames}`;
   }, [videoClips, textClips, soundClips, soundLanes, aspectRatio, durationInFrames]);
   
   // Save function with retry logic
@@ -165,34 +141,30 @@ export function useAutoSave({
     await performSave();
   }, [performSave]);
   
-  // Schedule auto-save with debounce and max wait
+  // Simplified auto-save scheduling with debounce
   const scheduleSave = useCallback(() => {
     if (!enabled) return;
     
-    // Clear existing debounce timeout
+    // Clear existing timeout
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
     }
     
-    // Set new debounce timeout
+    // Set debounce timeout
     saveTimeoutRef.current = setTimeout(() => {
       performSave();
-      // Clear max wait timeout when save happens
-      if (maxWaitTimeoutRef.current) {
-        clearTimeout(maxWaitTimeoutRef.current);
-        maxWaitTimeoutRef.current = null;
-      }
+      saveTimeoutRef.current = null;
     }, debounceMs);
     
-    // Set max wait timeout if not already set
+    // Simple max wait logic - save after max wait time regardless
     if (!maxWaitTimeoutRef.current) {
       maxWaitTimeoutRef.current = setTimeout(() => {
-        performSave();
-        // Clear debounce timeout
         if (saveTimeoutRef.current) {
           clearTimeout(saveTimeoutRef.current);
           saveTimeoutRef.current = null;
         }
+        performSave();
         maxWaitTimeoutRef.current = null;
       }, maxWaitMs);
     }
@@ -202,10 +174,9 @@ export function useAutoSave({
   useEffect(() => {
     if (!enabled) return;
     
-    // Skip initial render
-    if (videoClips.length === 0 && textClips.length === 0 && soundClips.length === 0) {
-      return;
-    }
+    // Skip initial render when no clips exist
+    const hasContent = videoClips.length > 0 || textClips.length > 0 || soundClips.length > 0;
+    if (!hasContent) return;
     
     scheduleSave();
     
@@ -213,12 +184,14 @@ export function useAutoSave({
     return () => {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = null;
       }
       if (maxWaitTimeoutRef.current) {
         clearTimeout(maxWaitTimeoutRef.current);
+        maxWaitTimeoutRef.current = null;
       }
     };
-  }, [videoClips, textClips, soundClips, aspectRatio, durationInFrames, scheduleSave, enabled]);
+  }, [videoClips.length, textClips.length, soundClips.length, aspectRatio, durationInFrames, enabled, scheduleSave]); // Simplified deps
   
   // Save on unmount or page unload
   useEffect(() => {

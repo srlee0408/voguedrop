@@ -8,6 +8,7 @@ import { useVideoSoundGeneration } from '../_hooks/useVideoSoundGeneration';
 import { ClipContext } from '../_context/ClipContext';
 import { formatSoundDisplayTitle } from '@/lib/sound/utils';
 import { SoundGenerationType } from '@/shared/types/sound';
+import { apiCache } from '@/lib/cache/api-cache';
 
 interface SoundLibraryModalProps {
   onClose: () => void;
@@ -85,11 +86,8 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   
-  // 캐싱 관련 ref
-  const soundCacheRef = useRef<SoundGroup[]>([]);
-  const cacheTimestampRef = useRef<number>(0);
-  const lastFilterRef = useRef<string>('all');
-  const CACHE_DURATION = 60000; // 1분 캐시
+  // API 캐시 import 추가 (상단에서 이미 임포트되어야 함)
+  // 기존 ref 기반 캐싱 제거
   
   // 진행률 계산 유틸리티 함수
   const calculateProgressForElapsedTime = (elapsedSeconds: number, expectedDuration: number = 15): number => {
@@ -176,22 +174,22 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
   }, [showDurationDropdown]);
 
   const loadSoundHistory = async (forceRefresh = false, filterType = historyFilter) => {
-    // 캐시 유효성 검사 (필터가 바뀌면 캐시 무효화)
-    const cacheKey = `${filterType}`;
-    const now = Date.now();
-    if (!forceRefresh && 
-        soundCacheRef.current.length > 0 && 
-        (now - cacheTimestampRef.current) < CACHE_DURATION &&
-        lastFilterRef.current === cacheKey) {
-      // 캐시된 데이터 사용
-      setSoundGroups(soundCacheRef.current);
-      return;
-    }
-
     if (isLoadingHistory) return; // 중복 호출 방지
     
     setIsLoadingHistory(true);
+    
     try {
+      // 캐시에서 먼저 확인 (강제 새로고침이 아닌 경우)
+      if (!forceRefresh) {
+        const cachedData = await apiCache.getSoundHistory(filterType);
+        if (cachedData) {
+          setSoundGroups(cachedData);
+          setIsLoadingHistory(false);
+          return;
+        }
+      }
+
+      // 캐시 미스 또는 강제 새로고침 - API 호출
       const url = filterType === 'all' 
         ? '/api/sound/history'
         : `/api/sound/history?type=${filterType}`;
@@ -200,11 +198,8 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.groups) {
-          // 캐시 업데이트
-          soundCacheRef.current = data.groups;
-          cacheTimestampRef.current = now;
-          lastFilterRef.current = cacheKey;
-          
+          // 새 데이터를 캐시에 저장 (5분 TTL)
+          await apiCache.setSoundHistory(filterType, data.groups, 5 * 60 * 1000);
           setSoundGroups(data.groups);
         }
       }
@@ -217,6 +212,14 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
 
   const loadUploadedMusic = async () => {
     try {
+      // 먼저 캐시에서 확인
+      const cachedData = await apiCache.getUploadedMusic();
+      if (cachedData) {
+        setUploadedAudios(cachedData);
+        return;
+      }
+
+      // 캐시 미스 - API 호출
       const response = await fetch('/api/upload/music', {
         method: 'GET',
       });
@@ -243,6 +246,8 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
           size: music.file_size,
         }));
         
+        // 캐시에 저장 (10분 TTL)
+        await apiCache.setUploadedMusic(uploadedMusic, 10 * 60 * 1000);
         setUploadedAudios(uploadedMusic);
       }
     } catch (error) {

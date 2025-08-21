@@ -308,7 +308,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     }
   }, [isResizing, dragStartY, initialHeight, maxTimelineHeight, calculateMinTimelineHeight, soundLanes]);
   
-  // Context value를 useMemo로 최적화
+  // Context value를 useMemo로 최적화 - 의존성 배열 단순화
   const value = useMemo(() => ({
     // 프로젝트 메타데이터
     projectTitle,
@@ -354,22 +354,23 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     // 컨테이너 ref
     containerRef,
   }), [
+    // 자주 변경되는 상태만 포함
     projectTitle,
     isLoadingProject,
     projectLoadError,
-    loadProjectData,
     autoSaveStatus,
     autoSaveError,
     timelineHeight,
     isResizing,
     dragStartY,
     initialHeight,
-    maxTimelineHeight,
-    handleResizerMouseDown,
     showVideoLibrary,
     showSoundLibrary,
     showTextEditor,
     showLibrary,
+    // 함수들은 useCallback으로 이미 안정화되어 있으므로 제외 가능
+    loadProjectData,
+    handleResizerMouseDown,
     handleAddClip,
     handleAddSound,
     handleAddText,

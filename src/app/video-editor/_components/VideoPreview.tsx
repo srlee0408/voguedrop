@@ -11,7 +11,7 @@ import FullscreenPreviewModal from './FullscreenPreviewModal';
 import RenderingModal from './RenderingModal';
 import { BufferingSpinner } from './BufferingSpinner';
 import { ASPECT_RATIOS, CAROUSEL_CONFIG, STYLES, AspectRatioValue } from '../_constants';
-// import { useVideoPreloader } from '../_hooks/useVideoPreloader';
+import { useMediaCache } from '../_hooks/useMediaCache';
 
 interface PreviewClip {
   id: string;
@@ -86,9 +86,14 @@ export default function VideoPreview({
   // ClipContext에서 저장 관련 상태 가져오기
   const { hasUnsavedChanges, setHasUnsavedChanges, lastModifiedAt } = useClips();
   
-  // 비디오 URL 목록 추출 (프리로딩 비활성화 - Remotion이 자체 처리)
-  // const videoUrls = useMemo(() => clips.map(clip => clip.url), [clips]);
-  // const { loadingCount, loadedCount, totalCount } = useVideoPreloader(videoUrls);
+  // 비디오 URL 목록 추출 및 미디어 캐싱 적용
+  const videoUrls = useMemo(() => clips.map(clip => clip.url), [clips]);
+  const { loadStatus, allLoaded, cachedCount, loadingCount, totalCount } = useMediaCache(videoUrls, {
+    autoPreload: true,
+    extractThumbnails: true,
+    extractMetadata: true,
+    maxConcurrent: 2 // Remotion과 충돌 방지를 위해 낮은 값 설정
+  });
 
   useEffect(() => {
     setIsMounted(true);

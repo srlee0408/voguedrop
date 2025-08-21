@@ -84,7 +84,7 @@ export function useVideoPreloader(videoUrls: (string | undefined)[]) {
       });
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(videoUrls)]); // URL 배열이 변경될 때만 재실행
+  }, [validUrls.length, validUrls[0], validUrls[validUrls.length - 1]]); // 배열 길이와 첫/마지막 요소로 변경 감지
 
   // 통계 계산
   const loadingCount = Object.values(preloadStatus).filter(s => s.loading).length;
