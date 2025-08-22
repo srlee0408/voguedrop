@@ -59,7 +59,7 @@ export function VideoPreview({
 
   return (
     <div 
-      className={`relative ${className}`}
+      className={`relative cursor-pointer ${className}`}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >

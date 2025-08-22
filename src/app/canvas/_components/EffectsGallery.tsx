@@ -39,7 +39,7 @@ export function EffectsGallery({ onEffectClick }: EffectsGalleryProps) {
           <div key={effect.id} className="flex flex-col gap-1">
             <button
               onClick={onEffectClick}
-              className="aspect-square rounded-full overflow-hidden relative group hover:ring-2 hover:ring-primary transition-all"
+              className="aspect-square rounded-full overflow-hidden relative group hover:ring-2 hover:ring-primary transition-all cursor-pointer"
             >
               {effect.previewUrl ? (
                 <HoverVideo

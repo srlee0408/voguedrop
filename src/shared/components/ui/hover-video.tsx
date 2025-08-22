@@ -28,7 +28,9 @@ export function HoverVideo({
     }
   }, [isHovered])
 
-  const isVideo = src.endsWith('.mp4') || src.endsWith('.webm')
+  // URL에서 쿼리 파라미터를 제거하고 비디오 확장자 확인
+  const cleanUrl = src.split('?')[0];
+  const isVideo = cleanUrl.endsWith('.mp4') || cleanUrl.endsWith('.webm') || cleanUrl.endsWith('.mov') || cleanUrl.includes('video')
 
   if (!isVideo) {
     return (
@@ -48,7 +50,7 @@ export function HoverVideo({
 
   return (
     <div
-      className="relative"
+      className="relative cursor-pointer"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >

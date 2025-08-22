@@ -4,8 +4,9 @@ import { LibraryVideo, LibraryProject, UserUploadedVideo } from '@/shared/types/
 import { LibraryModalConfig } from '@/shared/types/library-modal';
 import { CARD_CONTAINER_CLASS, getContentFitStyle } from '../utils/constants';
 import Image from 'next/image';
-import { Play, Download, Loader2, Star, Folder, Upload as UploadIcon, ExternalLink } from 'lucide-react';
+import { Download, Loader2, Star, Folder, Upload as UploadIcon, ExternalLink } from 'lucide-react';
 import { Tooltip } from '@/shared/components/ui/Tooltip';
+import { HoverVideo } from '@/shared/components/ui/hover-video';
 
 interface LibraryCardProps {
   item: LibraryVideo | LibraryProject | UserUploadedVideo;
@@ -122,26 +123,19 @@ export function LibraryCard({
       )}
       
       <div className="relative h-full group">
-        {/* Thumbnail or Video Preview */}
-        {thumbnailUrl ? (
+        {/* Video or Thumbnail Preview */}
+        {videoUrl ? (
+          <HoverVideo 
+            src={videoUrl}
+            className={`w-full h-full ${contentFitClass}`}
+          />
+        ) : thumbnailUrl ? (
           <Image 
             src={thumbnailUrl} 
             alt={title || 'Library item'} 
             className={`w-full h-full ${contentFitClass}`}
             fill
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-          />
-        ) : videoUrl ? (
-          <video 
-            src={videoUrl}
-            className={`w-full h-full ${contentFitClass}`}
-            muted
-            playsInline
-            preload="metadata"
-            onError={(e) => {
-              const target = e.target as HTMLVideoElement;
-              target.style.display = 'none';
-            }}
           />
         ) : (
           <div className="w-full h-full bg-gray-800 flex items-center justify-center">
@@ -159,66 +153,45 @@ export function LibraryCard({
           </div>
         )}
         
-        {/* Hover overlay with actions */}
-        {(videoUrl || (type === 'project' && onProjectNavigate && !isCurrentProject)) && (
-          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-            {/* Play button */}
-            {videoUrl && (
-              <Tooltip text="Play Video" position="top">
-                <a 
-                  href={videoUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center text-white"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                  }}
-                >
-                  <Play className="w-4 h-4" />
-                </a>
-              </Tooltip>
-            )}
-            
-            {/* Download button */}
-            {videoUrl && onDownload && (
-              <Tooltip text={isDownloading ? "Downloading..." : "Download Video"} position="top">
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDownload();
-                  }}
-                  disabled={isDownloading}
-                  className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isDownloading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Download className="w-4 h-4" />
-                  )}
-                </button>
-              </Tooltip>
-            )}
-            
-            {/* Open project button - only for projects that are NOT current */}
-            {type === 'project' && onProjectNavigate && !isCurrentProject && (
-              <Tooltip text="Open Project" position="top">
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onProjectNavigate(item as LibraryProject);
-                  }}
-                  className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center text-white"
-                >
-                  <ExternalLink className="w-4 h-4" />
-                </button>
-              </Tooltip>
-            )}
-          </div>
-        )}
-        
-        {/* Favorite button */}
-        {onFavoriteToggle && type === 'clip' && (
-          <div className="absolute top-2 right-2">
+        {/* Top-right buttons */}
+        <div className="absolute top-2 right-2 flex flex-col gap-2">
+          {/* Open project button - only for projects that are NOT current */}
+          {type === 'project' && onProjectNavigate && !isCurrentProject && (
+            <Tooltip text="Open Project" position="bottom">
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onProjectNavigate(item as LibraryProject);
+                }}
+                className="bg-black/60 p-1.5 rounded-full hover:bg-black/80 transition-colors"
+              >
+                <ExternalLink className="w-5 h-5 text-white/70 hover:text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]" />
+              </button>
+            </Tooltip>
+          )}
+          
+          {/* Download button */}
+          {onDownload && (
+            <Tooltip text={isDownloading ? "Downloading..." : "Download"} position="bottom">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDownload();
+                }}
+                disabled={isDownloading}
+                className="bg-black/60 p-1.5 rounded-full hover:bg-black/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isDownloading ? (
+                  <Loader2 className="w-5 h-5 animate-spin text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]" />
+                ) : (
+                  <Download className="w-5 h-5 text-white/70 hover:text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]" />
+                )}
+              </button>
+            </Tooltip>
+          )}
+          
+          {/* Favorite button */}
+          {onFavoriteToggle && type === 'clip' && (
             <Tooltip text={isFavorite ? "Remove from Favorites" : "Add to Favorites"} position="bottom">
               <button
                 onClick={(e) => {
@@ -234,8 +207,8 @@ export function LibraryCard({
                 }`} />
               </button>
             </Tooltip>
-          </div>
-        )}
+          )}
+        </div>
         
         {/* Info overlay - Unified for all types */}
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/80 to-transparent p-3">
