@@ -88,8 +88,9 @@ export function CanvasModals(): React.ReactElement {
       <ProjectTitleModal
         isOpen={modals.modals.projectTitle}
         onClose={() => modals.closeModal('projectTitle')}
-        onConfirm={(title: string) => {
-          router.push(`/video-editor?title=${encodeURIComponent(title)}`)
+        onConfirm={(projectId: string) => {
+          // 생성된 프로젝트의 8자리 단축 ID로 video-editor 페이지로 이동
+          router.push(`/video-editor?project=${encodeURIComponent(projectId)}`)
         }}
       />
 

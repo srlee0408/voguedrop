@@ -183,6 +183,44 @@ export function formatRelativeTime(date: string | Date): string {
   return `${months} ${months === 1 ? 'month' : 'months'} ago`;
 }
 
+// 새 프로젝트 생성
+export async function createNewProject(projectName: string = 'Untitled Project'): Promise<{
+  success: boolean;
+  projectId?: string;
+  error?: string;
+}> {
+  try {
+    const response = await fetch('/api/video/projects/create', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({ projectName }),
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        error: errorData.error || 'Failed to create project',
+      };
+    }
+    
+    const data = await response.json();
+    return {
+      success: true,
+      projectId: data.projectId,
+    };
+  } catch (error) {
+    console.error('Error creating project:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to create project',
+    };
+  }
+}
+
 // Duration을 시간 형식으로 변환 (프레임 -> MM:SS)
 export function formatDuration(frames?: number, fps: number = 30): string {
   if (!frames) return '00:00';

@@ -10,7 +10,7 @@ import { useClips, useProject } from '../_context/Providers';
 interface ModalManagerProps {
   favoriteVideos: Set<string>;
   onToggleFavorite: (videoId: string) => void;
-  onProjectSwitch: (projectName: string) => void;
+  onProjectSwitch: (projectId: string) => void; // projectId를 받도록 변경
   projectTitle: string;
 }
 

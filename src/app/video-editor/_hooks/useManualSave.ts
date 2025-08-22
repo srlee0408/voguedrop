@@ -48,10 +48,7 @@ export function useManualSave({
   useEffect(() => {
     projectIdRef.current = projectId;
     projectTitleRef.current = projectTitle;
-    console.log('[useManualSave] Refs 업데이트 - projectId:', projectId, 'projectTitle:', projectTitle);
   }, [projectId, projectTitle]);
-  
-  console.log('[useManualSave] Hook 실행됨 - projectId:', projectId, 'projectTitle:', projectTitle, 'timestamp:', Date.now());
   
   // 수동 저장 함수
   const performSave = useCallback(async (): Promise<boolean> => {
@@ -59,8 +56,6 @@ export function useManualSave({
     const currentProjectId = projectIdRef.current;
     const currentProjectTitle = projectTitleRef.current;
     
-    console.log('[useManualSave] ⭐ performSave 함수 호출됨! - ref projectId:', currentProjectId, 'ref projectTitle:', currentProjectTitle);
-    console.log('[useManualSave] 클로저 projectId:', projectId, '클로저 projectTitle:', projectTitle);
     
     // 이미 저장 중이면 중복 실행 방지
     if (isSaving) {

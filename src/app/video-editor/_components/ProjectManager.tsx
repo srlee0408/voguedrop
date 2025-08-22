@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { ProjectSwitchConfirmModal } from '@/shared/components/modals/ProjectSwitchConfirmModal';
 import { useClips } from '../_context/Providers';
 import { useProject } from '../_context/Providers';
@@ -34,6 +35,7 @@ export default function ProjectManager({
   onSaveProject,
   onSaveSuccess,
 }: ProjectManagerProps) {
+  const router = useRouter();
   const [showSwitchConfirm, setShowSwitchConfirm] = useState(false);
   const [targetProjectName, setTargetProjectName] = useState<string>('');
 
@@ -45,13 +47,6 @@ export default function ProjectManager({
     projectId,
   } = useProject();
 
-  console.log('[ProjectManager] 현재 상태:', { 
-    projectId, 
-    projectTitle,
-    projectIdType: typeof projectId,
-    projectIdNull: projectId === null,
-    projectIdUndefined: projectId === undefined
-  });
 
   // 수동 저장 설정
   const {
@@ -73,7 +68,6 @@ export default function ProjectManager({
   // 수동 저장 함수를 부모 컴포넌트로 전달
   useEffect(() => {
     if (onSaveProject) {
-      console.log('[ProjectManager] saveProject 함수 전달 - projectId:', projectId, 'timestamp:', Date.now());
       onSaveProject(saveProject);
     }
   }, [onSaveProject, saveProject]);
@@ -98,21 +92,20 @@ export default function ProjectManager({
       if (targetProjectName) {
         setShowSwitchConfirm(false);
         setTargetProjectName('');
-        // 페이지 완전 리로드하여 새 프로젝트 로드
-        window.location.href = `/video-editor?projectName=${encodeURIComponent(targetProjectName)}`;
+        // 새 프로젝트 생성 후 이동
+        router.push('/video-editor');
       }
     }
-  }, [saveProject, setHasUnsavedChanges, targetProjectName]);
+  }, [saveProject, setHasUnsavedChanges, targetProjectName, router]);
 
   // 저장하지 않고 전환
   const handleDontSaveProject = useCallback(() => {
     setHasUnsavedChanges(false);
     setShowSwitchConfirm(false);
-    const projectToLoad = targetProjectName;
     setTargetProjectName('');
-    // 페이지 완전 리로드하여 새 프로젝트 로드
-    window.location.href = `/video-editor?projectName=${encodeURIComponent(projectToLoad)}`;
-  }, [targetProjectName, setHasUnsavedChanges]);
+    // 새 프로젝트로 이동
+    router.push('/video-editor');
+  }, [setHasUnsavedChanges, router]);
 
   return (
     <>

@@ -206,7 +206,40 @@ export class ProjectService {
       .eq('user_id', userId);
 
     if (projectId) {
-      query = query.eq('id', projectId);
+      // projectId가 8자리면 단축 ID로 간주하고 하이픈 제거된 UUID 검색
+      if (projectId.length === 8 && /^[a-f0-9]{8}$/i.test(projectId)) {
+        // 모든 사용자 프로젝트를 가져와서 클라이언트 사이드에서 단축 ID 매칭
+        const { data: allProjects, error: allError } = await supabase
+          .from('project_saves')
+          .select('*')
+          .eq('user_id', userId);
+          
+        if (allError) {
+          throw new Error('프로젝트 로드에 실패했습니다.');
+        }
+        
+        if (!allProjects || allProjects.length === 0) {
+          throw new Error('프로젝트를 찾을 수 없습니다.');
+        }
+        
+        // 하이픈을 제거한 UUID의 첫 8자리가 일치하는 프로젝트 찾기
+        const targetProject = allProjects.find(project => {
+          const cleanUuid = project.id.replace(/-/g, '').toLowerCase();
+          return cleanUuid.startsWith(projectId.toLowerCase());
+        });
+        
+        if (!targetProject) {
+          throw new Error('프로젝트를 찾을 수 없습니다.');
+        }
+        
+        return {
+          success: true,
+          project: targetProject
+        };
+      } else {
+        // 전체 UUID인 경우 정확히 매칭
+        query = query.eq('id', projectId);
+      }
     } else if (projectName) {
       query = query.eq('project_name', projectName);
     }

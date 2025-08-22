@@ -6,7 +6,7 @@ interface LibraryModalProps {
   onClose: () => void;
   favoriteVideos?: Set<string>;
   onToggleFavorite?: (videoId: string) => void;
-  onProjectSwitch?: (projectName: string) => void;
+  onProjectSwitch?: (projectId: string) => void; // projectId를 받도록 변경
   currentProjectName?: string;
 }
 
@@ -29,10 +29,8 @@ export function LibraryModal({
       enabled: true
     },
     openProject: {
-      enabled: true,  // 일반 Library 모달에서는 프로젝트 열기 버튼 활성화
-      onProjectNavigate: onProjectSwitch || ((projectName: string) => {
-        window.location.href = `/video-editor?projectName=${encodeURIComponent(projectName)}`;
-      })
+      enabled: !!onProjectSwitch,  // onProjectSwitch가 있을 때만 활성화
+      onProjectNavigate: onProjectSwitch || (() => {})
     },
     dateFilter: {
       enabled: true

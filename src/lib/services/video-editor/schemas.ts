@@ -21,7 +21,7 @@ export const saveProjectRequestSchema = z.object({
  */
 export const loadProjectRequestSchema = z.object({
   projectName: z.string().optional(),
-  projectId: z.string().uuid().optional(),
+  projectId: z.string().min(1).optional(), // UUID 또는 8자리 단축 ID 허용
 }).refine(data => data.projectName || data.projectId, {
   message: 'projectName 또는 projectId 둘 중 하나는 반드시 필요합니다.',
 });

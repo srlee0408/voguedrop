@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { getShortId } from '@/shared/lib/utils';
 import { useClips, usePlayback, useProject, useHistory } from '../_context/Providers';
 import EditorLayout from './EditorLayout';
 import PreviewSection from './PreviewSection';
@@ -234,17 +235,18 @@ export default function VideoEditorClient() {
     });
   }, []);
 
-  // 프로젝트 전환 핸들러 - ProjectManager에서 처리하지만 여기서 정의
-  const handleProjectSwitch = useCallback((newProjectName: string) => {
-    // ProjectManager에서 구현되지만, 실제로는 여기서 정의해서 전달해야 함
-    // 임시로 간단한 구현
-    window.location.href = `/video-editor?projectName=${encodeURIComponent(newProjectName)}`;
-  }, []);
+  // 기존 프로젝트 열기 핸들러 - projectId로 이동
+  const handleProjectSwitch = useCallback((projectId: string) => {
+    console.log('🚀 handleProjectSwitch 호출됨 - projectId:', projectId);
+    const shortId = getShortId(projectId);
+    router.push(`/video-editor?project=${shortId}`);
+  }, [router]);
+
   
-  // 저장 성공 후 URL 업데이트
+  // 저장 성공 후 URL 업데이트 (8자리 단축 ID 사용)
   const handleSaveSuccess = useCallback((savedProjectId: string) => {
-    console.log('[VideoEditorClient] 저장 성공 - URL 업데이트:', savedProjectId);
-    router.replace(`/video-editor?projectId=${savedProjectId}`, { scroll: false });
+    const shortId = getShortId(savedProjectId);
+    router.replace(`/video-editor?project=${shortId}`, { scroll: false });
   }, [router]);
 
   // 수동 저장 핸들러

@@ -1,8 +1,9 @@
 'use client';
 
 import { createContext, useContext, useState, useCallback, useMemo, ReactNode, useEffect, useRef } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { loadProject } from '@/lib/api/projects';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { loadProject, createNewProject } from '@/lib/api/projects';
+import { getShortId } from '@/shared/lib/utils';
 import type { SaveStatus } from '../_hooks/useManualSave';
 
 /**
@@ -152,8 +153,8 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const [projectId, setProjectId] = useState<string | null>(null);
   const [projectTitle, setProjectTitle] = useState('Untitled Project');
   const searchParams = useSearchParams();
+  const router = useRouter();
   
-  console.log('[ProjectContext] 상태 업데이트:', { projectId, projectTitle });
   
   // 프로젝트 로드 상태
   const [isLoadingProject, setIsLoadingProject] = useState(false);
@@ -200,6 +201,10 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     setIsLoadingProject(true);
     setProjectLoadError(null);
     
+    // 기존 프로젝트 상태 초기화
+    setProjectId(null);
+    setProjectTitle('Loading...');
+    
     try {
       const project = await loadProject(projectNameOrId, isId);
       
@@ -208,7 +213,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         id: project.id, 
         name: project.project_name 
       });
-      console.log('[ProjectContext] setProjectId 호출:', project.id);
+      
       setProjectId(project.id);
       setProjectTitle(project.project_name);
       
@@ -223,30 +228,82 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to load project';
       setProjectLoadError(errorMessage);
+      console.error('[ProjectContext] 프로젝트 로드 실패:', errorMessage);
     } finally {
       setIsLoadingProject(false);
     }
   }, []);
+
+  // 새 프로젝트 생성 및 URL 업데이트
+  const createNewProjectAndRedirect = useCallback(async () => {
+    if (isLoadingProject) return; // 이미 로딩 중이면 중복 실행 방지
+    
+    setIsLoadingProject(true);
+    setProjectLoadError(null);
+    
+    try {
+      const result = await createNewProject('Untitled Project');
+      
+      if (result.success && result.projectId) {
+        // 프로젝트 생성 성공
+        setProjectId(result.projectId);
+        setProjectTitle('Untitled Project');
+        setProjectLoaded(true);
+        
+        // URL을 단축 ID로 업데이트
+        const shortId = getShortId(result.projectId);
+        router.replace(`/video-editor?project=${shortId}`, { scroll: false });
+      } else {
+        throw new Error(result.error || 'Failed to create project');
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create project';
+      setProjectLoadError(errorMessage);
+    } finally {
+      setIsLoadingProject(false);
+    }
+  }, [isLoadingProject, router]);
   
   // URL 파라미터에서 프로젝트 로드
   useEffect(() => {
     const title = searchParams.get('title');
     const projectName = searchParams.get('projectName');
     const projectIdParam = searchParams.get('projectId');
+    const projectParam = searchParams.get('project'); // 새로운 단축 ID 파라미터
     
-    // projectId 파라미터가 있고 아직 로드하지 않았다면
-    if (projectIdParam && !projectLoaded && !isLoadingProject) {
-      loadProjectData(decodeURIComponent(projectIdParam), true); // isId = true
+    // project 파라미터가 있을 때 처리 (8자리 단축 ID)
+    if (projectParam) {
+      const shortId = decodeURIComponent(projectParam);
+      const currentShortId = projectId ? getShortId(projectId) : null;
+      
+      // 현재 projectId와 다르면 새 프로젝트 로드
+      if (currentShortId !== shortId && !isLoadingProject) {
+        console.log('[ProjectContext] 다른 프로젝트 감지, 새로 로드:', shortId);
+        setProjectLoaded(false); // 상태 리셋
+        loadProjectData(shortId, true);
+      }
     }
-    // projectName 파라미터가 있고 아직 로드하지 않았다면
+    // projectId 파라미터가 있을 때 처리 (전체 UUID)
+    else if (projectIdParam) {
+      const fullId = decodeURIComponent(projectIdParam);
+      if (projectId !== fullId && !isLoadingProject) {
+        setProjectLoaded(false);
+        loadProjectData(fullId, true);
+      }
+    }
+    // projectName 파라미터가 있을 때 처리
     else if (projectName && !projectLoaded && !isLoadingProject) {
-      loadProjectData(decodeURIComponent(projectName), false); // isId = false
+      loadProjectData(decodeURIComponent(projectName), false);
     }
-    // title 파라미터만 있다면 (이전 방식 호환)
-    else if (title && !projectName && !projectIdParam) {
+    // title 파라미터만 있을 때 (이전 방식 호환)
+    else if (title && !projectName && !projectIdParam && !projectParam) {
       setProjectTitle(decodeURIComponent(title));
     }
-  }, [searchParams, projectLoaded, isLoadingProject, loadProjectData]);
+    // 아무 프로젝트 파라미터가 없고 아직 로드하지 않았다면 새 프로젝트 생성
+    else if (!title && !projectName && !projectIdParam && !projectParam && !projectLoaded && !isLoadingProject) {
+      createNewProjectAndRedirect();
+    }
+  }, [searchParams, projectId, isLoadingProject, loadProjectData, createNewProjectAndRedirect, projectLoaded]);
   
   // ClipContext에서 사운드 레인 변경 이벤트 수신
   useEffect(() => {

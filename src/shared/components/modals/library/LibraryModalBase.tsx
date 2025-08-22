@@ -224,20 +224,17 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
     // openProject가 활성화되지 않았으면 동작하지 않음
     if (!config.openProject?.enabled) return;
     
-    // openProject에 onProjectNavigate가 있으면 사용
+    // openProject에 onProjectNavigate가 있으면 project.id를 전달
     if (config.openProject.onProjectNavigate) {
-      config.openProject.onProjectNavigate(project.project_name);
+      config.openProject.onProjectNavigate(project.id); // project.id 사용
       onClose();
     } 
     // 레거시 지원: onProjectSwitch가 있으면 사용
     else if (pathname === '/video-editor' && config.onProjectSwitch) {
-      config.onProjectSwitch(project.project_name);
+      config.onProjectSwitch(project.id); // project.id 사용
       onClose();
-    } else {
-      // 그 외의 경우 직접 이동 (완전한 페이지 리로드)
-      const targetUrl = `/video-editor?projectName=${encodeURIComponent(project.project_name)}`;
-      window.location.href = targetUrl;
     }
+    // window.location.href 제거 - 항상 콜백을 통해서만 처리
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname, onClose, config.onProjectSwitch, config.openProject]);
 

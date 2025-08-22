@@ -29,7 +29,7 @@ export interface LibraryModalConfig {
 
   openProject?: {
     enabled: boolean;
-    onProjectNavigate: (projectName: string) => void;
+    onProjectNavigate: (projectId: string) => void;
   };
   
   /** 프로젝트 필터 설정 */
@@ -52,7 +52,7 @@ export interface LibraryModalConfig {
   };
   
   /** 프로젝트 전환 콜백 (video-editor에서 사용) */
-  onProjectSwitch?: (projectName: string) => void;
+  onProjectSwitch?: (projectId: string) => void;
   
   /** 현재 프로젝트 이름 (테두리 표시용) */
   currentProjectName?: string;
