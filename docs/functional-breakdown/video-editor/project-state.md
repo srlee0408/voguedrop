@@ -137,15 +137,38 @@ router.push(`/video-editor?project=${encodeURIComponent(projectId)}`)
 ```typescript
 // src/app/video-editor/_context/ProjectContext.tsx
 useEffect(() => {
-  const projectParam = searchParams.get('project'); // 새로운 단축 ID
+  const title = searchParams.get('title');
+  const projectName = searchParams.get('projectName');
+  const projectIdParam = searchParams.get('projectId');
+  const projectParam = searchParams.get('project'); // 새로운 단축 ID 파라미터
   
-  if (projectParam && !projectLoaded && !isLoadingProject) {
+  // project 파라미터가 있을 때 처리 (8자리 단축 ID)
+  if (projectParam) {
     const shortId = decodeURIComponent(projectParam);
-    loadProjectData(shortId, true); // 단축 ID로 로드
+    const currentShortId = projectId ? getShortId(projectId) : null;
+    
+    // 현재 projectId와 다르면 새 프로젝트 로드
+    if (currentShortId !== shortId && !isLoadingProject) {
+      setProjectLoaded(false); // 상태 리셋
+      loadProjectData(shortId, true);
+    }
+  }
+  // projectId 파라미터가 있을 때 처리 (전체 UUID)
+  else if (projectIdParam) {
+    const fullId = decodeURIComponent(projectIdParam);
+    if (projectId !== fullId && !isLoadingProject) {
+      setProjectLoaded(false);
+      loadProjectData(fullId, true);
+    }
   }
   // ... 기타 파라미터 처리
-}, [searchParams, projectLoaded, isLoadingProject, loadProjectData]);
+}, [searchParams, projectId, isLoadingProject, loadProjectData, createNewProjectAndRedirect, projectLoaded]);
 ```
+
+**핵심 개선사항**:
+- **현재 projectId 비교**: URL의 project 파라미터와 현재 로드된 프로젝트를 비교하여 다를 때만 새로 로드
+- **상태 리셋**: 새 프로젝트 로드 전 `projectLoaded` 상태를 `false`로 리셋
+- **중복 로드 방지**: 같은 프로젝트 선택 시 불필요한 API 호출 방지
 
 #### 프로젝트 데이터 복원
 1. `GET /api/video/save?projectId=77e94f68` API 호출
@@ -153,6 +176,30 @@ useEffect(() => {
 3. `window.dispatchEvent`로 `projectDataLoaded` 이벤트 발생
 4. `ClipContext`가 이벤트 수신 후 `restoreProjectData` 호출
 5. 에디터의 모든 클립 상태 복원
+
+### 라이브러리 모달에서 프로젝트 선택
+
+#### 프로젝트 전환 플로우
+1. **라이브러리 모달 열기**: Video Editor에서 Library 버튼 클릭
+2. **프로젝트 선택**: LibraryModal에서 기존 프로젝트 클릭
+3. **핸들러 호출**: `handleProjectNavigate(project)` → `onProjectSwitch(project.id)` 전달
+4. **URL 변경**: `handleProjectSwitch(projectId)` 실행 → `router.push('/video-editor?project=77e94f68')`
+5. **프로젝트 로드**: ProjectContext의 useEffect가 URL 변경을 감지하여 새 프로젝트 로드
+
+#### 관련 컴포넌트
+- **LibraryModal**: `src/shared/components/modals/LibraryModal.tsx`
+- **LibraryModalBase**: `src/shared/components/modals/library/LibraryModalBase.tsx` 
+- **VideoEditorClient**: `src/app/video-editor/_components/VideoEditorClient.tsx` (handleProjectSwitch 정의)
+- **ModalManager**: `src/app/video-editor/_components/ModalManager.tsx` (모달 관리)
+
+#### handleProjectSwitch 구현
+```typescript
+// src/app/video-editor/_components/VideoEditorClient.tsx
+const handleProjectSwitch = useCallback((projectId: string) => {
+  const shortId = getShortId(projectId);
+  router.push(`/video-editor?project=${shortId}`);
+}, [router]);
+```
 
 ### 실행 취소 / 다시 실행 (Undo/Redo)
 - **위치**: `HistoryContext.tsx`
@@ -265,6 +312,52 @@ const createNewProjectAndRedirect = useCallback(async () => {
 }, [isLoadingProject, router]); // router 의존성 추가
 ```
 
+### 문제 4: 라이브러리 모달에서 프로젝트 선택 시 라우팅 실패 (2024년 12월)
+**원인**: `project` 파라미터 처리 로직 누락으로 URL 변경이 무시됨
+
+**문제 상황**:
+1. 라이브러리 모달에서 기존 프로젝트 선택
+2. `handleProjectSwitch(projectId)` 호출 → `router.push('/video-editor?project=77e94f68')` 실행
+3. URL은 변경되지만 실제 프로젝트는 로드되지 않음
+
+**근본 원인**:
+```typescript
+// ❌ 수정 전: project 파라미터 처리 누락
+useEffect(() => {
+  const projectName = searchParams.get('projectName');
+  const projectIdParam = searchParams.get('projectId');
+  // project 파라미터를 읽지 않음!
+  
+  if (projectIdParam && !projectLoaded && !isLoadingProject) {
+    // projectLoaded가 true면 실행되지 않음
+  }
+}, [searchParams, projectLoaded, isLoadingProject]);
+```
+
+**해결 방법**:
+```typescript
+// ✅ 수정 후: project 파라미터 처리 및 상태 비교 로직 추가
+useEffect(() => {
+  const projectParam = searchParams.get('project');
+  
+  if (projectParam) {
+    const shortId = decodeURIComponent(projectParam);
+    const currentShortId = projectId ? getShortId(projectId) : null;
+    
+    // 현재 projectId와 다르면 새 프로젝트 로드
+    if (currentShortId !== shortId && !isLoadingProject) {
+      setProjectLoaded(false); // 상태 리셋
+      loadProjectData(shortId, true);
+    }
+  }
+}, [searchParams, projectId, isLoadingProject]);
+```
+
+**추가 개선사항**:
+- **상태 초기화**: 프로젝트 로드 전 `projectId`를 `null`, `projectTitle`을 `'Loading...'`로 초기화
+- **중복 로드 방지**: 현재 프로젝트와 동일한 프로젝트 선택 시 API 호출 생략
+- **디버그 로그 정리**: 프로덕션 준비를 위해 불필요한 console.log 제거
+
 ## 6. 주의사항 및 베스트 프랙티스
 
 ### UUID 처리
@@ -286,3 +379,10 @@ const createNewProjectAndRedirect = useCallback(async () => {
 - ESLint `react-hooks/exhaustive-deps` 규칙 준수
 - useCallback/useEffect에서 사용하는 모든 변수를 의존성 배열에 포함
 - Stale closure 문제 방지를 위한 useRef 활용 고려
+
+### 라우팅 및 상태 관리 베스트 프랙티스
+- **URL 파라미터 일관성**: 모든 프로젝트 URL에 `?project=77e94f68` 형식 사용
+- **상태 비교**: URL 변경 감지 시 현재 상태와 비교하여 중복 로드 방지
+- **상태 초기화**: 새 프로젝트 로드 전 기존 상태를 명시적으로 초기화
+- **Client-side Navigation**: `router.push()` 사용으로 SPA 경험 유지
+- **프로덕션 로그**: 개발용 console.log는 프로덕션 배포 전 제거

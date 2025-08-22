@@ -2,6 +2,7 @@
 
 import React from 'react'
 import { useRouter } from 'next/navigation'
+import { getShortId } from '@/shared/lib/utils'
 import { LibraryModal } from '@/shared/components/modals/LibraryModal'
 import { EffectModal } from '@/shared/components/modals/EffectModal'
 import { PromptModal } from '@/shared/components/modals/PromptModal'
@@ -38,6 +39,12 @@ export function CanvasModals(): React.ReactElement {
     setCurrentEditingSlotIndex 
   } = useGeneration();
 
+  // 프로젝트 전환 핸들러 - UUID를 8자리 단축 ID로 변환
+  const handleProjectSwitch = (projectId: string) => {
+    const shortId = getShortId(projectId)
+    router.push(`/video-editor?project=${encodeURIComponent(shortId)}`)
+  }
+
   return (
     <>
       <LibraryModal
@@ -45,6 +52,7 @@ export function CanvasModals(): React.ReactElement {
         onClose={() => modals.closeModal('library')}
         favoriteVideos={favorites.favoriteIds}
         onToggleFavorite={favorites.toggleFavorite}
+        onProjectSwitch={handleProjectSwitch}
       />
 
       <EffectModal
