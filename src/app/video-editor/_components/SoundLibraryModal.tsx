@@ -8,7 +8,16 @@ import { useVideoSoundGeneration } from '../_hooks/useVideoSoundGeneration';
 import { ClipContext } from '../_context/ClipContext';
 import { formatSoundDisplayTitle } from '@/lib/sound/utils';
 import { SoundGenerationType } from '@/shared/types/sound';
-import { apiCache } from '@/lib/cache/api-cache';
+import { 
+  useSoundHistory, 
+  useSoundGeneration
+} from '../_hooks/useSoundHistoryQuery';
+import { 
+  useUploadedMusic, 
+  useUploadMusic,
+  useDeleteUploadedMusic,
+  type UploadedAudio
+} from '../_hooks/useUploadedMusicQuery';
 
 interface SoundLibraryModalProps {
   onClose: () => void;
@@ -16,22 +25,12 @@ interface SoundLibraryModalProps {
   onCreateVideo?: () => void;
 }
 
-interface UploadedAudio {
-  id: string;
-  name: string;
-  url: string;
-  duration: number;
-  size: number;
-}
-
 export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibraryModalProps) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'preset' | 'upload' | 'generate'>('preset');
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
-  const [uploadedAudios, setUploadedAudios] = useState<UploadedAudio[]>([]);
   const [selectedAudioIds, setSelectedAudioIds] = useState<Set<string>>(new Set());
   const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
   
   // AI Sound Generation states
   const [soundPrompt, setSoundPrompt] = useState('');
@@ -43,27 +42,27 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
   const [inputMode, setInputMode] = useState<'manual' | 'fromVideo'>('manual');
   const [selectedVideoClip, setSelectedVideoClip] = useState<string | null>(null);
   const [generationType, setGenerationType] = useState<SoundGenerationType>('sound_effect');
-  const [historyFilter] = useState<'all' | SoundGenerationType | 'from_video'>('all');
   
   const clipContext = useContext(ClipContext);
   const timelineClips = clipContext?.timelineClips || [];
   
   const videoSoundGeneration = useVideoSoundGeneration();
-  interface SoundVariation {
-    id: string;
-    variationNumber: number;
-    url: string;
-    duration: number;
-  }
-
-  interface SoundGroup {
-    groupId: string;
-    prompt: string;
-    title: string | null;
-    createdAt: string;
-    generationType?: string | null;
-    variations: SoundVariation[];
-  }
+  
+  // React Query Hooks
+  const { 
+    data: soundGroups = [], 
+    isLoading: isLoadingHistory,
+    refetch: refetchSoundHistory 
+  } = useSoundHistory('all', activeTab === 'generate');
+  
+  const { 
+    data: uploadedAudios = [], 
+    isLoading: isLoadingUploaded
+  } = useUploadedMusic(undefined, activeTab === 'upload');
+  
+  const soundGenerationMutation = useSoundGeneration();
+  const uploadMusicMutation = useUploadMusic();
+  const deleteMusicMutation = useDeleteUploadedMusic();
   
   interface JobProgress {
     jobId: string;
@@ -77,9 +76,7 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
     };
   }
 
-  const [soundGroups, setSoundGroups] = useState<SoundGroup[]>([]);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
-  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   
@@ -133,17 +130,6 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
     { key: 'sfx', label: t('videoEditor.controls.soundOptions.sfx'), duration: 60 },
   ];
 
-  useEffect(() => {
-    if (activeTab === 'generate' && !isLoadingHistory) {
-      loadSoundHistory(false, historyFilter);
-    }
-  }, [activeTab, historyFilter, isLoadingHistory]);
-
-  useEffect(() => {
-    if (activeTab === 'upload') {
-      loadUploadedMusic();
-    }
-  }, [activeTab]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -161,86 +147,6 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
     }
   }, [showDurationDropdown]);
 
-  const loadSoundHistory = async (forceRefresh = false, filterType = historyFilter) => {
-    if (isLoadingHistory) return;
-    
-    setIsLoadingHistory(true);
-    
-    try {
-      if (!forceRefresh) {
-        const cachedData = await apiCache.getSoundHistory(filterType);
-        if (cachedData) {
-          setSoundGroups(Array.isArray(cachedData) ? cachedData : []);
-          setIsLoadingHistory(false);
-          return;
-        }
-      }
-
-      const url = filterType === 'all' 
-        ? '/api/sound/history'
-        : `/api/sound/history?type=${filterType}`;
-      
-      const response = await fetch(url);
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.groups) {
-          await apiCache.setSoundHistory(filterType, data.groups, 5 * 60 * 1000);
-          setSoundGroups(data.groups);
-        }
-      } else {
-        setSoundGroups([]);
-      }
-    } catch (error) {
-      console.error('Failed to load sound history:', error);
-      setSoundGroups([]);
-    } finally {
-      setIsLoadingHistory(false);
-    }
-  };
-
-  const loadUploadedMusic = async () => {
-    try {
-      const cachedData = await apiCache.getUploadedMusic();
-      if (cachedData) {
-        setUploadedAudios(Array.isArray(cachedData) ? cachedData : []);
-        return;
-      }
-
-      const response = await fetch('/api/upload/music', {
-        method: 'GET',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to load uploaded music');
-      }
-
-      const data = await response.json();
-      
-      if (data.success && data.music) {
-        const uploadedMusic: UploadedAudio[] = data.music.map((music: {
-          id: string;
-          file_name: string;
-          url: string;
-          duration: number | null;
-          file_size: number;
-        }) => ({
-          id: music.id,
-          name: music.file_name,
-          url: music.url,
-          duration: music.duration || 0,
-          size: music.file_size,
-        }));
-        
-        await apiCache.setUploadedMusic(uploadedMusic, 10 * 60 * 1000);
-        setUploadedAudios(uploadedMusic);
-      } else {
-        setUploadedAudios([]);
-      }
-    } catch (error) {
-      console.error('Failed to load uploaded music:', error);
-      setUploadedAudios([]);
-    }
-  };
 
   const getAudioDuration = (file: File): Promise<number> => {
     return new Promise((resolve, reject) => {
@@ -266,7 +172,6 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
-    setIsUploading(true);
     const newAudioIds: string[] = [];
     
     try {
@@ -278,32 +183,12 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
 
         const duration = await getAudioDuration(file);
         
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('duration', duration.toString());
-        
-        const response = await fetch('/api/upload/music', {
-          method: 'POST',
-          body: formData,
+        const uploadedMusic = await uploadMusicMutation.mutateAsync({
+          file,
+          duration
         });
-
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || 'Upload failed');
-        }
-
-        const data = await response.json();
         
-        const newAudio: UploadedAudio = {
-          id: data.music.id,
-          name: data.music.file_name,
-          url: data.music.url,
-          duration: data.music.duration || duration,
-          size: data.music.file_size,
-        };
-        
-        setUploadedAudios(prev => [...prev, newAudio]);
-        newAudioIds.push(newAudio.id);
+        newAudioIds.push(uploadedMusic.id);
       }
       
       setSelectedAudioIds(prev => {
@@ -314,13 +199,11 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
       
       if (newAudioIds.length > 0) {
         console.log(`Successfully uploaded ${newAudioIds.length} audio file(s)`);
-        await loadUploadedMusic();
       }
     } catch (error) {
       console.error('Error uploading audio:', error);
       alert(error instanceof Error ? error.message : 'Error uploading audio file.');
     } finally {
-      setIsUploading(false);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -352,7 +235,7 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
     event.stopPropagation();
   };
 
-  const handlePlayPause = (audio: UploadedAudio) => {
+  const handlePlayPause = (audio: UploadedAudio | { id: string; url: string; file_name?: string; name?: string }) => {
     if (playingAudioId === audio.id) {
       if (audioRef.current) {
         audioRef.current.pause();
@@ -411,9 +294,9 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
       const selectedAudios = uploadedAudios
         .filter(audio => selectedAudioIds.has(audio.id))
         .map(audio => ({
-          name: audio.name,
+          name: audio.file_name,
           url: audio.url,
-          duration: audio.duration,
+          duration: audio.duration || 0,
         }));
       
       if (selectedAudios.length > 0) {
@@ -475,24 +358,12 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
       let jobIds: string[];
       
       if (inputMode === 'manual') {
-        const response = await fetch('/api/sound/generate-async', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            prompt: soundPrompt.trim(),
-            title: soundTitle.trim() || undefined,
-            duration_seconds: soundDuration,
-            generation_type: generationType,
-          }),
+        const data = await soundGenerationMutation.mutateAsync({
+          prompt: soundPrompt.trim(),
+          title: soundTitle.trim() || undefined,
+          duration_seconds: soundDuration,
+          generation_type: generationType,
         });
-        
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.error || 'Sound generation failed');
-        }
 
         jobIds = data.jobIds;
       } else {
@@ -507,7 +378,7 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
         );
         
         if (completedJobIds.length > 0) {
-          loadSoundHistory(true);
+          refetchSoundHistory();
           setIsGeneratingSound(false);
           setSoundPrompt('');
           setSoundTitle('');
@@ -612,7 +483,7 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
             setGenerationError('All sound generation failed.');
             setIsGeneratingSound(false);
           } else {
-            loadSoundHistory(true);
+            refetchSoundHistory();
             setIsGeneratingSound(false);
             setSoundPrompt('');
             setSoundTitle('');
@@ -627,10 +498,10 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
     }
   };
 
-  const handleRemoveAudio = (audioId: string) => {
-    const audio = uploadedAudios.find(a => a.id === audioId);
-    if (audio) {
-      setUploadedAudios(prev => prev.filter(a => a.id !== audioId));
+  const handleRemoveAudio = async (audioId: string) => {
+    try {
+      await deleteMusicMutation.mutateAsync(audioId);
+      
       setSelectedAudioIds(prev => {
         const newSet = new Set(prev);
         newSet.delete(audioId);
@@ -642,6 +513,9 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
         audioRef.current = null;
         setPlayingAudioId(null);
       }
+    } catch (error) {
+      console.error('Failed to delete audio:', error);
+      alert('Failed to delete audio file.');
     }
   };
 
@@ -887,10 +761,10 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
                           
                           <button
                             onClick={handleSoundGenerate}
-                            disabled={isGeneratingSound || !soundPrompt.trim()}
+                            disabled={soundGenerationMutation.isPending || isGeneratingSound || !soundPrompt.trim()}
                             className="px-6 py-2 bg-primary rounded-button hover:bg-primary/90 text-black disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 min-w-[120px] justify-center"
                           >
-                            {isGeneratingSound ? (
+                            {(soundGenerationMutation.isPending || isGeneratingSound) ? (
                               <>
                                 <Loader2 className="w-4 h-4 animate-spin" />
                                 <span>Generating</span>
@@ -948,10 +822,10 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
                         
                         <button
                           onClick={handleSoundGenerate}
-                          disabled={isGeneratingSound || videoSoundGeneration.isGenerating || !selectedVideoClip}
+                          disabled={soundGenerationMutation.isPending || isGeneratingSound || videoSoundGeneration.isGenerating || !selectedVideoClip}
                           className="px-6 py-2 bg-primary rounded-button hover:bg-primary/90 text-black disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 min-w-[120px] justify-center"
                         >
-                          {(isGeneratingSound || videoSoundGeneration.isGenerating) ? (
+                          {(soundGenerationMutation.isPending || isGeneratingSound || videoSoundGeneration.isGenerating) ? (
                             <>
                               <Loader2 className="w-4 h-4 animate-spin" />
                               <span>Generating</span>
@@ -967,9 +841,9 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
                     </>
                   )}
                   
-                  {(generationError || videoSoundGeneration.error) && (
+                  {(generationError || videoSoundGeneration.error || soundGenerationMutation.error) && (
                     <div className="p-3 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400 text-sm">
-                      {generationError || videoSoundGeneration.error}
+                      {generationError || videoSoundGeneration.error || soundGenerationMutation.error?.message}
                     </div>
                   )}
                 </div>
@@ -1069,10 +943,7 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
                                     e.stopPropagation();
                                     handlePlayPause({
                                       id: variation.id,
-                                      name: `Sample ${variation.variationNumber}`,
-                                      url: variation.url,
-                                      duration: variation.duration,
-                                      size: 0
+                                      url: variation.url
                                     });
                                   }}
                                   className="w-8 h-8 flex items-center justify-center bg-gray-900 rounded-full hover:bg-gray-800 transition-colors"
@@ -1120,14 +991,14 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
                 className="hidden" 
                 id="audio-upload"
                 onChange={handleFileUpload}
-                disabled={isUploading}
+                disabled={uploadMusicMutation.isPending}
               />
               <button 
                 onClick={() => fileInputRef.current?.click()}
-                disabled={isUploading}
+                disabled={uploadMusicMutation.isPending}
                 className="px-6 py-2 bg-primary rounded-button text-black hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isUploading ? 'Uploading...' : 'Browse Files'}
+                {uploadMusicMutation.isPending ? 'Uploading...' : 'Browse Files'}
               </button>
             </div>
           </div>
@@ -1144,7 +1015,12 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
                 </button>
               )}
             </div>
-            {uploadedAudios.length === 0 ? (
+            {isLoadingUploaded ? (
+              <div className="text-center py-8 text-gray-500">
+                <i className="ri-loader-4-line animate-spin text-2xl mb-2"></i>
+                <div>Loading uploaded music...</div>
+              </div>
+            ) : uploadedAudios.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 No audio files uploaded. Please upload audio files.
               </div>
@@ -1175,9 +1051,9 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
                     </button>
                     
                     <div className="flex-1">
-                      <div className="font-medium text-sm">{audio.name}</div>
+                      <div className="font-medium text-sm">{audio.file_name}</div>
                       <div className="text-xs text-gray-400 mt-1">
-                        {formatDuration(audio.duration)} • {formatFileSize(audio.size)}
+                        {formatDuration(audio.duration || 0)} • {formatFileSize(audio.file_size)}
                       </div>
                     </div>
                     
@@ -1186,7 +1062,8 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
                         e.stopPropagation();
                         handleRemoveAudio(audio.id);
                       }}
-                      className="w-8 h-8 flex items-center justify-center hover:bg-gray-600 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                      disabled={deleteMusicMutation.isPending}
+                      className="w-8 h-8 flex items-center justify-center hover:bg-gray-600 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50"
                     >
                       <i className="ri-delete-bin-line text-red-400"></i>
                     </button>

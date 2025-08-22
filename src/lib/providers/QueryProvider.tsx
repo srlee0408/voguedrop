@@ -14,15 +14,19 @@ export function QueryProvider({ children }: { children: ReactNode }) {
     new QueryClient({
       defaultOptions: {
         queries: {
-          // 데이터가 신선한 것으로 간주되는 시간
-          staleTime: 60 * 1000,      // 60초
+          // 데이터가 신선한 것으로 간주되는 시간 (사운드 히스토리는 자주 변경되지 않음)
+          staleTime: 5 * 60 * 1000,      // 5분
           // 캐시에서 제거되기 전까지 시간
-          gcTime: 5 * 60 * 1000,      // 5분 (구 cacheTime)
+          gcTime: 10 * 60 * 1000,        // 10분 (구 cacheTime)
           // 윈도우 포커스 시 리페치 비활성화 (불필요한 요청 방지)
           refetchOnWindowFocus: false,
           // 재시도 설정
           retry: 1,
           retryDelay: 1000,
+        },
+        mutations: {
+          // mutation 실패 시 재시도 설정
+          retry: 1,
         },
       },
     })
