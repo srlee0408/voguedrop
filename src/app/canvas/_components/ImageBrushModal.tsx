@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import Image from 'next/image'
-import { X, Brush, Eraser, RotateCcw, Loader2, Sliders, ArrowRight, Upload, Download } from 'lucide-react'
+import { X, Brush, Eraser, RotateCcw, Loader2, Sliders, ArrowRight, Upload, Download, RefreshCw } from 'lucide-react'
 import type { ImageBrushModalState, BrushTool, CanvasMouseEvent } from '@/shared/types/image-brush'
 import { 
   calculateProgressForElapsedTime, 
@@ -41,7 +41,7 @@ export function ImageBrushModal({
       color: '#FF0000'  // 기본값 빨간색
     },
     prompt: '',
-    mode: 'flux',
+    mode: 'i2i',
     progress: 0,
     error: null,
     referenceImage: null,
@@ -374,14 +374,9 @@ export function ImageBrushModal({
 
   // AI processing request
   const handleGenerate = async () => {
-    // Mode-specific validation
-    if (state.mode === 'flux' && !state.prompt.trim()) {
-      setState(prev => ({ ...prev, error: 'Please enter a prompt.' }))
-      return
-    }
-    
-    if (state.mode === 'i2i' && !state.referenceImage) {
-      setState(prev => ({ ...prev, error: 'Please upload a reference image for I2I mode.' }))
+    // Validation
+    if (!state.referenceImage) {
+      setState(prev => ({ ...prev, error: 'Please upload a reference image.' }))
       return
     }
 
@@ -720,7 +715,7 @@ export function ImageBrushModal({
           {/* Tools Panel */}
           <div className="w-80 bg-gray-800 border-l border-gray-700 flex flex-col overflow-hidden">
             {/* Scrollable Content Area */}
-            <div className="flex-1 p-4 overflow-y-auto scrollbar-custom flex flex-col gap-4" style={{ maxHeight: 'calc(95vh - 5rem)' }}>
+            <div className="flex-1 p-4 overflow-y-auto scrollbar-custom flex flex-col gap-3" style={{ maxHeight: 'calc(90vh - 4rem)' }}>
             {/* Tool Selection */}
             <div className="space-y-2">
               <h3 className="text-sm font-medium text-gray-400">Tools</h3>
@@ -820,67 +815,52 @@ export function ImageBrushModal({
               />
             </div>
 
-            {/* Mode Selection */}
+            {/* Reference Image Upload */}
             <div className="space-y-2">
-              <h3 className="text-sm font-medium text-gray-400">Processing Mode</h3>
-              <select
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors"
-                value={state.mode}
-                onChange={(e) => setState(prev => ({ ...prev, mode: e.target.value as 'flux' | 'i2i' }))}
-                disabled={state.isProcessing}
+              <h3 className="text-sm font-medium text-gray-400">Reference Image</h3>
+              <div 
+                className="border-2 border-dashed border-gray-600 rounded-lg p-2 text-center cursor-pointer hover:border-gray-500 transition-colors"
+                onDragOver={handleDragOver}
+                onDrop={handleReferenceDrop}
+                onClick={() => referenceInputRef.current?.click()}
               >
-                <option value="flux">Image Modification</option>
-                <option value="i2i">Style Transfer</option>
-              </select>
-            </div>
-
-            {/* I2I Mode: Reference Image Upload */}
-            {state.mode === 'i2i' && (
-              <div className="space-y-2">
-                <h3 className="text-sm font-medium text-gray-400">Reference Image</h3>
-                <div 
-                  className="border-2 border-dashed border-gray-600 rounded-lg p-3 text-center cursor-pointer hover:border-gray-500 transition-colors"
-                  onDragOver={handleDragOver}
-                  onDrop={handleReferenceDrop}
-                  onClick={() => referenceInputRef.current?.click()}
-                >
-                  {state.referenceImage ? (
-                    <div className="relative">
-                      <Image 
-                        src={state.referenceImage} 
-                        alt="Reference" 
-                        width={100} 
-                        height={100}
-                        className="mx-auto rounded object-cover"
-                        style={{ maxHeight: '100px', width: 'auto' }}
-                      />
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setState(prev => ({ ...prev, referenceImage: null }));
-                        }}
-                        className="absolute top-1 right-1 p-1 bg-red-500 rounded-full hover:bg-red-600 transition-colors"
-                      >
-                        <X className="w-3 h-3 text-white" />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="text-gray-400 py-1">
-                      <Upload className="w-6 h-6 mx-auto mb-1 opacity-50" />
-                      <p className="text-xs">Drop or click to upload</p>
-                      <p className="text-xs mt-1 opacity-70">Style source image</p>
-                    </div>
-                  )}
-                </div>
-                <input
-                  ref={referenceInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleReferenceUpload}
-                />
-                
-                {/* Style Strength Slider */}
+                {state.referenceImage ? (
+                  <div className="relative">
+                    <Image 
+                      src={state.referenceImage} 
+                      alt="Reference" 
+                      width={60} 
+                      height={60}
+                      className="mx-auto rounded object-cover"
+                      style={{ maxHeight: '60px', width: 'auto' }}
+                    />
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setState(prev => ({ ...prev, referenceImage: null }));
+                      }}
+                      className="absolute -top-1 -right-1 p-1 bg-red-500 rounded-full hover:bg-red-600 transition-colors"
+                    >
+                      <X className="w-3 h-3 text-white" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="text-gray-400 py-2">
+                    <Upload className="w-5 h-5 mx-auto mb-1 opacity-50" />
+                    <p className="text-xs">Upload style image</p>
+                  </div>
+                )}
+              </div>
+              <input
+                ref={referenceInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleReferenceUpload}
+              />
+              
+              {/* Style Strength Slider */}
+              {state.referenceImage && (
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-gray-400">Style Strength</span>
@@ -904,12 +884,36 @@ export function ImageBrushModal({
                   />
                   <div className="flex justify-between text-[10px] text-gray-500">
                     <span>Weak</span>
-                    <span>Normal</span>
                     <span>Strong</span>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
+              
+              {/* Generate Button */}
+              <button
+                className="w-full px-4 py-2.5 text-black rounded-lg font-medium hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                style={{ backgroundColor: '#38f47cf9' }}
+                onClick={handleGenerate}
+                disabled={
+                  state.isProcessing || 
+                  !state.referenceImage
+                }
+              >
+                {state.isProcessing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Processing...
+                  </>
+                ) : resultImage ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Regenerate with AI
+                  </>
+                ) : (
+                  'Apply Style with AI'
+                )}
+              </button>
+            </div>
 
             {/* Error Message */}
             {state.error && (
@@ -923,7 +927,7 @@ export function ImageBrushModal({
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm text-gray-400">
                   <span>
-                    {state.mode === 'i2i' && state.progress < 30 
+                    {state.progress < 30 
                       ? 'Initializing AI model...' 
                       : 'Processing...'}
                   </span>
@@ -935,7 +939,7 @@ export function ImageBrushModal({
                     style={{ width: `${state.progress}%`, backgroundColor: '#38f47cf9' }}
                   />
                 </div>
-                {state.mode === 'i2i' && state.progress < 30 && (
+                {state.progress < 30 && (
                   <p className="text-xs text-gray-500">
                     First request may take 30-60 seconds to warm up the model
                   </p>
@@ -943,62 +947,34 @@ export function ImageBrushModal({
               </div>
             )}
 
+            {/* Apply/Reset Buttons (show when result exists) */}
+            {resultImage && (
+              <div className="flex gap-2">
+                <button
+                  onClick={handleApplyResult}
+                  className="flex-1 px-4 py-2 text-black rounded-lg font-medium hover:opacity-90 transition-all"
+                  style={{ backgroundColor: '#38f47cf9' }}
+                >
+                  Apply Result
+                </button>
+                <button
+                  onClick={handleReset}
+                  className="flex-1 px-4 py-2 bg-gray-700 text-gray-300 rounded-lg font-medium hover:bg-gray-600 transition-colors"
+                >
+                  Reset
+                </button>
+              </div>
+            )}
+
             {/* Instructions */}
-            <div className="text-xs text-gray-500 space-y-1">
-              <p>• Mark the areas to modify with the brush</p>
-              <p>• Colored areas indicate where AI will make changes</p>
-              <p>• English prompts provide more accurate results</p>
-            </div>
-          </div>
-
-          {/* Sticky Action Buttons at Bottom */}
-          <div className="p-4 bg-gray-800 border-t border-gray-700 mt-auto">
-            <div className="space-y-2">
-              {/* Generate Button */}
-              <button
-                className="w-full px-4 py-2.5 text-black rounded-lg font-medium hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                style={{ backgroundColor: '#38f47cf9' }}
-                onClick={handleGenerate}
-                disabled={
-                  state.isProcessing || 
-                  (state.mode === 'flux' && !state.prompt.trim()) ||
-                  (state.mode === 'i2i' && !state.referenceImage)
-                }
-              >
-                {state.isProcessing ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  state.mode === 'i2i' ? 'Apply Style with AI' : 'Generate with AI'
-                )}
-              </button>
-
-              {/* Apply/Reset Buttons (show when result exists) */}
-              {resultImage && (
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleApplyResult}
-                    className="flex-1 px-4 py-2 text-black rounded-lg font-medium hover:opacity-90 transition-all"
-                    style={{ backgroundColor: '#38f47cf9' }}
-                  >
-                    Apply Result
-                  </button>
-                  <button
-                    onClick={handleReset}
-                    className="flex-1 px-4 py-2 bg-gray-700 text-gray-300 rounded-lg font-medium hover:bg-gray-600 transition-colors"
-                  >
-                    Reset
-                  </button>
-                </div>
-              )}
+            <div className="text-xs text-gray-500">
+              <p>• Draw mask → Upload style → Generate</p>
             </div>
           </div>
         </div>
         </div>
       </div>
-    </div>
+      </div>
     </>
   )
 }
