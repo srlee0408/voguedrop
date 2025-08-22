@@ -1,7 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback } from 'react';
 import { LibraryVideo, LibraryProject, UserUploadedVideo } from '@/shared/types/video-editor';
 import { LibraryCounts } from '@/shared/types/library-modal';
 import { useAuth } from '@/shared/lib/auth/AuthContext';
+import { 
+  useCombinedLibraryData, 
+  useUpdateUploadItems, 
+  useUpdateCounts
+} from './useLibraryQuery';
 
 interface UseLibraryDataReturn {
   clipItems: LibraryVideo[];
@@ -17,82 +22,48 @@ interface UseLibraryDataReturn {
 
 /**
  * Library 데이터를 관리하는 커스텀 훅
+ * React Query 기반으로 리팩토링됨 (PROJECT_GUIDE.md 준수)
  * @param isOpen - 모달이 열려있는지 여부
  * @returns Library 데이터와 관련 메서드
  */
 export function useLibraryData(isOpen: boolean): UseLibraryDataReturn {
-  const [clipItems, setClipItems] = useState<LibraryVideo[]>([]);
-  const [projectItems, setProjectItems] = useState<LibraryProject[]>([]);
-  const [uploadItems, setUploadItems] = useState<UserUploadedVideo[]>([]);
-  const [counts, setCounts] = useState<LibraryCounts>({ clips: 0, projects: 0, uploads: 0 });
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
+  
+  // React Query를 사용한 데이터 페칭
+  const {
+    data,
+    isLoading,
+    error: queryError,
+    refetch
+  } = useCombinedLibraryData(isOpen && !!user);
+  
+  // Mutation hooks
+  const updateUploadItemsMutation = useUpdateUploadItems();
+  const updateCountsMutation = useUpdateCounts();
+  
+  // 데이터 기본값 설정
+  const clipItems = data?.clipItems || [];
+  const projectItems = data?.projectItems || [];
+  const uploadItems = data?.uploadItems || [];
+  const counts = data?.counts || { clips: 0, projects: 0, uploads: 0 };
+  
+  // 에러 처리
+  const error = queryError instanceof Error ? queryError.message : null;
 
-  const fetchLibraryData = useCallback(async () => {
-    if (!user) {
-      setClipItems([]);
-      setProjectItems([]);
-      setUploadItems([]);
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-      setError(null);
-      
-      const response = await fetch('/api/canvas/library?limit=50');
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch library data');
-      }
-      
-      const data = await response.json();
-      
-      // 응답 데이터 처리
-      const clips = data.clips || data.videos || [];
-      const projects = data.projects || [];
-      const uploads = data.uploads || [];
-      
-      setClipItems(clips);
-      setProjectItems(projects);
-      setUploadItems(uploads);
-      
-      setCounts(data.counts || { 
-        clips: clips.length, 
-        projects: projects.length,
-        uploads: uploads.length
-      });
-    } catch (err) {
-      console.error('Failed to fetch library data:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load library. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [user]);
-
-  // 모달이 열릴 때 데이터 페칭
-  useEffect(() => {
-    if (isOpen && user) {
-      fetchLibraryData();
-    } else if (isOpen && !user) {
-      setClipItems([]);
-      setProjectItems([]);
-      setUploadItems([]);
-      setIsLoading(false);
-    }
-  }, [isOpen, user, fetchLibraryData]);
-
-  // 업로드 아이템 추가 메서드
+  // 업로드 아이템 추가 메서드 (Optimistic Update 사용)
   const updateUploadItems = useCallback((newItem: UserUploadedVideo) => {
-    setUploadItems(prev => [newItem, ...prev]);
-  }, []);
+    updateUploadItemsMutation.mutate(newItem);
+  }, [updateUploadItemsMutation]);
 
-  // 카운트 업데이트 메서드
+  // 카운트 업데이트 메서드 (Optimistic Update 사용)
   const updateCounts = useCallback((key: keyof LibraryCounts, delta: number) => {
-    setCounts(prev => ({ ...prev, [key]: prev[key] + delta }));
-  }, []);
+    updateCountsMutation.mutate({ key, delta });
+  }, [updateCountsMutation]);
+  
+  // 수동 리페치 래퍼
+  const handleRefetch = useCallback(async () => {
+    await refetch();
+  }, [refetch]);
 
   return {
     clipItems,
@@ -101,7 +72,7 @@ export function useLibraryData(isOpen: boolean): UseLibraryDataReturn {
     counts,
     isLoading,
     error,
-    refetch: fetchLibraryData,
+    refetch: handleRefetch,
     updateUploadItems,
     updateCounts
   };
