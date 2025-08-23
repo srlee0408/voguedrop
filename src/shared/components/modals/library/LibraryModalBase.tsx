@@ -29,7 +29,7 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
     updateCounts
   } = useLibraryData(isOpen, false); // Skip clips loading
 
-  // 즐겨찾기 클립 데이터
+  // 즐겨찾기 클립 데이터 (프리페칭된 데이터를 최대한 활용)
   const {
     data: favoriteClips,
     loading: favoritesLoading,
@@ -38,9 +38,12 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
     isFetchingNextPage: favoritesFetching,
     fetchNextPage: fetchMoreFavorites,
     refetch: refetchFavorites
-  } = useLibraryFavorites({ enabled: isOpen && activeCategory === 'clips' });
+  } = useLibraryFavorites({ 
+    enabled: isOpen && (activeCategory === 'favorites' || activeCategory === 'clips'),
+    limit: 20
+  });
 
-  // 일반 클립 데이터
+  // 일반 클립 데이터 (프리페칭된 데이터를 최대한 활용)
   const {
     data: regularClips,
     loading: regularLoading,
@@ -49,7 +52,10 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
     isFetchingNextPage: regularFetching,
     fetchNextPage: fetchMoreRegular,
     refetch: refetchRegular
-  } = useLibraryRegular({ enabled: isOpen && activeCategory === 'clips' });
+  } = useLibraryRegular({ 
+    enabled: isOpen && (activeCategory === 'clips'),
+    limit: 20
+  });
 
   // 타입 안전성을 위한 명시적 타입 캐스팅
   const safeError = (error: unknown): Error | null => {

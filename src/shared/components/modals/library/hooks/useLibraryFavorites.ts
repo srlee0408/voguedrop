@@ -83,8 +83,10 @@ export function useLibraryFavorites({
     getNextPageParam: (lastPage) => 
       lastPage.pagination?.hasNextPage ? lastPage.pagination.nextCursor : undefined,
     enabled,
-    staleTime: 1000 * 60 * 5, // 5분간 캐시 유지
-    gcTime: 1000 * 60 * 10,   // 10분 후 가비지 컬렉션
+    staleTime: 1000 * 60 * 15, // 15분간 캐시 유지 (프리페칭과 동일)
+    gcTime: 1000 * 60 * 30,    // 30분 후 가비지 컬렉션
+    refetchOnMount: false,     // 캐시 우선 사용
+    refetchOnReconnect: false, // 네트워크 재연결 시 자동 refetch 비활성화
   });
 
   // 모든 페이지의 데이터를 평면화

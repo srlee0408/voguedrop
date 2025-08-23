@@ -8,6 +8,8 @@ interface InfinitePrefetchFlags {
   firstPageCounts: boolean;
   firstPageBasic: boolean;
   firstPageFull: boolean;
+  favorites: boolean;
+  regular: boolean;
 }
 
 /**
@@ -20,7 +22,9 @@ export function useLibraryInfinitePrefetch() {
   const prefetchFlags = useRef<InfinitePrefetchFlags>({
     firstPageCounts: false,
     firstPageBasic: false,
-    firstPageFull: false
+    firstPageFull: false,
+    favorites: false,
+    regular: false
   });
 
   // API 함수들 (첫 페이지만 가져오는 용도)
@@ -39,6 +43,18 @@ export function useLibraryInfinitePrefetch() {
   const fetchFirstPageFull = async () => {
     const response = await fetch('/api/canvas/library?limit=20&type=all');
     if (!response.ok) throw new Error('Failed to fetch first page full');
+    return response.json();
+  };
+
+  const fetchFavorites = async () => {
+    const response = await fetch('/api/canvas/library/favorites?limit=20');
+    if (!response.ok) throw new Error('Failed to fetch favorites');
+    return response.json();
+  };
+
+  const fetchRegular = async () => {
+    const response = await fetch('/api/canvas/library/regular?limit=20');
+    if (!response.ok) throw new Error('Failed to fetch regular clips');
     return response.json();
   };
 
@@ -93,6 +109,40 @@ export function useLibraryInfinitePrefetch() {
     }
   }, [user, queryClient]);
 
+  // 4단계: Favorites 데이터 프리페칭
+  const prefetchFavorites = useCallback(async () => {
+    if (!user || prefetchFlags.current.favorites) return;
+    
+    try {
+      await queryClient.prefetchInfiniteQuery({
+        queryKey: ['library', 'favorites', 20],
+        queryFn: () => fetchFavorites(),
+        initialPageParam: undefined,
+        staleTime: 15 * 60 * 1000, // 15분간 fresh
+      });
+      prefetchFlags.current.favorites = true;
+    } catch (error) {
+      console.warn('Failed to prefetch favorites:', error);
+    }
+  }, [user, queryClient]);
+
+  // 5단계: Regular clips 데이터 프리페칭
+  const prefetchRegular = useCallback(async () => {
+    if (!user || prefetchFlags.current.regular) return;
+    
+    try {
+      await queryClient.prefetchInfiniteQuery({
+        queryKey: ['library', 'regular', 20],
+        queryFn: () => fetchRegular(),
+        initialPageParam: undefined,
+        staleTime: 15 * 60 * 1000, // 15분간 fresh
+      });
+      prefetchFlags.current.regular = true;
+    } catch (error) {
+      console.warn('Failed to prefetch regular clips:', error);
+    }
+  }, [user, queryClient]);
+
   // Progressive Enhancement 프리페칭 (단계별)
   const prefetchProgressivelyInfinite = useCallback(async () => {
     if (!user) return;
@@ -100,32 +150,38 @@ export function useLibraryInfinitePrefetch() {
     // 1단계: 카운트 (즉시)
     await prefetchFirstPageCounts();
     
-    // 2단계: 기본 데이터 (50ms 후)
+    // 2단계: 기본 데이터 + Favorites/Regular (50ms 후)
     setTimeout(async () => {
-      await prefetchFirstPageBasic();
+      await Promise.all([
+        prefetchFirstPageBasic(),
+        prefetchFavorites(),
+        prefetchRegular()
+      ]);
       
       // 3단계: 전체 첫 페이지 (추가로 200ms 후)
       setTimeout(async () => {
         await prefetchFirstPageFull();
       }, 200);
     }, 50);
-  }, [user, prefetchFirstPageCounts, prefetchFirstPageBasic, prefetchFirstPageFull]);
+  }, [user, prefetchFirstPageCounts, prefetchFirstPageBasic, prefetchFirstPageFull, prefetchFavorites, prefetchRegular]);
 
   // 마우스 호버 시 사용할 빠른 프리페칭
   const prefetchOnHoverInfinite = useCallback(async () => {
     if (!user) return;
     
-    // 카운트와 기본 데이터 동시 프리페칭
+    // 카운트, 기본 데이터, Favorites/Regular 동시 프리페칭
     await Promise.all([
       prefetchFirstPageCounts(),
-      prefetchFirstPageBasic()
+      prefetchFirstPageBasic(),
+      prefetchFavorites(),
+      prefetchRegular()
     ]);
     
     // 200ms 후 전체 첫 페이지 프리페칭
     setTimeout(() => {
       prefetchFirstPageFull();
     }, 200);
-  }, [user, prefetchFirstPageCounts, prefetchFirstPageBasic, prefetchFirstPageFull]);
+  }, [user, prefetchFirstPageCounts, prefetchFirstPageBasic, prefetchFirstPageFull, prefetchFavorites, prefetchRegular]);
 
   // 백그라운드 프리페칭 (유휴 시간 활용)
   const prefetchInBackgroundInfinite = useCallback(() => {
@@ -186,9 +242,13 @@ export function useLibraryInfinitePrefetch() {
       firstPageCounts: prefetchFlags.current.firstPageCounts,
       firstPageBasic: prefetchFlags.current.firstPageBasic,
       firstPageFull: prefetchFlags.current.firstPageFull,
+      favorites: prefetchFlags.current.favorites,
+      regular: prefetchFlags.current.regular,
       allFirstPagePrefetched: prefetchFlags.current.firstPageCounts && 
                              prefetchFlags.current.firstPageBasic && 
-                             prefetchFlags.current.firstPageFull
+                             prefetchFlags.current.firstPageFull,
+      allClipsPrefetched: prefetchFlags.current.favorites && 
+                         prefetchFlags.current.regular
     };
   }, []);
 
@@ -197,7 +257,9 @@ export function useLibraryInfinitePrefetch() {
     prefetchFlags.current = {
       firstPageCounts: false,
       firstPageBasic: false,
-      firstPageFull: false
+      firstPageFull: false,
+      favorites: false,
+      regular: false
     };
   }, []);
 
@@ -216,6 +278,10 @@ export function useLibraryInfinitePrefetch() {
     prefetchFirstPageFull,
     prefetchProgressivelyInfinite,
     prefetchSecondPage,
+    
+    // 클립 전용 프리페칭 함수들
+    prefetchFavorites,
+    prefetchRegular,
     
     // 상황별 프리페칭 함수들
     prefetchOnHoverInfinite,
