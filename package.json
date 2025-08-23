@@ -31,6 +31,7 @@
     "@remotion/player": "^4.0.332",
     "@remotion/renderer": "^4.0.332",
     "@remotion/tailwind": "^4.0.332",
+    "@sentry/nextjs": "^10.5.0",
     "@stagewise-plugins/react": "^0.6.2",
     "@stagewise/toolbar-next": "^0.6.2",
     "@supabase/ssr": "^0.6.1",

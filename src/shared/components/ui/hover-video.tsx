@@ -1,32 +1,47 @@
 "use client"
 
-import { useState, useRef, useEffect } from 'react'
+import { useRef, useEffect, useState } from 'react'
 import Image from 'next/image'
 
 interface HoverVideoProps {
   src: string
   className?: string
   fallbackContent?: React.ReactNode
+  isParentHovering?: boolean
+  onLoading?: (loading: boolean) => void
 }
 
 export function HoverVideo({
   src,
   className = "",
-  fallbackContent
+  fallbackContent,
+  isParentHovering = false,
+  onLoading
 }: HoverVideoProps) {
-  const [isHovered, setIsHovered] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
+  const [, setIsLoading] = useState(false)
 
   useEffect(() => {
-    if (videoRef.current && isHovered) {
-      videoRef.current.play().catch(() => {
+    const video = videoRef.current
+    if (!video) return
+
+    if (isParentHovering) {
+      // 호버 시작 시 로딩 상태 설정
+      setIsLoading(true)
+      onLoading?.(true)
+      
+      video.play().catch(() => {
         // Handle autoplay failure silently
+        setIsLoading(false)
+        onLoading?.(false)
       })
-    } else if (videoRef.current) {
-      videoRef.current.pause()
-      videoRef.current.currentTime = 0
+    } else {
+      video.pause()
+      video.currentTime = 0
+      setIsLoading(false)
+      onLoading?.(false)
     }
-  }, [isHovered])
+  }, [isParentHovering, onLoading])
 
   // URL에서 쿼리 파라미터를 제거하고 비디오 확장자 확인
   const cleanUrl = src.split('?')[0];
@@ -51,8 +66,6 @@ export function HoverVideo({
   return (
     <div
       className="relative cursor-pointer flex items-center justify-center w-full h-full"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
     >
       <video
         ref={videoRef}
@@ -61,7 +74,27 @@ export function HoverVideo({
         muted
         loop
         playsInline
-        preload="metadata"
+        preload="none"
+        onLoadStart={() => {
+          setIsLoading(true)
+          onLoading?.(true)
+        }}
+        onWaiting={() => {
+          setIsLoading(true)
+          onLoading?.(true)
+        }}
+        onCanPlay={() => {
+          setIsLoading(false)
+          onLoading?.(false)
+        }}
+        onPlaying={() => {
+          setIsLoading(false)
+          onLoading?.(false)
+        }}
+        onError={() => {
+          setIsLoading(false)
+          onLoading?.(false)
+        }}
       />
       {!src && fallbackContent}
     </div>

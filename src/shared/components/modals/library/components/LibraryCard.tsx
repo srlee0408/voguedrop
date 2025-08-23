@@ -7,6 +7,7 @@ import Image from 'next/image';
 import { Download, Loader2, Star, Folder, Upload as UploadIcon, ExternalLink } from 'lucide-react';
 import { Tooltip } from '@/shared/components/ui/Tooltip';
 import { HoverVideo } from '@/shared/components/ui/hover-video';
+import { useState, memo } from 'react';
 
 interface LibraryCardProps {
   item: LibraryVideo | LibraryProject | UserUploadedVideo;
@@ -23,7 +24,7 @@ interface LibraryCardProps {
   theme?: LibraryModalConfig['theme'];
 }
 
-export function LibraryCard({
+export const LibraryCard = memo(function LibraryCard({
   item,
   type,
   isSelected = false,
@@ -37,6 +38,9 @@ export function LibraryCard({
   onProjectNavigate,
   theme
 }: LibraryCardProps) {
+  const [isHovering, setIsHovering] = useState(false);
+  const [isVideoBuffering, setIsVideoBuffering] = useState(false);
+
   // 타입별 데이터 접근
   const getAspectRatio = () => {
     if (type === 'clip') return (item as LibraryVideo).aspect_ratio || '9:16';
@@ -104,6 +108,11 @@ export function LibraryCard({
   return (
     <div 
       onClick={handleCardClick}
+      onMouseEnter={() => setIsHovering(true)}
+      onMouseLeave={() => {
+        setIsHovering(false);
+        setIsVideoBuffering(false); // Reset buffering state on leave
+      }}
       className={`${CARD_CONTAINER_CLASS} bg-gray-900 rounded-lg overflow-hidden relative transition-all
         ${onSelect ? 'cursor-pointer' : ''}
         ${isCurrentProject 
@@ -123,25 +132,31 @@ export function LibraryCard({
       )}
       
       <div className="relative h-full group flex items-center justify-center bg-black">
-        {/* Video or Thumbnail Preview */}
-        {videoUrl ? (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <HoverVideo 
-              src={videoUrl}
-              className={`w-full h-full ${contentFitClass}`}
-            />
-          </div>
-        ) : thumbnailUrl ? (
+        {/* Thumbnail Preview (Always visible) */}
+        {thumbnailUrl ? (
           <Image 
             src={thumbnailUrl} 
             alt={title || 'Library item'} 
             className={`w-full h-full ${contentFitClass}`}
             fill
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            priority={true} // Load thumbnails faster
           />
         ) : (
           <div className="w-full h-full bg-gray-800 flex items-center justify-center">
             {renderPlaceholderIcon()}
+          </div>
+        )}
+
+        {/* Hover Video (Renders on top of thumbnail when hovering) */}
+        {videoUrl && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <HoverVideo 
+              src={videoUrl}
+              className={`w-full h-full ${contentFitClass}`}
+              isParentHovering={isHovering}
+              onLoading={setIsVideoBuffering}
+            />
           </div>
         )}
         
@@ -155,8 +170,17 @@ export function LibraryCard({
           </div>
         )}
         
+        {/* Video Loading Indicator - Centered */}
+        {isHovering && isVideoBuffering && (
+          <div className="absolute inset-0 flex items-center justify-center z-20 bg-black/20">
+            <div className="bg-black/80 p-3 rounded-full flex items-center justify-center">
+              <Loader2 className="w-6 h-6 animate-spin text-white" />
+            </div>
+          </div>
+        )}
+
         {/* Top-right buttons */}
-        <div className="absolute top-2 right-2 flex flex-col gap-2">
+        <div className="absolute top-2 right-2 flex flex-col gap-2 z-10">
           {/* Open project button - only for projects that are NOT current */}
           {type === 'project' && onProjectNavigate && !isCurrentProject && (
             <Tooltip text="Open Project" position="bottom">
@@ -229,4 +253,6 @@ export function LibraryCard({
       </div>
     </div>
   );
-}
+});
+
+LibraryCard.displayName = 'LibraryCard';

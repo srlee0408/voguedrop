@@ -5,6 +5,8 @@ import { requireAuth } from '@/lib/api/auth';
 import { nanoid } from 'nanoid';
 import { processSoundTitle } from '@/lib/sound/utils';
 import { SoundGenerationType } from '@/shared/types/sound';
+import { getErrorMessage, createUserFriendlyError } from '@/lib/errors/user-friendly-errors';
+import * as Sentry from "@sentry/nextjs";
 
 interface GenerateSoundRequest {
   prompt: string;
@@ -14,21 +16,27 @@ interface GenerateSoundRequest {
 }
 
 export async function POST(request: NextRequest) {
-  const isMockMode = process.env.NEXT_PUBLIC_MOCK_MODE === 'true';
-  
-  try {
-    // 사용자 인증 확인 (보안 유틸리티 사용)
-    const { user, error: authError } = await requireAuth(request);
-    if (authError) {
-      return authError;
-    }
-    
-    if (!user) {
-      return NextResponse.json(
-        { error: '로그인이 필요합니다.' },
-        { status: 401 }
-      );
-    }
+  return Sentry.startSpan(
+    {
+      op: "http.server",
+      name: "POST /api/sound/generate-async",
+    },
+    async () => {
+      const isMockMode = process.env.NEXT_PUBLIC_MOCK_MODE === 'true';
+      
+      try {
+        // 사용자 인증 확인 (보안 유틸리티 사용)
+        const { user, error: authError } = await requireAuth(request);
+        if (authError) {
+          return authError;
+        }
+        
+        if (!user) {
+          throw createUserFriendlyError('AUTH_REQUIRED', 'User authentication required');
+        }
+        
+        // Sentry에 사용자 정보 설정
+        Sentry.setUser({ id: user.id, email: user.email });
     
     const supabase = await createClient();
     
@@ -44,17 +52,11 @@ export async function POST(request: NextRequest) {
     const userId = user.id;
     
     if (!prompt || prompt.trim().length === 0) {
-      return NextResponse.json(
-        { error: '사운드 설명을 입력해주세요.' },
-        { status: 400 }
-      );
+      throw createUserFriendlyError('SOUND_PROMPT_REQUIRED', 'Sound prompt is required');
     }
     
     if (prompt.length > 450) {
-      return NextResponse.json(
-        { error: '프롬프트는 450자를 초과할 수 없습니다.' },
-        { status: 400 }
-      );
+      throw createUserFriendlyError('SOUND_PROMPT_TOO_LONG', 'Prompt exceeds 450 characters');
     }
     
     // Music 타입은 32초 고정, Sound Effect는 사용자 설정값
@@ -63,10 +65,7 @@ export async function POST(request: NextRequest) {
       : (duration_seconds || 5);
     
     if (generation_type === 'sound_effect' && (finalDuration < 1 || finalDuration > 22)) {
-      return NextResponse.json(
-        { error: '길이는 1초에서 22초 사이여야 합니다.' },
-        { status: 400 }
-      );
+      throw createUserFriendlyError('SOUND_DURATION_INVALID', 'Duration must be between 1 and 22 seconds');
     }
     
     // 2. Group ID 생성 (4개의 variation을 그룹화)
@@ -275,7 +274,17 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // 5. 클라이언트에 즉시 응답 반환
+    // 5. 성공 로그
+    const { logger } = Sentry;
+    logger.info('Sound generation request initiated successfully', {
+      user_id: user.id,
+      group_id: groupId,
+      job_count: successfulJobs.length,
+      generation_type,
+      duration: finalDuration,
+    });
+    
+    // 6. 클라이언트에 즉시 응답 반환
     return NextResponse.json({
       success: true,
       groupId,
@@ -285,16 +294,21 @@ export async function POST(request: NextRequest) {
       message: `${successfulJobs.length}개의 사운드 variation 생성이 시작되었습니다.`
     });
     
-  } catch (error) {
-    console.error('Sound generation error:', error);
-    
-    return NextResponse.json(
-      { 
-        error: error instanceof Error 
-          ? error.message 
-          : '서버 오류가 발생했습니다.'
-      },
-      { status: 500 }
-    );
-  }
+    } catch (error) {
+      // Sentry로 에러 캡처
+      Sentry.captureException(error, {
+        tags: {
+          api_endpoint: '/api/sound/generate-async',
+          error_type: 'sound_generation_error',
+        }
+      });
+      
+      const userFriendlyMessage = getErrorMessage(error);
+      return NextResponse.json(
+        { error: userFriendlyMessage },
+        { status: 500 }
+      );
+    }
+    }
+  );
 }
