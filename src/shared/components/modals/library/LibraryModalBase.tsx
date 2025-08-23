@@ -429,7 +429,7 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
                 </div>
               ) : (
                 <div className="grid grid-cols-4 gap-4">
-                  {filteredItems.projects.map(project => (
+                  {filteredItems.projects.map((project, index) => (
                     <LibraryCard
                       key={project.id}
                       item={project}
@@ -438,6 +438,7 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
                       selectionOrder={selectedItems.get(project.id.toString())}
                       isDownloading={downloadingVideos.has(String(project.id))}
                       isCurrentProject={config.currentProjectName === project.project_name}
+                      priority={index < 4} // 상위 4개 프로젝트 우선 로딩
                       onSelect={config.selection?.enabled ? () => handleItemSelect(project.id.toString()) : undefined}
                       onDownload={config.download?.enabled ? () => handleDownload(project, 'project') : undefined}
                       onProjectNavigate={config.openProject?.enabled ? handleProjectNavigate : undefined}
@@ -459,7 +460,7 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
                 </div>
               ) : (
                 <div className="grid grid-cols-4 gap-4">
-                  {filteredItems.uploads.map(upload => (
+                  {filteredItems.uploads.map((upload, index) => (
                     <LibraryCard
                       key={upload.id}
                       item={upload}
@@ -467,6 +468,7 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
                       isSelected={selectedItems.has(upload.id.toString())}
                       selectionOrder={selectedItems.get(upload.id.toString())}
                       isDownloading={downloadingVideos.has(String(upload.id))}
+                      priority={index < 4} // 상위 4개 업로드 우선 로딩
                       onSelect={config.selection?.enabled ? () => handleItemSelect(upload.id.toString()) : undefined}
                       onDownload={config.download?.enabled ? () => handleDownload(upload, 'upload') : undefined}
                       theme={config.theme}

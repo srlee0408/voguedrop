@@ -8,6 +8,7 @@ interface HoverVideoProps {
   className?: string
   fallbackContent?: React.ReactNode
   isParentHovering?: boolean
+  isPreloaded?: boolean
   onLoading?: (loading: boolean) => void
 }
 
@@ -16,6 +17,7 @@ export function HoverVideo({
   className = "",
   fallbackContent,
   isParentHovering = false,
+  isPreloaded = false,
   onLoading
 }: HoverVideoProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -74,7 +76,7 @@ export function HoverVideo({
         muted
         loop
         playsInline
-        preload="none"
+        preload={isPreloaded ? "metadata" : "none"}
         onLoadStart={() => {
           setIsLoading(true)
           onLoading?.(true)
@@ -92,6 +94,10 @@ export function HoverVideo({
           onLoading?.(false)
         }}
         onError={() => {
+          // 조용한 에러 처리 - 개발 환경에서만 로그
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('HoverVideo load failed (silently handled):', src);
+          }
           setIsLoading(false)
           onLoading?.(false)
         }}

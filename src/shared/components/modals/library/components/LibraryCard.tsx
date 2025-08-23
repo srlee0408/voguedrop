@@ -17,6 +17,8 @@ interface LibraryCardProps {
   isFavorite?: boolean;
   isDownloading?: boolean;
   isCurrentProject?: boolean;
+  isVideoPreloaded?: boolean;
+  priority?: boolean;
   onSelect?: () => void;
   onFavoriteToggle?: () => void;
   onDownload?: () => void;
@@ -32,6 +34,8 @@ export const LibraryCard = memo(function LibraryCard({
   isFavorite = false,
   isDownloading = false,
   isCurrentProject = false,
+  isVideoPreloaded = false,
+  priority = false,
   onSelect,
   onFavoriteToggle,
   onDownload,
@@ -139,8 +143,8 @@ export const LibraryCard = memo(function LibraryCard({
             alt={title || 'Library item'} 
             className={`w-full h-full ${contentFitClass}`}
             fill
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            priority={true} // Load thumbnails faster
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+            priority={priority} // 상위 4개 카드만 우선 로딩
           />
         ) : (
           <div className="w-full h-full bg-gray-800 flex items-center justify-center">
@@ -155,6 +159,7 @@ export const LibraryCard = memo(function LibraryCard({
               src={videoUrl}
               className={`w-full h-full ${contentFitClass}`}
               isParentHovering={isHovering}
+              isPreloaded={isVideoPreloaded}
               onLoading={setIsVideoBuffering}
             />
           </div>
@@ -170,11 +175,11 @@ export const LibraryCard = memo(function LibraryCard({
           </div>
         )}
         
-        {/* Video Loading Indicator - Centered */}
+        {/* Video Loading Indicator - Top Left */}
         {isHovering && isVideoBuffering && (
-          <div className="absolute inset-0 flex items-center justify-center z-20 bg-black/20">
-            <div className="bg-black/80 p-3 rounded-full flex items-center justify-center">
-              <Loader2 className="w-6 h-6 animate-spin text-white" />
+          <div className="absolute top-2 left-2 z-10">
+            <div className="bg-black/70 p-1.5 rounded-full flex items-center justify-center">
+              <Loader2 className="w-4 h-4 animate-spin text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]" />
             </div>
           </div>
         )}

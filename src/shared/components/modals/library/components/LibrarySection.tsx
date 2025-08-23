@@ -6,6 +6,7 @@ import { LibraryCard } from './LibraryCard';
 import { LibraryInfiniteLoader } from './InfiniteScrollLoader';
 import { LibraryVideo } from '@/shared/types/video-editor';
 import { LibraryModalConfig } from '@/shared/types/library-modal';
+import { useLibraryVideoPreload } from '../hooks/useLibraryVideoPreload';
 
 /**
  * LibrarySection 컴포넌트의 Props 타입
@@ -71,6 +72,11 @@ export const LibrarySection = memo(function LibrarySection({
   emptyDescription = "Generate videos in Canvas to see them here",
   className = ""
 }: LibrarySectionProps) {
+  // 비디오 프리로딩 훅 활용
+  const { isVideoPreloaded } = useLibraryVideoPreload(items, {
+    enabled: items.length > 0,
+    topCount: 8 // 상위 8개 카드 우선 프리로드
+  });
   // 에러 상태
   if (error) {
     return (
@@ -137,7 +143,7 @@ export const LibrarySection = memo(function LibrarySection({
       </div>
       
       <div className="grid grid-cols-4 gap-4">
-        {items.map(clip => (
+        {items.map((clip, index) => (
           <LibraryCard
             key={clip.id}
             item={clip}
@@ -146,6 +152,8 @@ export const LibrarySection = memo(function LibrarySection({
             selectionOrder={selectedItems.get(clip.id)}
             isFavorite={config.favorites?.favoriteIds?.has(String(clip.id)) || clip.is_favorite}
             isDownloading={downloadingVideos.has(String(clip.id))}
+            isVideoPreloaded={isVideoPreloaded(clip.output_video_url)}
+            priority={index < 8} // 상위 8개 카드 우선 로딩
             onSelect={config.selection?.enabled && onItemSelect ? () => onItemSelect(clip.id) : undefined}
             onFavoriteToggle={config.favorites?.enabled && onFavoriteToggle ? () => onFavoriteToggle(String(clip.id)) : undefined}
             onDownload={config.download?.enabled && onDownload ? () => onDownload(clip) : undefined}

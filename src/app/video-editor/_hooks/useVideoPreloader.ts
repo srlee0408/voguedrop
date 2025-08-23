@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { shouldPreloadVideo, createSafeVideoElement } from '@/shared/utils/video-preload-utils';
 
 interface PreloadStatus {
   [url: string]: {
@@ -41,10 +42,24 @@ export function useVideoPreloader(videoUrls: (string | undefined)[]) {
       if (preloadStatus[url]?.loaded) {
         return;
       }
+      
+      // 프리로드 가능 여부 확인
+      if (!shouldPreloadVideo(url)) {
+        setPreloadStatus(prev => ({
+          ...prev,
+          [url]: { loading: false, loaded: false, error: new Error('Preload not suitable') }
+        }));
+        return;
+      }
 
-      const video = document.createElement('video');
-      video.preload = 'auto';
-      video.crossOrigin = 'anonymous';
+      const video = createSafeVideoElement(url);
+      if (!video) {
+        setPreloadStatus(prev => ({
+          ...prev,
+          [url]: { loading: false, loaded: false, error: new Error('Failed to create video element') }
+        }));
+        return;
+      }
       
       // 로드 성공 핸들러
       const handleCanPlay = () => {
@@ -54,15 +69,19 @@ export function useVideoPreloader(videoUrls: (string | undefined)[]) {
         }));
       };
 
-      // 에러 핸들러
+      // 에러 핸들러 (조용한 실패)
       const handleError = () => {
-        console.error(`Failed to preload video: ${url}`);
+        // 개발 환경에서만 에러 로그 출력
+        if (process.env.NODE_ENV === 'development') {
+          console.warn(`Video preload failed (silently handled): ${url}`);
+        }
+        
         setPreloadStatus(prev => ({
           ...prev,
           [url]: { 
             loading: false, 
             loaded: false, 
-            error: new Error(`Failed to load: ${url}`) 
+            error: new Error(`Network error or CORS issue`) 
           }
         }));
       };
