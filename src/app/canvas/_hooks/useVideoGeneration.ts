@@ -151,10 +151,10 @@ export function useVideoGeneration({
     setIsGenerating(true);
     setGenerationError(null);
 
-    // 진행률 초기화
+    // 진행률 초기화 - 즉시 5% 표시
     setGeneratingProgress(prev => {
       const next = new Map(prev);
-      next.set(availableSlot.toString(), 0);
+      next.set(availableSlot.toString(), 1);
       return next;
     });
     setGeneratingJobIds(prev => {
@@ -188,7 +188,7 @@ export function useVideoGeneration({
         const firstJob = data.jobs[0];
         setGeneratingProgress(prev => {
           const next = new Map(prev);
-          next.set(availableSlot.toString(), 0);
+          next.set(availableSlot.toString(), 1);
           return next;
         });
         setGeneratingJobIds(prev => {
@@ -339,7 +339,8 @@ export function useVideoGeneration({
         }
       };
 
-      setTimeout(() => pollJobs(availableSlot), 3000);
+      // 즉시 polling 시작 - 3초 대기 제거
+      pollJobs(availableSlot);
     } catch (error: unknown) {
       console.error("Video generation error:", error);
       const errorMessage = error instanceof Error ? error.message : "An error occurred during video generation.";

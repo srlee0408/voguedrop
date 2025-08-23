@@ -157,17 +157,21 @@ export async function GET(
               error: statusData.error || 'Video generation failed'
             });
           } else if (statusData.status === 'IN_QUEUE') {
+            // Queue 위치를 기반으로 10-30% 구간으로 매핑
+            const queuePosition = statusData.queue_position || 0;
+            const progress = Math.max(10, Math.min(30, 30 - (queuePosition * 3)));
             return NextResponse.json({
               jobId: job.job_id,
               status: 'processing',
-              progress: 25,
+              progress,
               queuePosition: statusData.queue_position
             });
           } else if (statusData.status === 'IN_PROGRESS') {
+            // 실제 처리 중일 때는 50-85% 구간
             return NextResponse.json({
               jobId: job.job_id,
               status: 'processing',
-              progress: 50
+              progress: 55
             });
           }
         }
@@ -176,11 +180,11 @@ export async function GET(
       }
     }
 
-    // 아직 처리 중
+    // 아직 처리 중 - 기본 상태
     return NextResponse.json({
       jobId: job.job_id,
       status: job.status,
-      progress: job.status === 'processing' ? 50 : 0
+      progress: job.status === 'processing' ? 40 : 10
     });
 
   } catch (error) {
