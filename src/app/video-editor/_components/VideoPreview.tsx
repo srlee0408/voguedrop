@@ -80,13 +80,12 @@ export default function VideoPreview({
   
   // 저장 관련 상태
   const [isSaving, setIsSaving] = useState(false);
-  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   
   const containerRef = useRef<HTMLDivElement>(null);
   const { ITEM_WIDTH, ITEM_HEIGHT, ITEM_GAP } = CAROUSEL_CONFIG;
   
   // ClipContext에서 저장 관련 상태 가져오기
-  const { hasUnsavedChanges, lastModifiedAt } = useClips();
+  const { hasUnsavedChanges } = useClips();
   
   // 비디오 URL 목록 추출 및 미디어 캐싱 적용
   const videoUrls = useMemo(() => clips.map(clip => clip.url), [clips]);
@@ -101,13 +100,6 @@ export default function VideoPreview({
     setIsMounted(true);
   }, []);
 
-  // 자동 저장 감지: hasUnsavedChanges가 false로 변경되고 lastModifiedAt이 있으면 자동 저장된 것으로 간주
-  useEffect(() => {
-    if (!hasUnsavedChanges && lastModifiedAt && !isSaving) {
-      // 자동 저장이 발생한 것으로 감지되면 lastSavedAt 업데이트
-      setLastSavedAt(lastModifiedAt);
-    }
-  }, [hasUnsavedChanges, lastModifiedAt, isSaving]);
 
   // 스페이스바 재생 단축키는 VideoEditorClient에서 통합 관리됩니다
 
@@ -740,18 +732,6 @@ export default function VideoPreview({
               <div className="bg-black/50 px-2 py-1 rounded text-xs font-medium">
                 Editor
               </div>
-              {/* 저장 상태 표시 */}
-              {lastSavedAt && (
-                <div className="text-xs text-gray-400">
-                  Saved {lastSavedAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-                </div>
-              )}
-              {hasUnsavedChanges && (
-                <div className="text-xs text-orange-400 flex items-center gap-1">
-                  <i className="ri-circle-fill text-[6px]"></i>
-                  Unsaved changes
-                </div>
-              )}
             </div>
             {/* 비디오 컨트롤 버튼들 */}
             <div className="flex gap-2">
