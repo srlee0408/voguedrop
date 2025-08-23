@@ -22,10 +22,52 @@ export async function GET(request: NextRequest) {
 
     // URL 파라미터 가져오기
     const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get('limit') || '50');
+    const limit = parseInt(searchParams.get('limit') || '20'); // 무한스크롤용 기본값 20
+    const type = searchParams.get('type') || 'all'; // 타입 필터: all, favorites, regular, clips, projects, uploads
+    const cursor = searchParams.get('cursor'); // 페이지네이션 커서 (created_at 기준)
+    const countsOnly = searchParams.get('counts_only') === 'true'; // 카운트만 조회
 
-    // 1. video_generations 가져오기 (clips)
-    const { data: videos, error: videosError } = await supabase
+    // 카운트만 요청하는 경우
+    if (countsOnly) {
+      const [favoritesCount, regularCount, projectsCount, uploadsCount] = await Promise.all([
+        supabase
+          .from('video_generations')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .eq('status', 'completed')
+          .eq('is_favorite', true)
+          .not('output_video_url', 'is', null),
+        supabase
+          .from('video_generations')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .eq('status', 'completed')
+          .eq('is_favorite', false)
+          .not('output_video_url', 'is', null),
+        supabase
+          .from('project_saves')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', user.id),
+        supabase
+          .from('user_uploaded_videos')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .eq('is_deleted', false)
+      ]);
+
+      return NextResponse.json({
+        counts: {
+          favorites: favoritesCount.count || 0,
+          regular: regularCount.count || 0,
+          clips: (favoritesCount.count || 0) + (regularCount.count || 0),
+          projects: projectsCount.count || 0,
+          uploads: uploadsCount.count || 0
+        }
+      });
+    }
+
+    // 1. video_generations 가져오기 (clips) - UUID 기반 및 타입 필터 지원
+    let videosQuery = supabase
       .from('video_generations')
       .select(`
         id,
@@ -39,10 +81,30 @@ export async function GET(request: NextRequest) {
       `)
       .eq('user_id', user.id)
       .eq('status', 'completed')
-      .not('output_video_url', 'is', null)
-      .order('is_favorite', { ascending: false })
-      .order('created_at', { ascending: false })
-      .limit(limit);
+      .not('output_video_url', 'is', null);
+
+    // 타입 필터 적용
+    if (type === 'favorites') {
+      videosQuery = videosQuery.eq('is_favorite', true);
+    } else if (type === 'regular') {
+      // 일반 클립 섹션에서는 모든 클립 표시 (즐겨찾기 포함)
+      // 필터링하지 않음
+    }
+
+    // 커서 기반 페이지네이션
+    if (cursor) {
+      videosQuery = videosQuery.lt('created_at', cursor);
+    }
+
+    // 정렬 및 제한
+    if (type === 'favorites') {
+      videosQuery = videosQuery.order('created_at', { ascending: false });
+    } else {
+      // 일반 클립의 경우 시간순으로만 정렬 (즐겨찾기 우선 정렬 제거)
+      videosQuery = videosQuery.order('created_at', { ascending: false });
+    }
+
+    const { data: videos, error: videosError } = await videosQuery.limit(limit);
 
     if (videosError) {
       console.error('Error fetching videos:', videosError);
@@ -159,17 +221,40 @@ export async function GET(request: NextRequest) {
       };
     });
 
+    // 페이지네이션 정보 계산
+    const hasNextPage = sanitizedVideos.length === limit;
+    const nextCursor = hasNextPage && sanitizedVideos.length > 0 
+      ? sanitizedVideos[sanitizedVideos.length - 1].created_at 
+      : undefined;
+
     return NextResponse.json({
-      videos: sanitizedVideos,  // backward compatibility
+      // 기존 필드들 (backward compatibility)
+      videos: sanitizedVideos,
       clips: sanitizedVideos,
       projects: sanitizedProjects,
       uploads: sanitizedUploads,
+      count: sanitizedVideos.length,
+      
+      // 새로운 페이지네이션 필드들
+      data: {
+        clips: sanitizedVideos,
+        projects: sanitizedProjects,
+        uploads: sanitizedUploads
+      },
       counts: {
         clips: sanitizedVideos.length,
         projects: sanitizedProjects.length,
         uploads: sanitizedUploads.length
       },
-      count: sanitizedVideos.length  // backward compatibility
+      pagination: {
+        hasNextPage,
+        nextCursor,
+        limit,
+        type
+      },
+      
+      // 무한 스크롤 지원을 위한 totalCount (실제 DB 카운트)
+      totalCount: hasNextPage ? -1 : sanitizedVideos.length // -1은 더 있음을 의미
     });
 
   } catch {

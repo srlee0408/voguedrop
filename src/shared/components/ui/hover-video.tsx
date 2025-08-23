@@ -50,7 +50,7 @@ export function HoverVideo({
 
   return (
     <div
-      className="relative cursor-pointer"
+      className="relative cursor-pointer flex items-center justify-center w-full h-full"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >

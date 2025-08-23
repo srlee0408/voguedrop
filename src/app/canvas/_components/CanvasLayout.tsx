@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Header } from '@/shared/components/layout/Header'
 import { LeftPanel } from './LeftPanel'
 import { Canvas } from './Canvas'
@@ -15,6 +15,7 @@ import {
 } from '../_context/CanvasProviders'
 import { useBeforeUnload } from '../_hooks/useBeforeUnload'
 import { ProjectSelectorModal } from '@/shared/components/modals/ProjectSelectorModal'
+import { useLibraryInfinitePrefetch } from '@/shared/components/modals/library/hooks/useLibraryInfinitePrefetch'
 import type { GeneratedVideo } from '@/shared/types/canvas'
 
 /**
@@ -40,11 +41,24 @@ export function CanvasLayout(): React.ReactElement {
     handleDownload,
   } = useGeneration();
 
+  // Infinite Query 프리페칭 훅
+  const { prefetchInBackgroundInfinite } = useLibraryInfinitePrefetch();
+
   // 페이지 이탈 방지
   useBeforeUnload(
     videoGeneration.isGenerating,
     'Video generation is in progress. Leaving the page will cancel the generation.'
   )
+
+  // Canvas 페이지 로드 후 자동 백그라운드 프리페칭 (Infinite Query)
+  useEffect(() => {
+    // 페이지 로드 후 3초 뒤 백그라운드 프리페칭 시작 (첫 페이지만이므로 더 빠르게)
+    const timer = setTimeout(() => {
+      prefetchInBackgroundInfinite();
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, [prefetchInBackgroundInfinite]);
 
   // 이벤트 핸들러들
   const handleVideoSelect = (video: GeneratedVideo): void => {

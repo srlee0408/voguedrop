@@ -1,4 +1,4 @@
-import { LibraryItem } from './video-editor';
+import { LibraryItem, LibraryVideo, LibraryProject, UserUploadedVideo } from './video-editor';
 
 /**
  * LibraryModal 설정 인터페이스
@@ -70,13 +70,60 @@ export interface LibraryModalBaseProps {
 /**
  * Library 카테고리 타입
  */
-export type LibraryCategory = 'clips' | 'projects' | 'uploads';
+export type LibraryCategory = 'favorites' | 'clips' | 'projects' | 'uploads';
 
 /**
  * Library 데이터 카운트
  */
 export interface LibraryCounts {
+  favorites: number;
   clips: number;
   projects: number;
   uploads: number;
+}
+
+/**
+ * Library API 응답 타입 (즐겨찾기/일반 클립 API용)
+ * PROJECT_GUIDE.md 타입 규칙에 따른 명시적 타입 정의
+ */
+export interface LibraryResponse {
+  favorites?: LibraryVideo[];
+  regular?: LibraryVideo[];
+  clips?: LibraryVideo[];
+  projects?: LibraryProject[];
+  uploads?: (UserUploadedVideo & { url?: string })[];
+  pagination?: LibraryPaginationInfo;
+  totalCount?: number;
+  counts?: LibraryResponseCounts;
+}
+
+/**
+ * Library API 페이지네이션 정보
+ */
+export interface LibraryPaginationInfo {
+  hasNextPage: boolean;
+  nextCursor?: string;
+  limit: number;
+  type: string;
+}
+
+/**
+ * Library API 카운트 정보
+ */
+export interface LibraryResponseCounts {
+  favorites?: number;
+  regular?: number;
+  clips?: number;
+  projects?: number;
+  uploads?: number;
+}
+
+/**
+ * Library 데이터 응답에서 반환되는 전체 데이터 구조
+ */
+export interface LibraryDataResponse {
+  clipItems: LibraryVideo[];
+  projectItems: LibraryProject[];
+  uploadItems: UserUploadedVideo[];
+  counts: LibraryCounts;
 }

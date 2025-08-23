@@ -1,6 +1,7 @@
 import { Bell, Edit2, Check, Loader2, AlertCircle } from "lucide-react"
 import Link from "next/link"
 import { useState, useEffect, useRef } from "react"
+import { useLibraryInfinitePrefetch } from "@/shared/components/modals/library/hooks/useLibraryInfinitePrefetch"
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 
@@ -30,6 +31,9 @@ export function Header({
   const [tempTitle, setTempTitle] = useState(projectTitle || '')
   const [showSaveStatus, setShowSaveStatus] = useState(false)
   const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  
+  // Infinite Query 프리페칭 훅 추가
+  const { prefetchOnHoverInfinite, isEnabled: isPrefetchEnabled } = useLibraryInfinitePrefetch()
   
   // Update tempTitle when projectTitle changes
   useEffect(() => {
@@ -199,6 +203,8 @@ export function Header({
         <button 
           className="font-medium text-sm text-text-secondary hover:text-text-primary transition-colors" 
           onClick={onLibraryClick}
+          onMouseEnter={isPrefetchEnabled ? prefetchOnHoverInfinite : undefined}
+          onTouchStart={isPrefetchEnabled ? prefetchOnHoverInfinite : undefined}
         >
           Library
         </button>

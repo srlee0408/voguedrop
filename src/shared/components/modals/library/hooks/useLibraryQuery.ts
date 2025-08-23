@@ -48,6 +48,7 @@ const fetchLibraryData = async (limit = 50): Promise<LibraryData> => {
     projects,
     uploads,
     counts: data.counts || {
+      favorites: 0,
       clips: clips.length,
       projects: projects.length,
       uploads: uploads.length
@@ -76,8 +77,8 @@ export function useLibraryClips(enabled = true, limit = 50) {
     queryKey: libraryQueryKeys.clips(),
     queryFn: () => fetchLibraryClips(limit),
     enabled,
-    staleTime: 5 * 60 * 1000, // 5분간 fresh (클립은 자주 업데이트됨)
-    gcTime: 30 * 60 * 1000, // 30분간 캐시 유지
+    staleTime: 10 * 60 * 1000, // 10분간 fresh (클립은 자주 업데이트되지만 프리페칭 효율을 위해 연장)
+    gcTime: 2 * 60 * 60 * 1000, // 2시간간 캐시 유지 (프리페칭된 데이터 오래 보존)
     retry: (failureCount, error) => {
       // 401 에러 (인증 실패)는 재시도하지 않음
       if (error instanceof Error && error.message.includes('401')) {
@@ -93,8 +94,8 @@ export function useLibraryProjects(enabled = true, limit = 50) {
     queryKey: libraryQueryKeys.projects(),
     queryFn: () => fetchLibraryProjects(limit),
     enabled,
-    staleTime: 10 * 60 * 1000, // 10분간 fresh (프로젝트는 덜 자주 변경됨)
-    gcTime: 60 * 60 * 1000, // 1시간간 캐시 유지
+    staleTime: 30 * 60 * 1000, // 30분간 fresh (프로젝트는 덜 자주 변경됨, 프리페칭 효율을 위해 연장)
+    gcTime: 4 * 60 * 60 * 1000, // 4시간간 캐시 유지 (프로젝트 데이터는 오래 보존)
     retry: (failureCount, error) => {
       if (error instanceof Error && error.message.includes('401')) {
         return false;
@@ -109,8 +110,8 @@ export function useLibraryUploads(enabled = true, limit = 50) {
     queryKey: libraryQueryKeys.uploads(),
     queryFn: () => fetchLibraryUploads(limit),
     enabled,
-    staleTime: 30 * 60 * 1000, // 30분간 fresh (업로드는 거의 변경되지 않음)
-    gcTime: 2 * 60 * 60 * 1000, // 2시간간 캐시 유지
+    staleTime: 60 * 60 * 1000, // 1시간간 fresh (업로드는 거의 변경되지 않음, 가장 오래 보존)
+    gcTime: 6 * 60 * 60 * 1000, // 6시간간 캐시 유지 (업로드 데이터는 가장 오래 보존)
     retry: (failureCount, error) => {
       if (error instanceof Error && error.message.includes('401')) {
         return false;
@@ -123,20 +124,24 @@ export function useLibraryUploads(enabled = true, limit = 50) {
 /**
  * 통합 라이브러리 데이터를 관리하는 메인 Hook
  * PROJECT_GUIDE.md에 따라 React Query를 사용한 서버 상태 관리
+ * 프리페칭 최적화를 위해 캐시 시간 연장
  */
 export function useCombinedLibraryData(enabled = true, limit = 50) {
   return useQuery({
     queryKey: libraryQueryKeys.combined(limit),
     queryFn: () => fetchLibraryData(limit),
     enabled,
-    staleTime: 5 * 60 * 1000, // 5분간 fresh
-    gcTime: 30 * 60 * 1000, // 30분간 캐시 유지
+    staleTime: 15 * 60 * 1000, // 15분간 fresh (프리페칭 효율을 위해 연장)
+    gcTime: 3 * 60 * 60 * 1000, // 3시간간 캐시 유지 (프리페칭된 통합 데이터는 오래 보존)
     retry: (failureCount, error) => {
       if (error instanceof Error && error.message.includes('401')) {
         return false;
       }
       return failureCount < 1;
     },
+    // 네트워크 우선 모드 비활성화 (캐시 우선 사용)
+    refetchOnMount: false,
+    refetchOnReconnect: false,
     // 데이터 선택자 - 필요한 데이터만 추출
     select: (data: LibraryData) => ({
       clipItems: data.clips,

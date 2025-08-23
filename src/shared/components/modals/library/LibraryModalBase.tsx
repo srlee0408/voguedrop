@@ -2,17 +2,20 @@
 
 import { useState, useCallback, useMemo } from 'react';
 import { usePathname } from 'next/navigation';
-import { X, Info, Loader2, Video, Folder, Upload } from 'lucide-react';
+import { X, Info, Loader2, Video, Folder, Upload, Heart } from 'lucide-react';
 import { LibraryModalBaseProps, LibraryCategory } from '@/shared/types/library-modal';
 import { LibraryVideo, LibraryProject, UserUploadedVideo, LibraryItem } from '@/shared/types/video-editor';
 import { useLibraryData } from './hooks/useLibraryData';
+import { useLibraryFavorites } from './hooks/useLibraryFavorites';
+import { useLibraryRegular } from './hooks/useLibraryRegular';
 import { LibraryCard } from './components/LibraryCard';
 import { LibrarySidebar } from './components/LibrarySidebar';
 import { LibraryUpload } from './components/LibraryUpload';
+import { LibrarySection } from './components/LibrarySection';
 
 export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBaseProps) {
   const pathname = usePathname();
-  const [activeCategory, setActiveCategory] = useState<LibraryCategory>('clips');
+  const [activeCategory, setActiveCategory] = useState<LibraryCategory>('favorites');
   const [selectedItems, setSelectedItems] = useState<Map<string, number>>(new Map());
   const [isAdding, setIsAdding] = useState(false);
   const [startDate, setStartDate] = useState('');
@@ -20,14 +23,42 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
   const [downloadingVideos, setDownloadingVideos] = useState<Set<string>>(new Set());
   
   const { 
-    clipItems, 
     projectItems, 
     uploadItems, 
-    isLoading, 
-    error,
     updateUploadItems,
     updateCounts
-  } = useLibraryData(isOpen);
+  } = useLibraryData(isOpen, false); // Skip clips loading
+
+  // 즐겨찾기 클립 데이터
+  const {
+    data: favoriteClips,
+    loading: favoritesLoading,
+    error: favoritesError,
+    hasNextPage: favoritesHasNext,
+    isFetchingNextPage: favoritesFetching,
+    fetchNextPage: fetchMoreFavorites,
+    refetch: refetchFavorites
+  } = useLibraryFavorites({ enabled: isOpen && activeCategory === 'clips' });
+
+  // 일반 클립 데이터
+  const {
+    data: regularClips,
+    loading: regularLoading,
+    error: regularError,
+    hasNextPage: regularHasNext,
+    isFetchingNextPage: regularFetching,
+    fetchNextPage: fetchMoreRegular,
+    refetch: refetchRegular
+  } = useLibraryRegular({ enabled: isOpen && activeCategory === 'clips' });
+
+  // 타입 안전성을 위한 명시적 타입 캐스팅
+  const safeError = (error: unknown): Error | null => {
+    if (error instanceof Error) return error;
+    if (error && typeof error === 'object' && 'message' in error) {
+      return new Error(String((error as { message: unknown }).message));
+    }
+    return error ? new Error(String(error)) : null;
+  };
 
   // 선택 모드 핸들러
   const handleItemSelect = useCallback((itemId: string) => {
@@ -71,7 +102,8 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
       // Map selected IDs to actual items
       if (activeCategory === 'clips') {
         sortedItemIds.forEach(id => {
-          const clip = clipItems.find(c => c.id === id);
+          // 즐겨찾기와 일반 클립에서 모두 검색
+          const clip = favoriteClips.find(c => c.id === id) || regularClips.find(c => c.id === id);
           if (clip) {
             selectedLibraryItems.push({ type: 'clip', data: clip });
           }
@@ -97,7 +129,7 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
     } finally {
       setIsAdding(false);
     }
-  }, [config.selection, selectedItems, activeCategory, clipItems, projectItems, uploadItems, onClose]);
+  }, [config.selection, selectedItems, activeCategory, favoriteClips, regularClips, projectItems, uploadItems, onClose]);
 
   // 카테고리 변경 핸들러
   const handleCategoryChange = useCallback((category: LibraryCategory) => {
@@ -178,9 +210,15 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
       return matchesStartDate && matchesEndDate;
     };
 
-    const filteredClips = config.dateFilter?.enabled 
-      ? clipItems.filter(item => filterByDate(new Date(item.created_at)))
-      : clipItems;
+    // 즐겨찾기 클립 필터링
+    const filteredFavorites = config.dateFilter?.enabled 
+      ? favoriteClips.filter(item => filterByDate(new Date(item.created_at)))
+      : favoriteClips;
+
+    // 일반 클립 필터링
+    const filteredRegular = config.dateFilter?.enabled 
+      ? regularClips.filter(item => filterByDate(new Date(item.created_at)))
+      : regularClips;
       
     let filteredProjects = config.dateFilter?.enabled
       ? projectItems.filter(item => filterByDate(new Date(item.updated_at)))
@@ -197,21 +235,13 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
       ? uploadItems.filter(item => filterByDate(new Date(item.uploaded_at)))
       : uploadItems;
 
-    // Sort clips with favorites first if favorites are enabled
-    if (config.favorites?.enabled && config.favorites.favoriteIds) {
-      filteredClips.sort((a, b) => {
-        const aIsFavorite = config.favorites!.favoriteIds.has(String(a.id)) || a.is_favorite;
-        const bIsFavorite = config.favorites!.favoriteIds.has(String(b.id)) || b.is_favorite;
-        
-        if (aIsFavorite && !bIsFavorite) return -1;
-        if (!aIsFavorite && bIsFavorite) return 1;
-        
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-      });
-    }
-
-    return { clips: filteredClips, projects: filteredProjects, uploads: filteredUploads };
-  }, [clipItems, projectItems, uploadItems, startDate, endDate, config.dateFilter, config.favorites, config.projectFilter]);
+    return { 
+      favorites: filteredFavorites, 
+      regular: filteredRegular, 
+      projects: filteredProjects, 
+      uploads: filteredUploads 
+    };
+  }, [favoriteClips, regularClips, projectItems, uploadItems, startDate, endDate, config.dateFilter, config.projectFilter]);
 
   // 업로드 완료 핸들러
   const handleUploadComplete = useCallback((video: UserUploadedVideo) => {
@@ -241,11 +271,26 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
   // 필터링된 카운트 계산
   const filteredCounts = useMemo(() => {
     return {
-      clips: filteredItems.clips.length,
+      favorites: filteredItems.favorites.length,
+      clips: filteredItems.regular.length,
       projects: filteredItems.projects.length,
       uploads: filteredItems.uploads.length
     };
   }, [filteredItems]);
+
+  // 즐겨찾기 토글 핸들러
+  const handleFavoriteToggle = useCallback(async (videoId: string) => {
+    if (config.favorites?.onToggle) {
+      await config.favorites.onToggle(videoId);
+      // 데이터 다시 가져오기
+      await Promise.all([refetchFavorites(), refetchRegular()]);
+    }
+  }, [config.favorites, refetchFavorites, refetchRegular]);
+
+  // 클립 다운로드 핸들러
+  const handleClipDownload = useCallback((clip: LibraryVideo) => {
+    handleDownload(clip, 'clip');
+  }, [handleDownload]);
 
   // Info 메시지
   const getInfoMessage = () => {
@@ -317,117 +362,112 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
           
           {/* Content Area */}
           <div className="flex-1 overflow-y-auto p-6">
-            {isLoading ? (
-              <div className="flex items-center justify-center py-20">
-                <div className="text-center">
-                  <Loader2 className="w-8 h-8 animate-spin text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-400">Loading library...</p>
+            {activeCategory === 'favorites' && (
+              <LibrarySection
+                title="Favorites"
+                icon={Heart}
+                items={filteredItems.favorites}
+                loading={favoritesLoading}
+                error={safeError(favoritesError)}
+                hasNextPage={favoritesHasNext}
+                isFetchingNextPage={favoritesFetching}
+                onFetchNextPage={fetchMoreFavorites}
+                config={config}
+                selectedItems={selectedItems}
+                downloadingVideos={downloadingVideos}
+                onItemSelect={handleItemSelect}
+                onFavoriteToggle={handleFavoriteToggle}
+                onDownload={handleClipDownload}
+                emptyMessage="No favorite clips found"
+                emptyDescription="Add clips to favorites to see them here"
+              />
+            )}
+            
+            {activeCategory === 'clips' && (
+              <LibrarySection
+                title="Clips"
+                icon={Video}
+                items={filteredItems.regular}
+                loading={regularLoading}
+                error={safeError(regularError)}
+                hasNextPage={regularHasNext}
+                isFetchingNextPage={regularFetching}
+                onFetchNextPage={fetchMoreRegular}
+                config={config}
+                selectedItems={selectedItems}
+                downloadingVideos={downloadingVideos}
+                onItemSelect={handleItemSelect}
+                onFavoriteToggle={handleFavoriteToggle}
+                onDownload={handleClipDownload}
+                emptyMessage="No clips found"
+                emptyDescription="Generate videos in Canvas to see them here"
+              />
+            )}
+            
+            {activeCategory === 'projects' && (
+              filteredItems.projects.length === 0 ? (
+                <div className="flex items-center justify-center py-20">
+                  <div className="text-center">
+                    <Folder className="w-12 h-12 text-gray-500 mx-auto mb-4" />
+                    <p className="text-gray-400">
+                      {config.projectFilter?.enabled && config.projectFilter.requireVideo
+                        ? config.projectFilter.emptyMessage || "No exported projects found"
+                        : "No projects found"}
+                    </p>
+                    <p className="text-sm text-gray-500 mt-2">
+                      {config.projectFilter?.enabled && config.projectFilter.requireVideo
+                        ? "Only projects with exported videos are shown"
+                        : "Save your video projects to see them here"}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            ) : error ? (
-              <div className="flex items-center justify-center py-20">
-                <div className="text-center">
-                  <p className="text-red-400">{error}</p>
+              ) : (
+                <div className="grid grid-cols-4 gap-4">
+                  {filteredItems.projects.map(project => (
+                    <LibraryCard
+                      key={project.id}
+                      item={project}
+                      type="project"
+                      isSelected={selectedItems.has(project.id.toString())}
+                      selectionOrder={selectedItems.get(project.id.toString())}
+                      isDownloading={downloadingVideos.has(String(project.id))}
+                      isCurrentProject={config.currentProjectName === project.project_name}
+                      onSelect={config.selection?.enabled ? () => handleItemSelect(project.id.toString()) : undefined}
+                      onDownload={config.download?.enabled ? () => handleDownload(project, 'project') : undefined}
+                      onProjectNavigate={config.openProject?.enabled ? handleProjectNavigate : undefined}
+                      theme={config.theme}
+                    />
+                  ))}
                 </div>
-              </div>
-            ) : (
-              <>
-                {activeCategory === 'clips' && (
-                  filteredItems.clips.length === 0 ? (
-                    <div className="flex items-center justify-center py-20">
-                      <div className="text-center">
-                        <Video className="w-12 h-12 text-gray-500 mx-auto mb-4" />
-                        <p className="text-gray-400">No clips found</p>
-                        <p className="text-sm text-gray-500 mt-2">Generate videos in Canvas to see them here</p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-4 gap-4">
-                      {filteredItems.clips.map(clip => (
-                        <LibraryCard
-                          key={clip.id}
-                          item={clip}
-                          type="clip"
-                          isSelected={selectedItems.has(clip.id)}
-                          selectionOrder={selectedItems.get(clip.id)}
-                          isFavorite={config.favorites?.favoriteIds?.has(String(clip.id)) || clip.is_favorite}
-                          isDownloading={downloadingVideos.has(String(clip.id))}
-                          onSelect={config.selection?.enabled ? () => handleItemSelect(clip.id) : undefined}
-                          onFavoriteToggle={config.favorites?.enabled ? () => config.favorites!.onToggle(String(clip.id)) : undefined}
-                          onDownload={config.download?.enabled ? () => handleDownload(clip, 'clip') : undefined}
-                          theme={config.theme}
-                        />
-                      ))}
-                    </div>
-                  )
-                )}
-                
-                {activeCategory === 'projects' && (
-                  filteredItems.projects.length === 0 ? (
-                    <div className="flex items-center justify-center py-20">
-                      <div className="text-center">
-                        <Folder className="w-12 h-12 text-gray-500 mx-auto mb-4" />
-                        <p className="text-gray-400">
-                          {config.projectFilter?.enabled && config.projectFilter.requireVideo
-                            ? config.projectFilter.emptyMessage || "No exported projects found"
-                            : "No projects found"}
-                        </p>
-                        <p className="text-sm text-gray-500 mt-2">
-                          {config.projectFilter?.enabled && config.projectFilter.requireVideo
-                            ? "Only projects with exported videos are shown"
-                            : "Save your video projects to see them here"}
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-4 gap-4">
-                      {filteredItems.projects.map(project => (
-                        <LibraryCard
-                          key={project.id}
-                          item={project}
-                          type="project"
-                          isSelected={selectedItems.has(project.id.toString())}
-                          selectionOrder={selectedItems.get(project.id.toString())}
-                          isDownloading={downloadingVideos.has(String(project.id))}
-                          isCurrentProject={config.currentProjectName === project.project_name}
-                          onSelect={config.selection?.enabled ? () => handleItemSelect(project.id.toString()) : undefined}
-                          onDownload={config.download?.enabled ? () => handleDownload(project, 'project') : undefined}
-                          onProjectNavigate={config.openProject?.enabled ? handleProjectNavigate : undefined}
-                          theme={config.theme}
-                        />
-                      ))}
-                    </div>
-                  )
-                )}
-                
-                {activeCategory === 'uploads' && (
-                  filteredItems.uploads.length === 0 ? (
-                    <div className="flex items-center justify-center py-20">
-                      <div className="text-center">
-                        <Upload className="w-12 h-12 text-gray-500 mx-auto mb-4" />
-                        <p className="text-gray-400">No uploaded videos found</p>
-                        <p className="text-sm text-gray-500 mt-2">Upload your own videos to use them here</p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-4 gap-4">
-                      {filteredItems.uploads.map(upload => (
-                        <LibraryCard
-                          key={upload.id}
-                          item={upload}
-                          type="upload"
-                          isSelected={selectedItems.has(upload.id.toString())}
-                          selectionOrder={selectedItems.get(upload.id.toString())}
-                          isDownloading={downloadingVideos.has(String(upload.id))}
-                          onSelect={config.selection?.enabled ? () => handleItemSelect(upload.id.toString()) : undefined}
-                          onDownload={config.download?.enabled ? () => handleDownload(upload, 'upload') : undefined}
-                          theme={config.theme}
-                        />
-                      ))}
-                    </div>
-                  )
-                )}
-              </>
+              )
+            )}
+            
+            {activeCategory === 'uploads' && (
+              filteredItems.uploads.length === 0 ? (
+                <div className="flex items-center justify-center py-20">
+                  <div className="text-center">
+                    <Upload className="w-12 h-12 text-gray-500 mx-auto mb-4" />
+                    <p className="text-gray-400">No uploaded videos found</p>
+                    <p className="text-sm text-gray-500 mt-2">Upload your own videos to use them here</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-4 gap-4">
+                  {filteredItems.uploads.map(upload => (
+                    <LibraryCard
+                      key={upload.id}
+                      item={upload}
+                      type="upload"
+                      isSelected={selectedItems.has(upload.id.toString())}
+                      selectionOrder={selectedItems.get(upload.id.toString())}
+                      isDownloading={downloadingVideos.has(String(upload.id))}
+                      onSelect={config.selection?.enabled ? () => handleItemSelect(upload.id.toString()) : undefined}
+                      onDownload={config.download?.enabled ? () => handleDownload(upload, 'upload') : undefined}
+                      theme={config.theme}
+                    />
+                  ))}
+                </div>
+              )
             )}
           </div>
         </div>

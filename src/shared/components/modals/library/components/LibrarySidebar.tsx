@@ -1,6 +1,6 @@
 'use client';
 
-import { Video, Folder, Upload } from 'lucide-react';
+import { Video, Folder, Upload, Heart } from 'lucide-react';
 import { LibraryCategory, LibraryCounts, LibraryModalConfig } from '@/shared/types/library-modal';
 import { Input } from '@/shared/components/ui/input';
 
@@ -45,6 +45,11 @@ export function LibrarySidebar({
     icon: React.ReactNode;
     label: string;
   }> = [
+    {
+      id: 'favorites',
+      icon: <Heart className="w-5 h-5" />,
+      label: 'Favorites'
+    },
     {
       id: 'clips',
       icon: <Video className="w-5 h-5" />,

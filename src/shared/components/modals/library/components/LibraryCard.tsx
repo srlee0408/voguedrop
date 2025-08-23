@@ -122,13 +122,15 @@ export function LibraryCard({
         </div>
       )}
       
-      <div className="relative h-full group">
+      <div className="relative h-full group flex items-center justify-center bg-black">
         {/* Video or Thumbnail Preview */}
         {videoUrl ? (
-          <HoverVideo 
-            src={videoUrl}
-            className={`w-full h-full ${contentFitClass}`}
-          />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <HoverVideo 
+              src={videoUrl}
+              className={`w-full h-full ${contentFitClass}`}
+            />
+          </div>
         ) : thumbnailUrl ? (
           <Image 
             src={thumbnailUrl} 
