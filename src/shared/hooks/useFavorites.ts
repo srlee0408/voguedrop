@@ -79,37 +79,130 @@ export function useFavorites(): FavoritesReturn {
   const toggleMutation = useMutation({
     mutationFn: updateFavoriteStatus,
     onMutate: async ({ videoId, isFavorite }) => {
-      // 낙관적 업데이트를 위해 진행 중인 쿼리 취소
+      // 진행 중인 모든 관련 쿼리 취소
       await queryClient.cancelQueries({ queryKey: ['favorites', user?.id] })
+      await queryClient.cancelQueries({ queryKey: ['library', 'favorites'] })
+      await queryClient.cancelQueries({ queryKey: ['library', 'regular'] })
+      await queryClient.cancelQueries({ queryKey: ['canvas', 'history'] })
 
-      // 이전 값 백업
+      // 이전 값들 백업
       const previousFavorites = queryClient.getQueryData<string[]>(['favorites', user?.id]) || []
+      const previousLibraryFavorites = queryClient.getQueryData(['library', 'favorites'])
+      const previousLibraryRegular = queryClient.getQueryData(['library', 'regular'])
+      const previousCanvasHistory = queryClient.getQueryData(['canvas', 'history'])
 
-      // 낙관적 업데이트
+      // 1. 즐겨찾기 ID 목록 즉시 업데이트
       const updatedFavorites = isFavorite 
         ? [...previousFavorites, videoId]
         : previousFavorites.filter(id => id !== videoId)
       
       queryClient.setQueryData(['favorites', user?.id], updatedFavorites)
 
+      // 2. 라이브러리 즐겨찾기 리스트 즉시 업데이트
+      if (previousLibraryFavorites) {
+        queryClient.setQueryData(['library', 'favorites'], (old: unknown) => {
+          if (!old || typeof old !== 'object' || !('pages' in old)) return old
+          
+          const typedOld = old as { pages: Array<{ favorites?: Array<{ id: string | number }>, totalCount?: number }> }
+          
+          return {
+            ...typedOld,
+            pages: typedOld.pages.map((page) => ({
+              ...page,
+              favorites: isFavorite 
+                ? page.favorites // 즐겨찾기 추가는 일반 탭에서 오므로 변경 없음
+                : page.favorites?.filter((clip) => String(clip.id) !== videoId) || [],
+              totalCount: isFavorite 
+                ? page.totalCount 
+                : Math.max(0, (page.totalCount || 0) - 1)
+            }))
+          }
+        })
+      }
+
+      // 3. 라이브러리 일반 리스트의 is_favorite 상태 즉시 업데이트
+      if (previousLibraryRegular) {
+        queryClient.setQueryData(['library', 'regular'], (old: unknown) => {
+          if (!old || typeof old !== 'object' || !('pages' in old)) return old
+          
+          const typedOld = old as { pages: Array<{ clips?: Array<{ id: string | number, is_favorite?: boolean }> }> }
+          
+          return {
+            ...typedOld,
+            pages: typedOld.pages.map((page) => ({
+              ...page,
+              clips: page.clips?.map((clip) => 
+                String(clip.id) === videoId 
+                  ? { ...clip, is_favorite: isFavorite }
+                  : clip
+              ) || []
+            }))
+          }
+        })
+      }
+
+      // 4. Canvas 히스토리의 is_favorite 상태 즉시 업데이트
+      if (previousCanvasHistory) {
+        queryClient.setQueryData(['canvas', 'history'], (old: unknown) => {
+          if (!old || typeof old !== 'object' || !('pages' in old)) return old
+          
+          const typedOld = old as { pages: Array<{ generations?: Array<{ id: string | number, is_favorite?: boolean }> }> }
+          
+          return {
+            ...typedOld,
+            pages: typedOld.pages.map((page) => ({
+              ...page,
+              generations: page.generations?.map((gen) => 
+                String(gen.id) === videoId 
+                  ? { ...gen, is_favorite: isFavorite }
+                  : gen
+              ) || []
+            }))
+          }
+        })
+      }
+
       // 롤백용 데이터 반환
-      return { previousFavorites }
+      return { 
+        previousFavorites,
+        previousLibraryFavorites,
+        previousLibraryRegular,
+        previousCanvasHistory
+      }
     },
-    onError: (err, variables, context) => {
-      // 에러 시 이전 상태로 롤백
+    onError: (err, _variables, context) => {
+      // 에러 시 모든 상태를 이전으로 롤백
       if (context?.previousFavorites) {
         queryClient.setQueryData(['favorites', user?.id], context.previousFavorites)
+      }
+      if (context?.previousLibraryFavorites) {
+        queryClient.setQueryData(['library', 'favorites'], context.previousLibraryFavorites)
+      }
+      if (context?.previousLibraryRegular) {
+        queryClient.setQueryData(['library', 'regular'], context.previousLibraryRegular)
+      }
+      if (context?.previousCanvasHistory) {
+        queryClient.setQueryData(['canvas', 'history'], context.previousCanvasHistory)
       }
       
       console.error('Error toggling favorite:', err)
     },
-    onSettled: () => {
-      // 완료 후 쿼리 무효화 (서버 상태와 동기화)
-      queryClient.invalidateQueries({ queryKey: ['favorites', user?.id] })
-      // 라이브러리 캐시도 무효화하여 즐겨찾기 상태 동기화
-      queryClient.invalidateQueries({ queryKey: ['library'] })
-      // Canvas 히스토리 캐시도 무효화
-      queryClient.invalidateQueries({ queryKey: ['canvas', 'history'] })
+    onSuccess: () => {
+      // 성공 시에는 백그라운드에서 조용히 동기화 (UI 깜빡임 방지)
+      setTimeout(() => {
+        queryClient.invalidateQueries({ 
+          queryKey: ['favorites', user?.id],
+          refetchType: 'none' // 데이터 리페칭 없이 캐시만 stale로 표시
+        })
+        queryClient.invalidateQueries({ 
+          queryKey: ['library'],
+          refetchType: 'none'
+        })
+        queryClient.invalidateQueries({ 
+          queryKey: ['canvas', 'history'],
+          refetchType: 'none'
+        })
+      }, 2000) // 2초 후 백그라운드 동기화
     },
   })
 

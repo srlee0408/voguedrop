@@ -38,6 +38,8 @@ export function EffectsSection({ onEffectClick, selectedEffects, onEffectRemove 
                     <HoverVideo
                       src={effect.previewUrl}
                       className="w-full h-auto"
+                      showMode="video-first"
+                      pauseMode="pause"
                     />
                   </div>
                 ) : (

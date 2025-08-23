@@ -136,8 +136,19 @@ export const LibraryCard = memo(function LibraryCard({
       )}
       
       <div className="relative h-full group flex items-center justify-center bg-black">
-        {/* Thumbnail Preview (Always visible) */}
-        {thumbnailUrl ? (
+        {/* Library Modal 방식: HoverVideo에서 썸네일과 비디오를 모두 처리 */}
+        {videoUrl && thumbnailUrl ? (
+          <HoverVideo 
+            src={videoUrl}
+            thumbnailSrc={thumbnailUrl}
+            className={`w-full h-full ${contentFitClass}`}
+            showMode="thumbnail-first"
+            pauseMode="stop"
+            isParentHovering={isHovering}
+            isPreloaded={isVideoPreloaded}
+            onLoading={setIsVideoBuffering}
+          />
+        ) : thumbnailUrl ? (
           <Image 
             src={thumbnailUrl} 
             alt={title || 'Library item'} 
@@ -149,19 +160,6 @@ export const LibraryCard = memo(function LibraryCard({
         ) : (
           <div className="w-full h-full bg-gray-800 flex items-center justify-center">
             {renderPlaceholderIcon()}
-          </div>
-        )}
-
-        {/* Hover Video (Renders on top of thumbnail when hovering) */}
-        {videoUrl && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <HoverVideo 
-              src={videoUrl}
-              className={`w-full h-full ${contentFitClass}`}
-              isParentHovering={isHovering}
-              isPreloaded={isVideoPreloaded}
-              onLoading={setIsVideoBuffering}
-            />
           </div>
         )}
         

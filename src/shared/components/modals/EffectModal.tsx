@@ -52,6 +52,8 @@ export function EffectModal({ isOpen, onClose, onSelectEffect, selectedEffects =
                   <HoverVideo
                     src={effect.previewUrl}
                     className="w-full h-full object-cover"
+                    showMode="video-first"
+                    pauseMode="pause"
                   />
                 ) : (
                   <div className="w-full h-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center p-4">

@@ -45,6 +45,8 @@ export function EffectsGallery({ onEffectClick }: EffectsGalleryProps) {
                 <HoverVideo
                   src={effect.previewUrl}
                   className="w-full h-full object-cover"
+                  showMode="video-first"
+                  pauseMode="pause"
                 />
               ) : (
                 <div className="w-full h-full bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center">
