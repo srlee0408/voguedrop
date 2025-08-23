@@ -9,6 +9,7 @@ import { useLibraryData } from './hooks/useLibraryData';
 import { useLibraryFavorites } from './hooks/useLibraryFavorites';
 import { useLibraryRegular } from './hooks/useLibraryRegular';
 import { LibraryCard } from './components/LibraryCard';
+import { LibraryCardActions } from './components/LibraryCardActions';
 import { LibrarySidebar } from './components/LibrarySidebar';
 import { LibraryUpload } from './components/LibraryUpload';
 import { LibrarySection } from './components/LibrarySection';
@@ -429,22 +430,44 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
                 </div>
               ) : (
                 <div className="grid grid-cols-4 gap-4">
-                  {filteredItems.projects.map((project, index) => (
-                    <LibraryCard
-                      key={project.id}
-                      item={project}
-                      type="project"
-                      isSelected={selectedItems.has(project.id.toString())}
-                      selectionOrder={selectedItems.get(project.id.toString())}
-                      isDownloading={downloadingVideos.has(String(project.id))}
-                      isCurrentProject={config.currentProjectName === project.project_name}
-                      priority={index < 4} // 상위 4개 프로젝트 우선 로딩
-                      onSelect={config.selection?.enabled ? () => handleItemSelect(project.id.toString()) : undefined}
-                      onDownload={config.download?.enabled ? () => handleDownload(project, 'project') : undefined}
-                      onProjectNavigate={config.openProject?.enabled ? handleProjectNavigate : undefined}
-                      theme={config.theme}
-                    />
-                  ))}
+                  {filteredItems.projects.map((project, index) => {
+                    const isSelected = selectedItems.has(project.id.toString());
+                    const selectionOrder = selectedItems.get(project.id.toString());
+                    const selectionColor = config.theme?.selectionColor || '#38f47cf9';
+                    
+                    return (
+                      <div 
+                        key={project.id} 
+                        className={`flex flex-col rounded-lg overflow-hidden transition-all
+                          ${isSelected 
+                            ? `ring-2 scale-[0.98]` 
+                            : config.selection?.enabled ? 'hover:ring-2 hover:ring-opacity-50' : ''}`}
+                        style={{
+                          '--tw-ring-color': isSelected ? selectionColor : `${selectionColor}80`,
+                        } as React.CSSProperties}
+                      >
+                        <LibraryCard
+                          item={project}
+                          type="project"
+                          isSelected={isSelected}
+                          selectionOrder={selectionOrder}
+                          isCurrentProject={config.currentProjectName === project.project_name}
+                          priority={index < 4} // 상위 4개 프로젝트 우선 로딩
+                          onSelect={config.selection?.enabled ? () => handleItemSelect(project.id.toString()) : undefined}
+                          theme={config.theme}
+                        />
+                        <LibraryCardActions
+                          item={project}
+                          type="project"
+                          isDownloading={downloadingVideos.has(String(project.id))}
+                          isCurrentProject={config.currentProjectName === project.project_name}
+                          onDownload={config.download?.enabled ? () => handleDownload(project, 'project') : undefined}
+                          onProjectNavigate={config.openProject?.enabled ? handleProjectNavigate : undefined}
+                          theme={config.theme}
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
               )
             )}
@@ -460,20 +483,41 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
                 </div>
               ) : (
                 <div className="grid grid-cols-4 gap-4">
-                  {filteredItems.uploads.map((upload, index) => (
-                    <LibraryCard
-                      key={upload.id}
-                      item={upload}
-                      type="upload"
-                      isSelected={selectedItems.has(upload.id.toString())}
-                      selectionOrder={selectedItems.get(upload.id.toString())}
-                      isDownloading={downloadingVideos.has(String(upload.id))}
-                      priority={index < 4} // 상위 4개 업로드 우선 로딩
-                      onSelect={config.selection?.enabled ? () => handleItemSelect(upload.id.toString()) : undefined}
-                      onDownload={config.download?.enabled ? () => handleDownload(upload, 'upload') : undefined}
-                      theme={config.theme}
-                    />
-                  ))}
+                  {filteredItems.uploads.map((upload, index) => {
+                    const isSelected = selectedItems.has(upload.id.toString());
+                    const selectionOrder = selectedItems.get(upload.id.toString());
+                    const selectionColor = config.theme?.selectionColor || '#38f47cf9';
+                    
+                    return (
+                      <div 
+                        key={upload.id} 
+                        className={`flex flex-col rounded-lg overflow-hidden transition-all
+                          ${isSelected 
+                            ? `ring-2 scale-[0.98]` 
+                            : config.selection?.enabled ? 'hover:ring-2 hover:ring-opacity-50' : ''}`}
+                        style={{
+                          '--tw-ring-color': isSelected ? selectionColor : `${selectionColor}80`,
+                        } as React.CSSProperties}
+                      >
+                        <LibraryCard
+                          item={upload}
+                          type="upload"
+                          isSelected={isSelected}
+                          selectionOrder={selectionOrder}
+                          priority={index < 4} // 상위 4개 업로드 우선 로딩
+                          onSelect={config.selection?.enabled ? () => handleItemSelect(upload.id.toString()) : undefined}
+                          theme={config.theme}
+                        />
+                        <LibraryCardActions
+                          item={upload}
+                          type="upload"
+                          isDownloading={downloadingVideos.has(String(upload.id))}
+                          onDownload={config.download?.enabled ? () => handleDownload(upload, 'upload') : undefined}
+                          theme={config.theme}
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
               )
             )}

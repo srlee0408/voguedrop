@@ -3,6 +3,7 @@
 import { memo } from 'react';
 import { Loader2 } from 'lucide-react';
 import { LibraryCard } from './LibraryCard';
+import { LibraryCardActions } from './LibraryCardActions';
 import { LibraryInfiniteLoader } from './InfiniteScrollLoader';
 import { LibraryVideo } from '@/shared/types/video-editor';
 import { LibraryModalConfig } from '@/shared/types/library-modal';
@@ -77,6 +78,7 @@ export const LibrarySection = memo(function LibrarySection({
     enabled: items.length > 0,
     topCount: 8 // 상위 8개 카드 우선 프리로드
   });
+  
   // 에러 상태
   if (error) {
     return (
@@ -143,23 +145,44 @@ export const LibrarySection = memo(function LibrarySection({
       </div>
       
       <div className="grid grid-cols-4 gap-4">
-        {items.map((clip, index) => (
-          <LibraryCard
-            key={clip.id}
-            item={clip}
-            type="clip"
-            isSelected={selectedItems.has(clip.id)}
-            selectionOrder={selectedItems.get(clip.id)}
-            isFavorite={config.favorites?.favoriteIds?.has(String(clip.id)) || clip.is_favorite}
-            isDownloading={downloadingVideos.has(String(clip.id))}
-            isVideoPreloaded={isVideoPreloaded(clip.output_video_url)}
-            priority={index < 8} // 상위 8개 카드 우선 로딩
-            onSelect={config.selection?.enabled && onItemSelect ? () => onItemSelect(clip.id) : undefined}
-            onFavoriteToggle={config.favorites?.enabled && onFavoriteToggle ? () => onFavoriteToggle(String(clip.id)) : undefined}
-            onDownload={config.download?.enabled && onDownload ? () => onDownload(clip) : undefined}
-            theme={config.theme}
-          />
-        ))}
+        {items.map((clip, index) => {
+          const isSelected = selectedItems.has(clip.id);
+          const selectionOrder = selectedItems.get(clip.id);
+          const selectionColor = config.theme?.selectionColor || '#38f47cf9';
+          
+          return (
+            <div 
+              key={clip.id} 
+              className={`flex flex-col rounded-lg overflow-hidden transition-all
+                ${isSelected 
+                  ? `ring-2 scale-[0.98]` 
+                  : config.selection?.enabled ? 'hover:ring-2 hover:ring-opacity-50' : ''}`}
+              style={{
+                '--tw-ring-color': isSelected ? selectionColor : `${selectionColor}80`,
+              } as React.CSSProperties}
+            >
+              <LibraryCard
+                item={clip}
+                type="clip"
+                isSelected={isSelected}
+                selectionOrder={selectionOrder}
+                isVideoPreloaded={isVideoPreloaded(clip.output_video_url)}
+                priority={index < 8} // 상위 8개 카드 우선 로딩
+                onSelect={config.selection?.enabled && onItemSelect ? () => onItemSelect(clip.id) : undefined}
+                theme={config.theme}
+              />
+              <LibraryCardActions
+                item={clip}
+                type="clip"
+                isFavorite={config.favorites?.favoriteIds?.has(String(clip.id)) || clip.is_favorite}
+                isDownloading={downloadingVideos.has(String(clip.id))}
+                onFavoriteToggle={config.favorites?.enabled && onFavoriteToggle ? () => onFavoriteToggle(String(clip.id)) : undefined}
+                onDownload={config.download?.enabled && onDownload ? () => onDownload(clip) : undefined}
+                theme={config.theme}
+              />
+            </div>
+          );
+        })}
       </div>
       
       {/* 무한 스크롤 로더 */}

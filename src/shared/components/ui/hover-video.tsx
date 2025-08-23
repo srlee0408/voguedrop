@@ -9,6 +9,7 @@ interface HoverVideoProps {
   thumbnailSrc?: string // 썸네일 URL (Library용)
   showMode?: 'video-first' | 'thumbnail-first' // 표시 모드
   pauseMode?: 'pause' | 'stop' // 호버 해제 시 동작
+  thumbnailObjectFit?: 'cover' | 'contain' // 썸네일 object-fit 스타일 (기본값: cover)
   fallbackContent?: React.ReactNode
   isParentHovering?: boolean
   isPreloaded?: boolean
@@ -21,6 +22,7 @@ export function HoverVideo({
   thumbnailSrc,
   showMode = 'video-first', // 기본값: Effect Gallery 방식
   pauseMode = 'pause', // 기본값: 일시정지
+  thumbnailObjectFit = 'cover', // 기본값: cover (기존 동작 유지)
   fallbackContent,
   isParentHovering,
   isPreloaded = false,
@@ -103,7 +105,7 @@ export function HoverVideo({
           height={0}
           sizes="100vw"
           className={className}
-          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          style={{ width: '100%', height: '100%', objectFit: thumbnailObjectFit }}
         />
         
         {/* 호버 시 비디오 오버레이 */}

@@ -40,3 +40,7 @@ src/
 3. Zod 스키마
 - https://zod.dev/
 - https://velog.io/@jinyoung985/TypeScript-zod-%EB%9D%BC%EC%9D%B4%EB%B8%8C%EB%9F%AC%EB%A6%AC%EB%9E%80
+
+
+## 수정할 때 주의사항
+수정할 때 다른 곳에 기능, 또는 구현 ui,ux등  영향을 주지 않는지 파악하고 개발을 진행해라.

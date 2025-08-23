@@ -4,8 +4,7 @@ import { LibraryVideo, LibraryProject, UserUploadedVideo } from '@/shared/types/
 import { LibraryModalConfig } from '@/shared/types/library-modal';
 import { CARD_CONTAINER_CLASS, getContentFitStyle } from '../utils/constants';
 import Image from 'next/image';
-import { Download, Loader2, Star, Folder, Upload as UploadIcon, ExternalLink } from 'lucide-react';
-import { Tooltip } from '@/shared/components/ui/Tooltip';
+import { Loader2, Folder, Upload as UploadIcon } from 'lucide-react';
 import { HoverVideo } from '@/shared/components/ui/hover-video';
 import { useState, memo } from 'react';
 
@@ -14,15 +13,10 @@ interface LibraryCardProps {
   type: 'clip' | 'project' | 'upload';
   isSelected?: boolean;
   selectionOrder?: number;
-  isFavorite?: boolean;
-  isDownloading?: boolean;
   isCurrentProject?: boolean;
   isVideoPreloaded?: boolean;
   priority?: boolean;
   onSelect?: () => void;
-  onFavoriteToggle?: () => void;
-  onDownload?: () => void;
-  onProjectNavigate?: (project: LibraryProject) => void;
   theme?: LibraryModalConfig['theme'];
 }
 
@@ -31,15 +25,10 @@ export const LibraryCard = memo(function LibraryCard({
   type,
   isSelected = false,
   selectionOrder,
-  isFavorite = false,
-  isDownloading = false,
   isCurrentProject = false,
   isVideoPreloaded = false,
   priority = false,
   onSelect,
-  onFavoriteToggle,
-  onDownload,
-  onProjectNavigate,
   theme
 }: LibraryCardProps) {
   const [isHovering, setIsHovering] = useState(false);
@@ -77,13 +66,6 @@ export const LibraryCard = memo(function LibraryCard({
     return undefined;
   };
 
-  const getDate = () => {
-    if (type === 'clip') return new Date((item as LibraryVideo).created_at);
-    if (type === 'project') return new Date((item as LibraryProject).updated_at);
-    if (type === 'upload') return new Date((item as UserUploadedVideo).uploaded_at);
-    return new Date();
-  };
-
   const contentFitClass = getContentFitStyle(getAspectRatio());
   const videoUrl = getVideoUrl();
   const thumbnailUrl = getThumbnailUrl();
@@ -115,17 +97,13 @@ export const LibraryCard = memo(function LibraryCard({
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => {
         setIsHovering(false);
-        setIsVideoBuffering(false); // Reset buffering state on leave
+        setIsVideoBuffering(false);
       }}
-      className={`${CARD_CONTAINER_CLASS} bg-gray-900 rounded-lg overflow-hidden relative transition-all
+      className={`${CARD_CONTAINER_CLASS} bg-gray-900 rounded-t-lg overflow-hidden relative transition-all
         ${onSelect ? 'cursor-pointer' : ''}
-        ${isCurrentProject 
-          ? 'ring-4 ring-red-500 shadow-xl shadow-red-500/30'
-          : isSelected 
-            ? `ring-2 scale-[0.98]` 
-            : onSelect ? 'hover:ring-2 hover:ring-opacity-50' : ''}`}
+        ${isCurrentProject ? 'ring-4 ring-red-500 shadow-xl shadow-red-500/30' : ''}`}
       style={{
-        '--tw-ring-color': isCurrentProject ? undefined : isSelected ? selectionColor : `${selectionColor}80`,
+        '--tw-ring-color': isCurrentProject ? undefined : selectionColor,
       } as React.CSSProperties}
     >
       {/* Current Project Label */}
@@ -144,6 +122,7 @@ export const LibraryCard = memo(function LibraryCard({
             className={`w-full h-full ${contentFitClass}`}
             showMode="thumbnail-first"
             pauseMode="stop"
+            thumbnailObjectFit="contain"
             isParentHovering={isHovering}
             isPreloaded={isVideoPreloaded}
             onLoading={setIsVideoBuffering}
@@ -155,7 +134,7 @@ export const LibraryCard = memo(function LibraryCard({
             className={`w-full h-full ${contentFitClass}`}
             fill
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-            priority={priority} // 상위 4개 카드만 우선 로딩
+            priority={priority}
           />
         ) : (
           <div className="w-full h-full bg-gray-800 flex items-center justify-center">
@@ -173,86 +152,14 @@ export const LibraryCard = memo(function LibraryCard({
           </div>
         )}
         
-        {/* Video Loading Indicator - Top Left */}
+        {/* Video Loading Indicator - Center */}
         {isHovering && isVideoBuffering && (
-          <div className="absolute top-2 left-2 z-10">
-            <div className="bg-black/70 p-1.5 rounded-full flex items-center justify-center">
-              <Loader2 className="w-4 h-4 animate-spin text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]" />
+          <div className="absolute inset-0 flex items-center justify-center z-10">
+            <div className="bg-black/70 p-3 rounded-full flex items-center justify-center">
+              <Loader2 className="w-6 h-6 animate-spin text-white" />
             </div>
           </div>
         )}
-
-        {/* Top-right buttons */}
-        <div className="absolute top-2 right-2 flex flex-col gap-2 z-10">
-          {/* Open project button - only for projects that are NOT current */}
-          {type === 'project' && onProjectNavigate && !isCurrentProject && (
-            <Tooltip text="Open Project" position="bottom">
-              <button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onProjectNavigate(item as LibraryProject);
-                }}
-                className="bg-black/60 p-1.5 rounded-full hover:bg-black/80 transition-colors"
-              >
-                <ExternalLink className="w-5 h-5 text-white/70 hover:text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]" />
-              </button>
-            </Tooltip>
-          )}
-          
-          {/* Download button */}
-          {onDownload && (
-            <Tooltip text={isDownloading ? "Downloading..." : "Download"} position="bottom">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDownload();
-                }}
-                disabled={isDownloading}
-                className="bg-black/60 p-1.5 rounded-full hover:bg-black/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isDownloading ? (
-                  <Loader2 className="w-5 h-5 animate-spin text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]" />
-                ) : (
-                  <Download className="w-5 h-5 text-white/70 hover:text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]" />
-                )}
-              </button>
-            </Tooltip>
-          )}
-          
-          {/* Favorite button */}
-          {onFavoriteToggle && type === 'clip' && (
-            <Tooltip text={isFavorite ? "Remove from Favorites" : "Add to Favorites"} position="bottom">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onFavoriteToggle();
-                }}
-                className="bg-black/60 p-1.5 rounded-full hover:bg-black/80 transition-colors"
-              >
-                <Star className={`w-5 h-5 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] ${
-                  isFavorite
-                    ? "text-yellow-400 fill-current"
-                    : "text-white/70 hover:text-white"
-                }`} />
-              </button>
-            </Tooltip>
-          )}
-        </div>
-        
-        {/* Info overlay - Unified for all types */}
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/80 to-transparent p-3">
-          {/* Title for all types */}
-          {title && (
-            <h4 className="text-sm font-medium text-white truncate">
-              {title}
-            </h4>
-          )}
-          
-          {/* Date only */}
-          <div className="text-[10px] text-gray-400 mt-1">
-            {getDate().toLocaleDateString()}
-          </div>
-        </div>
       </div>
     </div>
   );

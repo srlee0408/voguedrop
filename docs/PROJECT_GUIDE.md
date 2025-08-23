@@ -82,3 +82,6 @@
 - `tailwindcss`: 스타일링
 - `shadcn/ui` 관련 (`@radix-ui/*`, `class-variance-authority`, `clsx`, `tailwind-merge`)
 - `remotion`: 비디오 렌더링
+
+## 3. 수정할 때 주의사항
+수정할 때 다른 곳에 기능, 또는 구현 ui,ux등  영향을 주지 않는지 파악하고 개발을 진행해라.
