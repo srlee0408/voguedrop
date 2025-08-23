@@ -8,7 +8,6 @@ interface HoverVideoProps {
   className?: string
   fallbackContent?: React.ReactNode
   isParentHovering?: boolean
-  isPreloaded?: boolean
   onLoading?: (loading: boolean) => void
 }
 
@@ -16,18 +15,21 @@ export function HoverVideo({
   src,
   className = "",
   fallbackContent,
-  isParentHovering = false,
-  isPreloaded = false,
+  isParentHovering,
   onLoading
 }: HoverVideoProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [, setIsLoading] = useState(false)
+  const [localHover, setLocalHover] = useState(false)
+
+  // 하이브리드 hover 상태: isParentHovering이 제공되면 사용, 아니면 자체 hover 사용
+  const isHovered = isParentHovering !== undefined ? isParentHovering : localHover
 
   useEffect(() => {
     const video = videoRef.current
     if (!video) return
 
-    if (isParentHovering) {
+    if (isHovered) {
       // 호버 시작 시 로딩 상태 설정
       setIsLoading(true)
       onLoading?.(true)
@@ -39,11 +41,11 @@ export function HoverVideo({
       })
     } else {
       video.pause()
-      video.currentTime = 0
+      // currentTime = 0 제거: 비디오 첫 프레임 유지
       setIsLoading(false)
       onLoading?.(false)
     }
-  }, [isParentHovering, onLoading])
+  }, [isHovered, onLoading])
 
   // URL에서 쿼리 파라미터를 제거하고 비디오 확장자 확인
   const cleanUrl = src.split('?')[0];
@@ -68,6 +70,8 @@ export function HoverVideo({
   return (
     <div
       className="relative cursor-pointer flex items-center justify-center w-full h-full"
+      onMouseEnter={() => isParentHovering === undefined && setLocalHover(true)}
+      onMouseLeave={() => isParentHovering === undefined && setLocalHover(false)}
     >
       <video
         ref={videoRef}
@@ -76,7 +80,7 @@ export function HoverVideo({
         muted
         loop
         playsInline
-        preload={isPreloaded ? "metadata" : "none"}
+        preload="metadata"
         onLoadStart={() => {
           setIsLoading(true)
           onLoading?.(true)
