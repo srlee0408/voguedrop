@@ -18,7 +18,7 @@ export const generateVideoRequestSchema = z.object({
  * 효과 템플릿 스키마
  */
 export const effectTemplateSchema = z.object({
-  id: z.number(),
+  id: z.string(),
   name: z.string(),
   prompt: z.string(),
 });

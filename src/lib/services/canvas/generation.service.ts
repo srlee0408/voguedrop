@@ -132,7 +132,7 @@ export class VideoGenerationService {
    * 효과 템플릿을 조회하고 프롬프트를 결합합니다
    */
   private async processEffects(
-    effectIds: number[], 
+    effectIds: string[], 
     basePrompt?: string, 
     logger?: ReturnType<typeof createVideoGenerationLogger>
   ): Promise<{ selectedEffects: EffectTemplate[]; combinedPrompt: string }> {
