@@ -8,6 +8,7 @@ import { useVideoSoundGeneration } from '../_hooks/useVideoSoundGeneration';
 import { ClipContext } from '../_context/ClipContext';
 import { formatSoundDisplayTitle } from '@/lib/sound/utils';
 import { SoundGenerationType } from '@/shared/types/sound';
+import { calculateSoundProgress } from '@/lib/utils/generation-progress';
 import { 
   useSoundHistory, 
   useSoundGeneration
@@ -80,48 +81,6 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   
-  const calculateProgressForElapsedTime = (elapsedSeconds: number, expectedDuration: number = 15): number => {
-    const checkpoints = [
-      { time: 2, progress: 15 },
-      { time: 4, progress: 30 },
-      { time: 6, progress: 50 },
-      { time: 8, progress: 65 },
-      { time: 10, progress: 80 },
-      { time: 12, progress: 88 },
-      { time: 15, progress: 90 }
-    ];
-    
-    let targetProgress = 0;
-    
-    for (let i = 0; i < checkpoints.length; i++) {
-      const checkpoint = checkpoints[i];
-      const nextCheckpoint = checkpoints[i + 1];
-      
-      if (elapsedSeconds >= checkpoint.time) {
-        if (!nextCheckpoint || elapsedSeconds < nextCheckpoint.time) {
-          if (nextCheckpoint) {
-            const timeRatio = (elapsedSeconds - checkpoint.time) / (nextCheckpoint.time - checkpoint.time);
-            const progressDiff = nextCheckpoint.progress - checkpoint.progress;
-            targetProgress = checkpoint.progress + (progressDiff * timeRatio);
-          } else {
-            targetProgress = checkpoint.progress;
-          }
-          break;
-        }
-      } else if (i === 0) {
-        targetProgress = (elapsedSeconds / checkpoint.time) * checkpoint.progress;
-        break;
-      }
-    }
-    
-    if (elapsedSeconds > expectedDuration) {
-      const overtime = elapsedSeconds - expectedDuration;
-      const slowdown = Math.log(1 + overtime / expectedDuration) * 2;
-      targetProgress = Math.max(85, 90 - slowdown);
-    }
-    
-    return Math.min(targetProgress, 90);
-  };
 
   const presetSounds = [
     { key: 'epicTheme', label: t('videoEditor.controls.soundOptions.epicTheme'), duration: 180 },
@@ -407,7 +366,7 @@ export default function SoundLibraryModal({ onClose, onSelectSounds }: SoundLibr
           
           const startTime = startTimes.get(job.jobId) || Date.now();
           const elapsed = Math.max(0, (Date.now() - startTime) / 1000);
-          const newProgress = calculateProgressForElapsedTime(elapsed, 15);
+          const newProgress = calculateSoundProgress(elapsed);
           
           job.progress = Math.floor(newProgress);
         });

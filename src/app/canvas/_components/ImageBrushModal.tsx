@@ -5,10 +5,9 @@ import Image from 'next/image'
 import { X, Brush, Eraser, RotateCcw, Loader2, Sliders, ArrowRight, Upload, Download, RefreshCw } from 'lucide-react'
 import type { ImageBrushModalState, BrushTool, CanvasMouseEvent } from '@/shared/types/image-brush'
 import { 
-  calculateProgressForElapsedTime, 
-  animateToComplete,
-  PROGRESS_UPDATE_INTERVAL 
-} from '@/lib/utils/image-brush-progress'
+  ProgressCalculator
+} from '@/lib/utils/generation-progress'
+import { useErrorHandler as useGenerationErrorHandler } from '@/lib/generation/error-handler'
 
 interface ImageBrushModalProps {
   isOpen: boolean
@@ -372,6 +371,12 @@ export function ImageBrushModal({
     e.stopPropagation()
   }, [])
 
+  // Error handler
+  const { handleError, createErrorMessage } = useGenerationErrorHandler('image');
+  
+  // Progress calculator ref
+  const progressCalculatorRef = useRef<ProgressCalculator | null>(null);
+
   // AI processing request
   const handleGenerate = async () => {
     // Validation
@@ -380,12 +385,27 @@ export function ImageBrushModal({
       return
     }
 
+    // 즉시 UI 반응 (1%에서 시작)
     setState(prev => ({ 
       ...prev, 
       isProcessing: true, 
       error: null,
-      progress: 0 
+      progress: 1  // 즉시 1%로 시작
     }))
+    
+    // Progress calculator 초기화
+    progressCalculatorRef.current = new ProgressCalculator(
+      { 
+        mode: state.mode === 'flux' ? 'fast' : 'slow',
+        expectedDuration: state.mode === 'flux' ? 80 : 180
+      },
+      (progress) => {
+        setState(prev => ({ ...prev, progress }));
+      }
+    );
+    
+    // 즉시 progress 시작
+    progressCalculatorRef.current.start();
 
     try {
       // Convert image and mask to Base64
@@ -409,24 +429,10 @@ export function ImageBrushModal({
       // 마스크 Base64
       const maskBase64 = maskCanvas.toDataURL('image/png')
 
-      // 시간 기반 진행률 업데이트 (하이브리드 방식)
-      const startTime = Date.now();
-      
+      // 자동 progress 업데이트 시작
       const progressInterval = setInterval(() => {
-        const elapsedSeconds = (Date.now() - startTime) / 1000;
-        const targetProgress = calculateProgressForElapsedTime(elapsedSeconds, state.mode);
-        
-        setState(prev => {
-          const currentProgress = prev.progress;
-          // 현재값과 목표값 중 큰 값 선택 (역행 방지)
-          const newProgress = Math.max(currentProgress, targetProgress);
-          
-          return {
-            ...prev,
-            progress: Math.min(Math.floor(newProgress), 90)
-          };
-        });
-      }, PROGRESS_UPDATE_INTERVAL)
+        progressCalculatorRef.current?.autoUpdate();
+      }, 1000);
 
       // API 호출
       const requestBody: {
@@ -460,58 +466,41 @@ export function ImageBrushModal({
       clearInterval(progressInterval)
 
       if (!response.ok) {
-        let errorMessage = 'An error occurred during processing.'
-        
-        try {
-          const errorData = await response.json()
-          errorMessage = errorData.error || errorMessage
-        } catch {
-          // JSON 파싱 실패 시 상태 코드로 에러 메시지 결정
-          if (response.status === 504) {
-            errorMessage = 'Processing timeout. The service took too long to respond.'
-          } else if (response.status === 502) {
-            errorMessage = 'Service temporarily unavailable. Please try again.'
-          } else if (response.status === 500) {
-            errorMessage = 'Internal server error. Please try again later.'
-          }
-        }
-        
-        throw new Error(errorMessage)
+        // 통합 에러 처리 사용
+        const error = handleError(new Error(`HTTP ${response.status}`), {
+          httpStatus: response.status,
+          jobId: 'image-brush-' + Date.now()
+        });
+        throw error;
       }
 
       const result = await response.json()
       
       // 완료 애니메이션 실행 (90% -> 100%)
-      const currentProgress = state.progress;
-      
-      animateToComplete(
-        currentProgress,
-        (progress) => {
-          // 진행률 업데이트만 전달
-          setState(prev => ({ 
-            ...prev, 
-            progress
-          }));
-        },
-        () => {
-          // 애니메이션 완료 후 처리
-          setState(prev => ({ 
-            ...prev, 
-            isProcessing: false 
-          }));
-          
-          // Update result image
-          if (result.imageUrl) {
-            setResultImage(result.imageUrl);
-          }
+      progressCalculatorRef.current?.complete(() => {
+        setState(prev => ({ 
+          ...prev, 
+          isProcessing: false 
+        }));
+        
+        // Update result image
+        if (result.imageUrl) {
+          setResultImage(result.imageUrl);
         }
-      );
+      });
 
     } catch (error) {
-      console.error('Image brush error:', error)
+      // Progress calculator cleanup
+      progressCalculatorRef.current?.destroy();
+      
+      // 통합 에러 처리
+      const processedError = error instanceof Error ? handleError(error) : handleError(new Error(String(error)));
+      const errorMessage = createErrorMessage(processedError);
+      
+      console.error('Image brush error:', processedError)
       setState(prev => ({ 
         ...prev, 
-        error: error instanceof Error ? error.message : 'An error occurred during processing.',
+        error: errorMessage.message,
         isProcessing: false,
         progress: 0
       }))

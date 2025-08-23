@@ -1,61 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { GeneratedVideo } from "@/shared/types/canvas";
 import type { EffectTemplateWithMedia } from "@/shared/types/database";
+import { calculateVideoProgress, animateToComplete } from "@/lib/utils/generation-progress";
+import { useErrorHandler } from "@/lib/generation/error-handler";
 
-/**
- * 진행률 계산: 경과 시간 기반으로 0~90% 구간을 부드럽게 증가
- */
-const calculateProgressForElapsedTime = (elapsedSeconds: number, expectedDuration: number = 190): number => {
-  const checkpoints = [
-    { time: 10, progress: 5 },
-    { time: 30, progress: 15 },
-    { time: 60, progress: 30 },
-    { time: 100, progress: 50 },
-    { time: 140, progress: 70 },
-    { time: 170, progress: 83 },
-    { time: 190, progress: 90 },
-  ];
+// 통합 Progress 유틸리티 사용으로 기존 함수 제거됨
 
-  let targetProgress = 0;
-
-  for (let i = 0; i < checkpoints.length; i++) {
-    const checkpoint = checkpoints[i];
-    const nextCheckpoint = checkpoints[i + 1];
-    if (elapsedSeconds >= checkpoint.time) {
-      if (!nextCheckpoint || elapsedSeconds < nextCheckpoint.time) {
-        if (nextCheckpoint) {
-          const timeRatio = (elapsedSeconds - checkpoint.time) / (nextCheckpoint.time - checkpoint.time);
-          const progressDiff = nextCheckpoint.progress - checkpoint.progress;
-          targetProgress = checkpoint.progress + progressDiff * timeRatio;
-        } else {
-          targetProgress = checkpoint.progress;
-        }
-        break;
-      }
-    } else if (i === 0) {
-      targetProgress = (elapsedSeconds / checkpoint.time) * checkpoint.progress;
-      break;
-    }
-  }
-
-  if (elapsedSeconds > expectedDuration) {
-    const overtime = elapsedSeconds - expectedDuration;
-    const slowdown = Math.log(1 + overtime / expectedDuration) * 2;
-    targetProgress = Math.max(85, 90 - slowdown);
-  }
-
-  const smoothIncrement = 0.1 + Math.random() * 0.2;
-  targetProgress += smoothIncrement;
-  return Math.min(targetProgress, 90);
-};
-
-/**
- * 완료 애니메이션 시간 계산: 남은 진행률이 많을수록 더 오래
- */
-const calculateCompletionAnimationDuration = (currentProgress: number): number => {
-  const remainingProgress = 100 - currentProgress;
-  return Math.min(3000, Math.max(500, (remainingProgress / 100) * 3000));
-};
+// 완료 애니메이션도 통합 유틸리티 사용
 
 type SlotManagerApi = {
   slotStates: Array<"empty" | "generating" | "completed">;
@@ -86,6 +37,8 @@ export function useVideoGeneration({
   slotManager,
   onVideoCompleted,
 }: UseVideoGenerationArgs) {
+  // 에러 핸들러 초기화
+  const { handleError, createErrorMessage } = useErrorHandler('video');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatingProgress, setGeneratingProgress] = useState<Map<string, number>>(new Map());
   const [generatingJobIds, setGeneratingJobIds] = useState<Map<string, string>>(new Map());
@@ -229,7 +182,7 @@ export function useVideoGeneration({
               const now = Date.now();
               const start = jobStartTimes.get(job.jobId) || now;
               const elapsedSeconds = (now - start) / 1000;
-              const target = calculateProgressForElapsedTime(elapsedSeconds);
+              const target = calculateVideoProgress(elapsedSeconds);
               setGeneratingProgress(prev => {
                 const next = new Map(prev);
                 const current = prev.get(targetSlot.toString()) || 0;
@@ -243,25 +196,18 @@ export function useVideoGeneration({
               completionStartTimes.set(job.jobId, Date.now());
 
               const currentProgressValue = progressRef.current.get(targetSlot.toString()) || 0;
-              const animationDuration = calculateCompletionAnimationDuration(currentProgressValue);
-
-              const animateToComplete = () => {
-                const startTime = completionStartTimes.get(job.jobId) || Date.now();
-                const elapsed = Date.now() - startTime;
-                const ratio = Math.min(elapsed / animationDuration, 1);
-                const easeOut = 1 - Math.pow(1 - ratio, 3);
-                setGeneratingProgress(prev => {
-                  const next = new Map(prev);
-                  const start = currentProgressValue;
-                  const target = start + (100 - start) * easeOut;
-                  next.set(targetSlot.toString(), Math.floor(target));
-                  return next;
-                });
-                if (ratio < 1) {
-                  setTimeout(animateToComplete, 16);
+              
+              // 통합 유틸리티의 animateToComplete 사용
+              animateToComplete(
+                currentProgressValue,
+                (progress) => {
+                  setGeneratingProgress(prev => {
+                    const next = new Map(prev);
+                    next.set(targetSlot.toString(), progress);
+                    return next;
+                  });
                 }
-              };
-              animateToComplete();
+              );
             }
           }
 
@@ -343,8 +289,14 @@ export function useVideoGeneration({
       pollJobs(availableSlot);
     } catch (error: unknown) {
       console.error("Video generation error:", error);
-      const errorMessage = error instanceof Error ? error.message : "An error occurred during video generation.";
-      setGenerationError(errorMessage);
+      
+      // 통합 에러 핸들러 사용
+      const processedError = handleError(error, {
+        jobId: `video-${availableSlot}-${Date.now()}`
+      });
+      const errorMessage = createErrorMessage(processedError);
+      
+      setGenerationError(errorMessage.message);
 
       // 해당 슬롯만 롤백/정리
       slotManager.resetSlot(availableSlot);
@@ -365,7 +317,7 @@ export function useVideoGeneration({
         return next;
       });
     }
-  }, [getCurrentImage, selectedEffects, promptText, selectedDuration, slotManager, onVideoCompleted]);
+  }, [getCurrentImage, selectedEffects, promptText, selectedDuration, slotManager, onVideoCompleted, handleError, createErrorMessage]);
 
   return {
     isGenerating,

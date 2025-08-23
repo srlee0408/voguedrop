@@ -125,7 +125,7 @@ export function useManualSave({
     } finally {
       setIsSaving(false);
     }
-  }, [videoClips, textClips, soundClips, soundLanes, aspectRatio, durationInFrames, isSaving]); // projectId, projectTitle은 ref로 관리하므로 제외
+  }, [videoClips, textClips, soundClips, soundLanes, aspectRatio, durationInFrames, isSaving, onSaveSuccess]); // projectId, projectTitle은 ref로 관리하므로 제외
   
   // useCallback 의존성 변경 추적
   console.log('[useManualSave] useCallback 의존성:', { projectId, projectTitle });
