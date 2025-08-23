@@ -5,10 +5,13 @@ import { z } from 'zod';
  */
 export const generateVideoRequestSchema = z.object({
   imageUrl: z.string().min(1, '이미지 URL이 필요합니다.'),
-  effectIds: z.array(z.number()).default([]),
+  effectIds: z.array(z.string()).default([]),
   basePrompt: z.string().optional(),
   modelType: z.enum(['seedance', 'hailo']).optional(),
-  duration: z.string().optional().default('5'),
+  duration: z.string().default('5').refine(val => {
+    const num = parseInt(val);
+    return num >= 1;
+  }, 'Duration must be at least 1 second'),
 });
 
 /**
