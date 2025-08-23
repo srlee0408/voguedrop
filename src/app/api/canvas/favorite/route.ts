@@ -29,7 +29,7 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json({ 
       success: true, 
-      videoId: updatedVideo.job_id,
+      videoId: updatedVideo.id,
       isFavorite: updatedVideo.is_favorite
     });
   } catch (error) {

@@ -1,8 +1,7 @@
 'use client';
 
 import { createContext, useContext, ReactNode } from 'react';
-import { useFavoritesManager } from '../_hooks/useFavoritesManager';
-import type { FavoritesManagerReturn } from '../_types';
+import { useFavorites as useSharedFavorites } from '@/shared/hooks/useFavorites';
 
 /**
  * FavoritesContext - Canvas 생성 결과 즐겨찾기 관리
@@ -30,7 +29,7 @@ import type { FavoritesManagerReturn } from '../_types';
  */
 interface FavoritesContextValue {
   /** 즐겨찾기 관리 객체와 제어 함수들 */
-  favorites: FavoritesManagerReturn;
+  favorites: ReturnType<typeof useSharedFavorites>;
 }
 
 const FavoritesContext = createContext<FavoritesContextValue | undefined>(undefined);
@@ -137,7 +136,7 @@ interface FavoritesProviderProps {
  * ```
  */
 export function FavoritesProvider({ children }: FavoritesProviderProps) {
-  const favorites = useFavoritesManager();
+  const favorites = useSharedFavorites();
 
   const contextValue: FavoritesContextValue = {
     favorites,

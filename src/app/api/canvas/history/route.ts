@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
 
     // 응답 데이터 포맷팅 (민감한 정보 제외)
     const formattedVideos = (data || []).map(video => ({
-      id: video.job_id, // Public-facing ID는 job_id를 계속 사용
+      id: video.id, // UUID를 ID로 사용하여 즐겨찾기 일관성 유지
       videoUrl: video.output_video_url,
       thumbnail: video.input_image_url,
       createdAt: video.created_at,

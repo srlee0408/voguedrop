@@ -80,10 +80,14 @@ export function CanvasLayout(): React.ReactElement {
 
   const handleToggleFavorite = async (videoId: string): Promise<void> => {
     try {
+      const currentIsFavorite = favorites.isFavorite(videoId)
+      const newFavoriteState = !currentIsFavorite
+      
       await favorites.toggleFavorite(videoId)
-      slotManager.updateVideoFavoriteFlag(videoId, favorites.isFavorite(videoId))
+      slotManager.updateVideoFavoriteFlag(videoId, newFavoriteState)
+      
+      // useFavorites 훅에서 이미 모든 필요한 캐시를 무효화하므로 별도 새로고침 불필요
     } catch (error) {
-      // 에러는 useFavoritesManager에서 처리됨
       console.error('Failed to toggle favorite:', error)
     }
   }

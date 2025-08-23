@@ -171,9 +171,11 @@ export async function toggleVideoFavorite(
     .from('video_generations')
     .select('id, job_id, user_id'); // Changed from 'id:id_uuid, job_id, user_id' to 'id, job_id, user_id'
 
-  // videoId가 UUID 형식인지 간단히 확인하여 job_id와 구분
-  if (videoId.includes('-')) { // A simple check for UUID format
-    selectQuery = selectQuery.eq('id', videoId); // Changed from 'id_uuid' to 'id'
+  // videoId가 UUID 형식인지 정확히 확인하여 id와 job_id 구분
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(videoId);
+  
+  if (isUuid) {
+    selectQuery = selectQuery.eq('id', videoId);
   } else {
     selectQuery = selectQuery.eq('job_id', videoId);
   }
@@ -181,7 +183,8 @@ export async function toggleVideoFavorite(
   const { data: existingData, error: selectError } = await selectQuery.single();
 
   if (selectError || !existingData) {
-    throw new Error(`비디오를 찾을 수 없습니다. (ID: ${videoId})`);
+    const idType = isUuid ? 'UUID' : 'job_id';
+    throw new Error(`비디오를 찾을 수 없습니다. (${idType}: ${videoId})`);
   }
 
   // 업데이트 수행

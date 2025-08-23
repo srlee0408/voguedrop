@@ -1,5 +1,6 @@
 import { LibraryModalBase } from '@/shared/components/modals/library/LibraryModalBase';
 import { LibraryModalConfig } from '@/shared/types/library-modal';
+import { useFavorites } from '@/shared/hooks/useFavorites';
 
 interface LibraryModalProps {
   isOpen: boolean;
@@ -13,17 +14,28 @@ interface LibraryModalProps {
 export function LibraryModal({ 
   isOpen, 
   onClose, 
-  favoriteVideos = new Set(), 
+  favoriteVideos = new Set(), // eslint-disable-line @typescript-eslint/no-unused-vars
   onToggleFavorite,
   onProjectSwitch,
   currentProjectName
 }: LibraryModalProps) {
+  // 공통 즐겨찾기 훅 사용
+  const { favoriteIds, toggleFavorite } = useFavorites();
+
   const config: LibraryModalConfig = {
     mode: 'view',
     favorites: {
       enabled: true,
-      favoriteIds: favoriteVideos,
-      onToggle: onToggleFavorite || (() => {})
+      favoriteIds: favoriteIds, // 공통 훅에서 가져온 데이터 사용
+      onToggle: async (videoId: string) => {
+        try {
+          await toggleFavorite(videoId); // 공통 DB 업데이트 로직 사용
+          // 기존 props 콜백도 호출하여 하위 호환성 유지
+          onToggleFavorite?.(videoId);
+        } catch (error) {
+          console.error('Error toggling favorite in LibraryModal:', error);
+        }
+      }
     },
     download: {
       enabled: true

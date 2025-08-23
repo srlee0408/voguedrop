@@ -14,7 +14,6 @@ import {
   useSlot,
   useSettings,
   useModals,
-  useFavorites,
   useEffects,
   useGeneration
 } from '../_context/CanvasProviders'
@@ -29,7 +28,6 @@ export function CanvasModals(): React.ReactElement {
   // 분리된 Context들에서 필요한 상태만 구독
   const { modals } = useModals();
   const { settings } = useSettings();
-  const { favorites } = useFavorites();
   const { effects } = useEffects();
   const { slotManager } = useSlot();
   const { 
@@ -50,8 +48,6 @@ export function CanvasModals(): React.ReactElement {
       <LibraryModal
         isOpen={modals.modals.library}
         onClose={() => modals.closeModal('library')}
-        favoriteVideos={favorites.favoriteIds}
-        onToggleFavorite={favorites.toggleFavorite}
         onProjectSwitch={handleProjectSwitch}
       />
 

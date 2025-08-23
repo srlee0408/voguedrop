@@ -14,14 +14,14 @@ export async function GET() {
       );
     }
 
-    // 즐겨찾기된 비디오의 job_id만 조회
+    // 즐겨찾기된 비디오의 id(UUID)만 조회
     const { data: videos, error } = await supabase
       .from('video_generations')
-      .select('job_id')
+      .select('id')
       .eq('user_id', user.id)
       .eq('is_favorite', true)
       .eq('status', 'completed')
-      .not('job_id', 'is', null);
+      .not('id', 'is', null);
 
     if (error) {
       console.error('Favorites fetch error:', error);
@@ -31,9 +31,9 @@ export async function GET() {
       );
     }
 
-    // job_id 배열만 반환
+    // UUID 배열만 반환
     const favoriteIds = (videos || [])
-      .map(v => v.job_id)
+      .map(v => v.id)
       .filter(Boolean);
 
     return NextResponse.json({

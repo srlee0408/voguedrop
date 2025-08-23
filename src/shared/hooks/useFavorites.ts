@@ -3,7 +3,19 @@
 import { useCallback, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/shared/lib/auth/AuthContext'
-import type { FavoritesManagerReturn, FavoritesApiResponse } from '../_types'
+
+interface FavoritesApiResponse {
+  favoriteIds: string[]
+}
+
+interface FavoritesReturn {
+  favoriteIds: Set<string>
+  isLoading: boolean
+  error: string | null
+  toggleFavorite: (videoId: string) => Promise<void>
+  isFavorite: (videoId: string) => boolean
+  refreshFavorites: () => Promise<void>
+}
 
 // API 호출 함수들
 const fetchFavorites = async (userId: string | null): Promise<string[]> => {
@@ -38,15 +50,17 @@ const updateFavoriteStatus = async ({
   })
 
   if (!response.ok) {
-    throw new Error(`Failed to toggle favorite: ${response.status}`)
+    const errorData = await response.json().catch(() => ({}))
+    throw new Error(errorData.error || `Failed to toggle favorite: ${response.status}`)
   }
 }
 
 /**
- * 즐겨찾기 상태와 API 통신을 관리하는 훅
+ * 전역 즐겨찾기 상태와 API 통신을 관리하는 공통 훅
+ * Canvas 슬롯과 Library 모달에서 공유하여 일관된 즐겨찾기 관리를 제공합니다.
  * React Query를 사용하여 캐싱과 낙관적 업데이트를 제공합니다.
  */
-export function useFavoritesManager(): FavoritesManagerReturn {
+export function useFavorites(): FavoritesReturn {
   const { user } = useAuth()
   const queryClient = useQueryClient()
   
@@ -92,15 +106,19 @@ export function useFavoritesManager(): FavoritesManagerReturn {
     onSettled: () => {
       // 완료 후 쿼리 무효화 (서버 상태와 동기화)
       queryClient.invalidateQueries({ queryKey: ['favorites', user?.id] })
+      // 라이브러리 캐시도 무효화하여 즐겨찾기 상태 동기화
+      queryClient.invalidateQueries({ queryKey: ['library'] })
+      // Canvas 히스토리 캐시도 무효화
+      queryClient.invalidateQueries({ queryKey: ['canvas', 'history'] })
     },
   })
 
-  // 즐겨찾기 데이터를 Set으로 변환 (기존 인터페이스 유지)
+  // 즐겨찾기 데이터를 Set으로 변환
   const favoriteIds = useMemo(() => {
     return new Set(favoritesQuery.data || [])
   }, [favoritesQuery.data])
 
-  // 즐겨찾기 토글 (기존 인터페이스 유지)
+  // 즐겨찾기 토글
   const toggleFavorite = useCallback(async (videoId: string): Promise<void> => {
     if (!user) {
       throw new Error('로그인이 필요합니다.')
@@ -117,7 +135,7 @@ export function useFavoritesManager(): FavoritesManagerReturn {
     }
   }, [favoriteIds, toggleMutation, user])
 
-  // 특정 비디오가 즐겨찾기인지 확인 (기존 인터페이스 유지)
+  // 특정 비디오가 즐겨찾기인지 확인
   const isFavorite = useCallback(
     (videoId: string): boolean => {
       return favoriteIds.has(videoId)
@@ -125,7 +143,7 @@ export function useFavoritesManager(): FavoritesManagerReturn {
     [favoriteIds]
   )
 
-  // 즐겨찾기 새로고침 (기존 인터페이스 유지)
+  // 즐겨찾기 새로고침
   const refreshFavorites = useCallback(async (): Promise<void> => {
     await favoritesQuery.refetch()
   }, [favoritesQuery])

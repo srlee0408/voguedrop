@@ -224,6 +224,7 @@ export function useVideoGeneration({
         if (completedJobs.length > 0) {
           const newVideos: GeneratedVideo[] = completedJobs.map((job: unknown) => {
             const typedJob = job as {
+              id: string;
               jobId: string;
               result: {
                 videoUrl: string;
@@ -234,7 +235,7 @@ export function useVideoGeneration({
               modelType: string;
             };
             return {
-              id: typedJob.jobId,
+              id: typedJob.id,
               url: typedJob.result.videoUrl,
               thumbnail: typedJob.result.thumbnailUrl,
               createdAt: new Date(typedJob.createdAt),

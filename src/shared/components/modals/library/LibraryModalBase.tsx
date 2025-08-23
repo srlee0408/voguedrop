@@ -200,8 +200,8 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
     // Sort clips with favorites first if favorites are enabled
     if (config.favorites?.enabled && config.favorites.favoriteIds) {
       filteredClips.sort((a, b) => {
-        const aIsFavorite = config.favorites!.favoriteIds.has(a.job_id || String(a.id)) || a.is_favorite;
-        const bIsFavorite = config.favorites!.favoriteIds.has(b.job_id || String(b.id)) || b.is_favorite;
+        const aIsFavorite = config.favorites!.favoriteIds.has(String(a.id)) || a.is_favorite;
+        const bIsFavorite = config.favorites!.favoriteIds.has(String(b.id)) || b.is_favorite;
         
         if (aIsFavorite && !bIsFavorite) return -1;
         if (!aIsFavorite && bIsFavorite) return 1;
@@ -350,10 +350,10 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
                           type="clip"
                           isSelected={selectedItems.has(clip.id)}
                           selectionOrder={selectedItems.get(clip.id)}
-                          isFavorite={config.favorites?.favoriteIds?.has(clip.job_id || String(clip.id)) || clip.is_favorite}
-                          isDownloading={downloadingVideos.has(clip.job_id || String(clip.id))}
+                          isFavorite={config.favorites?.favoriteIds?.has(String(clip.id)) || clip.is_favorite}
+                          isDownloading={downloadingVideos.has(String(clip.id))}
                           onSelect={config.selection?.enabled ? () => handleItemSelect(clip.id) : undefined}
-                          onFavoriteToggle={config.favorites?.enabled ? () => config.favorites!.onToggle(clip.job_id || String(clip.id)) : undefined}
+                          onFavoriteToggle={config.favorites?.enabled ? () => config.favorites!.onToggle(String(clip.id)) : undefined}
                           onDownload={config.download?.enabled ? () => handleDownload(clip, 'clip') : undefined}
                           theme={config.theme}
                         />

@@ -66,7 +66,7 @@ export function CanvasHistoryPanel({
     }
 
     fetchVideoHistory();
-  }, [user, slotContents]); // 슬롯 변화에도 재조회하여 실시간 반영
+  }, [user, slotContents]); // 슬롯 변화에 따른 재조회
   return (
     <div className="w-24 flex flex-col items-center space-y-2 ml-4">
       {/* History Title */}

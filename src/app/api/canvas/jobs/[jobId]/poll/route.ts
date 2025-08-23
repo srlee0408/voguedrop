@@ -31,7 +31,7 @@ export async function GET(
     
     const { data: job, error } = await supabase
       .from('video_generations')
-      .select('job_id, status, created_at, input_image_url, output_video_url, error_message, webhook_status, fal_request_id, model_type')
+      .select('id, job_id, status, created_at, input_image_url, output_video_url, error_message, webhook_status, fal_request_id, model_type, is_favorite')
       .eq('job_id', jobId)
       .single();
 
@@ -45,11 +45,15 @@ export async function GET(
     // 이미 완료되었거나 실패한 경우 그대로 반환
     if (job.status === 'completed' || job.status === 'failed') {
       return NextResponse.json({
+        id: job.id,
         jobId: job.job_id,
         status: job.status,
+        createdAt: job.created_at,
+        modelType: job.model_type,
         result: job.status === 'completed' ? {
           videoUrl: job.output_video_url,
-          thumbnailUrl: job.input_image_url
+          thumbnailUrl: job.input_image_url,
+          isFavorite: job.is_favorite || false
         } : null,
         error: job.error_message
       });
@@ -127,11 +131,15 @@ export async function GET(
                   .eq('job_id', jobId);
 
                 return NextResponse.json({
+                  id: job.id,
                   jobId: job.job_id,
                   status: 'completed',
+                  createdAt: job.created_at,
+                  modelType: job.model_type,
                   result: {
                     videoUrl: videoUrl,
-                    thumbnailUrl: job.input_image_url
+                    thumbnailUrl: job.input_image_url,
+                    isFavorite: job.is_favorite || false
                   }
                 });
               }
@@ -152,6 +160,7 @@ export async function GET(
               .eq('job_id', jobId);
 
             return NextResponse.json({
+              id: job.id,
               jobId: job.job_id,
               status: 'failed',
               error: statusData.error || 'Video generation failed'
@@ -161,6 +170,7 @@ export async function GET(
             const queuePosition = statusData.queue_position || 0;
             const progress = Math.max(10, Math.min(30, 30 - (queuePosition * 3)));
             return NextResponse.json({
+              id: job.id,
               jobId: job.job_id,
               status: 'processing',
               progress,
@@ -169,6 +179,7 @@ export async function GET(
           } else if (statusData.status === 'IN_PROGRESS') {
             // 실제 처리 중일 때는 50-85% 구간
             return NextResponse.json({
+              id: job.id,
               jobId: job.job_id,
               status: 'processing',
               progress: 55
@@ -182,6 +193,7 @@ export async function GET(
 
     // 아직 처리 중 - 기본 상태
     return NextResponse.json({
+      id: job.id,
       jobId: job.job_id,
       status: job.status,
       progress: job.status === 'processing' ? 40 : 10
