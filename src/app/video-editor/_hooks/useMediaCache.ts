@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { mediaCache } from '@/lib/cache/media-cache';
 import { extractVideoMetadata, extractVideoThumbnail } from '../_utils/video-metadata';
 
@@ -70,8 +70,10 @@ export function useMediaCache(
   const loadingQueueRef = useRef<string[]>([]);
   const activeLoadsRef = useRef<Set<string>>(new Set());
 
-  // 유효한 URL만 필터링
-  const validUrls = urls.filter((url): url is string => Boolean(url));
+  // 유효한 URL만 필터링 (메모이제이션으로 무한 리렌더링 방지)
+  const validUrls = useMemo(() => {
+    return urls.filter((url): url is string => Boolean(url));
+  }, [urls]);
 
   // 미디어 타입 감지
   const getMediaType = useCallback((url: string): 'video' | 'audio' | 'image' => {

@@ -134,9 +134,12 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
 
     // Library 전체 데이터 정합성 검증
     const verifyLibraryDataIntegrity = async (expectedClipId: string) => {
-      // 1. 새 클립이 Library에 로드되었는지 확인
-      const allRegularClips = getAllClips(regularQuery.data?.pages || []);
-      const allFavoriteClips = getAllClips(favoritesQuery.data?.pages || []);
+      // 1. 새 클립이 Library에 로드되었는지 확인 (queryClient에서 최신 데이터 조회)
+      const currentRegularData = queryClient.getQueryData(['library-infinite', 'regular', 0]) as any;
+      const currentFavoritesData = queryClient.getQueryData(['library-infinite', 'favorites', 20]) as any;
+      
+      const allRegularClips = getAllClips(currentRegularData?.pages || []);
+      const allFavoriteClips = getAllClips(currentFavoritesData?.pages || []);
       
       const foundInRegular = allRegularClips.some(clip => String(clip.id) === expectedClipId);
       const foundInFavorites = allFavoriteClips.some(clip => String(clip.id) === expectedClipId);
@@ -240,7 +243,7 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
         broadcastChannel.close();
       }
     };
-  }, [queryClient, pathname, isOpen, favoritesQuery.data?.pages, regularQuery.data?.pages]); // 의존성 배열 완성
+  }, [queryClient, pathname, isOpen]); // pages 의존성 제거하여 무한 리렌더링 방지
 
   // 데이터 추출 (기존 인터페이스 호환성 유지)
   const favoriteClips = getAllClips(favoritesQuery.data?.pages || []);
