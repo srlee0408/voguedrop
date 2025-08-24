@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, InfiniteData } from '@tanstack/react-query';
 import { X, Info, Loader2, Video, Folder, Upload, Heart } from 'lucide-react';
 import { LibraryModalBaseProps, LibraryCategory } from '@/shared/types/library-modal';
 import { LibraryVideo, LibraryProject, UserUploadedVideo, LibraryItem } from '@/shared/types/video-editor';
@@ -13,7 +13,7 @@ import { LibraryCardActions } from './components/LibraryCardActions';
 import { LibrarySidebar } from './components/LibrarySidebar';
 import { LibraryUpload } from './components/LibraryUpload';
 import { VirtualizedLibrarySection } from './components/VirtualizedLibrarySection';
-import { getAllClips } from './hooks/useLibraryInfiniteQuery';
+import { getAllClips, LibraryPage } from './hooks/useLibraryInfiniteQuery';
 
 export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBaseProps) {
   const pathname = usePathname();
@@ -135,8 +135,8 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
     // Library 전체 데이터 정합성 검증
     const verifyLibraryDataIntegrity = async (expectedClipId: string) => {
       // 1. 새 클립이 Library에 로드되었는지 확인 (queryClient에서 최신 데이터 조회)
-      const currentRegularData = queryClient.getQueryData(['library-infinite', 'regular', 0]) as any;
-      const currentFavoritesData = queryClient.getQueryData(['library-infinite', 'favorites', 20]) as any;
+      const currentRegularData = queryClient.getQueryData(['library-infinite', 'regular', 0]) as InfiniteData<LibraryPage> | undefined;
+      const currentFavoritesData = queryClient.getQueryData(['library-infinite', 'favorites', 20]) as InfiniteData<LibraryPage> | undefined;
       
       const allRegularClips = getAllClips(currentRegularData?.pages || []);
       const allFavoriteClips = getAllClips(currentFavoritesData?.pages || []);

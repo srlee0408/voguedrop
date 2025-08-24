@@ -277,7 +277,7 @@ export function useMediaCache(
         }
       }, 0);
     }
-  }, [initialized, getMediaType, extractMetadata, extractThumbnails]);
+  }, [initialized, getMediaType, extractMetadata, extractThumbnails]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 큐 처리 함수
   const processQueue = useCallback(() => {
@@ -291,7 +291,7 @@ export function useMediaCache(
         preloadUrl(url);
       }
     }
-  }, [maxConcurrent]);
+  }, [maxConcurrent]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 자동 프리로드 처리
   useEffect(() => {
