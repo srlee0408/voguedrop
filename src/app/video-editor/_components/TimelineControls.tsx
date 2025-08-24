@@ -29,10 +29,13 @@ export default function TimelineControls({
   const [displayDuration, setDisplayDuration] = useState('00:00.00');
 
   // 시간을 MM:SS.FF 형식으로 포맷팅 (FF는 프레임, 30fps 기준)
+  // 최대 3분(180초)까지만 표시
   const formatTime = (seconds: number): string => {
-    const minutes = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    const frames = Math.floor((seconds % 1) * 30); // 30fps 기준
+    // 3분을 초과하는 경우 3:00.00으로 캡핑
+    const clampedSeconds = Math.min(seconds, 180);
+    const minutes = Math.floor(clampedSeconds / 60);
+    const secs = Math.floor(clampedSeconds % 60);
+    const frames = Math.floor((clampedSeconds % 1) * 30); // 30fps 기준
     
     return `${minutes.toString().padStart(2, '0')}:${secs
       .toString()
@@ -121,10 +124,10 @@ export default function TimelineControls({
         <div className="flex items-center gap-1 ml-2 font-mono text-xs">
           <span className="text-white">{displayTime}</span>
           <span className="text-gray-500">/</span>
-          <span className={totalDuration > 120 ? "text-red-400" : "text-gray-400"}>{displayDuration}</span>
-          {totalDuration > 120 && (
+          <span className={totalDuration > 180 ? "text-red-400" : "text-gray-400"}>{displayDuration}</span>
+          {totalDuration > 180 && (
             <span className="text-red-400 ml-2 text-[14px] font-sans">
-              (Exceeds 2:00 limit)
+              (Exceeds 3:00 limit)
             </span>
           )}
         </div>

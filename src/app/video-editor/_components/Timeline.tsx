@@ -268,7 +268,7 @@ export default function Timeline({
   
   // 기본 스케일로 총 시간 계산 (초 단위) - props로 받거나 직접 계산
   const totalDurationInSeconds = propTotalDuration ?? calculateTimelineDuration(clips, textClips, soundClips, basePixelsPerSecond);
-  const minimumDuration = 120; // 120초 (2분) - 기본 표시 시간
+  const minimumDuration = 180; // 180초 (3분) - 기본 표시 시간
   const bufferTime = 10; // 10초 버퍼
   const timelineLengthInSeconds = Math.max(minimumDuration, Math.ceil(totalDurationInSeconds + bufferTime));
   
@@ -451,7 +451,7 @@ export default function Timeline({
     
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
-    const time = Math.max(0, Math.min(x / pixelsPerSecond, totalDurationInSeconds));
+    const time = Math.max(0, Math.min(x / pixelsPerSecond, Math.min(180, totalDurationInSeconds)));
     onSeek(time);
   };
 
@@ -471,7 +471,7 @@ export default function Timeline({
     
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
-    const time = Math.max(0, Math.min(x / pixelsPerSecond, totalDurationInSeconds));
+    const time = Math.max(0, Math.min(x / pixelsPerSecond, Math.min(180, totalDurationInSeconds)));
     onSeek(time);
   };
 
@@ -837,7 +837,7 @@ export default function Timeline({
       const x = e.clientX - rect.left - 192 + scrollLeft;
       // 직접 계산하여 클로저 이슈 방지 + 초당 과도한 onSeek 호출 제한
       const basePixelsPerSecond = 40;
-      const time = Math.max(0, x / basePixelsPerSecond);
+      const time = Math.max(0, Math.min(x / basePixelsPerSecond, 180)); // 3분(180초) 제한
 
       // 프레임 단위(1/30초)로 스로틀링하여 setState 연쇄 방지
       const quantizedTime = Math.round(time * 30) / 30;
@@ -1109,23 +1109,23 @@ export default function Timeline({
                     </span>
                   ))}
                 </div>
-                {/* 2-minute limit warning line */}
+                {/* 3-minute limit warning line */}
                 <div
                   className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-20"
                   style={{ 
-                    left: `${120 * pixelsPerSecond}px`,
+                    left: `${180 * pixelsPerSecond}px`,
                     boxShadow: '0 0 4px rgba(239, 68, 68, 0.5)'
                   }}
-                  title="2-minute limit"
+                  title="3-minute limit"
                 />
               </div>
             </div>
 
-            {/* 2-minute limit warning line extending across all tracks */}
+            {/* 3-minute limit warning line extending across all tracks */}
             <div
               className="absolute top-8 bottom-0 w-0.5 bg-red-500 opacity-30 z-10 pointer-events-none"
               style={{ 
-                left: `${120 * pixelsPerSecond}px`
+                left: `${180 * pixelsPerSecond}px`
               }}
             />
 
