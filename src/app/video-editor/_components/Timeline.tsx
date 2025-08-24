@@ -6,6 +6,7 @@ import TimelineControls from './TimelineControls';
 import TimelineTrack from './TimelineTrack';
 import TimelinePlayhead from './TimelinePlayhead';
 import TimelineSelectionBox from './TimelineSelectionBox';
+import TimelineGrid from './TimelineGrid';
 import { useDragAndDrop } from '../_hooks/useDragAndDrop';
 import { useSelectionState } from '../_hooks/useSelectionState';
 import { useClips } from '../_context/Providers';
@@ -1207,6 +1208,13 @@ export default function Timeline({
                 onResizeStart={startAdjustSelection}
               />
             )}
+
+            {/* Timeline Grid - 초별 점선 가이드라인 */}
+            <TimelineGrid
+              timelineLengthInSeconds={timelineLengthInSeconds}
+              pixelsPerSecond={pixelsPerSecond}
+              height="100%"
+            />
 
             {/* Playhead */}
             <TimelinePlayhead

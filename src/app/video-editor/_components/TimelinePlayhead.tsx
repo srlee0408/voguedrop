@@ -26,7 +26,7 @@ export default function TimelinePlayhead({
       style={{
         top: '0',
         bottom: '0',
-        left: `${position}px`,
+        left: `${position - 6.5}px`, // Center the 13px wide container on the position
         zIndex: 40,
         width: '13px', // Draggable area width
         cursor: 'ew-resize',

@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { getShortId } from '@/shared/lib/utils';
 import { useClips, usePlayback, useProject, useHistory } from '../_context/Providers';
+import { getAllClipBoundaries, findPreviousBoundary, findNextBoundary } from '../_utils/timeline-helpers';
 import EditorLayout from './EditorLayout';
 import PreviewSection from './PreviewSection';
 import TimelineSection from './TimelineSection';
@@ -55,6 +56,7 @@ export default function VideoEditorClient() {
   const {
     currentTime,
     handlePlayPause,
+    handleSeek,
   } = usePlayback();
   
   // HistoryContext에서 가져오기
@@ -184,6 +186,36 @@ export default function VideoEditorClient() {
           handlePlayPause();
           break;
 
+        case 'ArrowLeft':
+          event.preventDefault();
+          // 이전 클립 경계로 이동
+          const boundaries = getAllClipBoundaries(
+            timelineClips, 
+            textClips, 
+            soundClips, 
+            PIXELS_PER_SECOND
+          );
+          const prevBoundary = findPreviousBoundary(currentTime, boundaries);
+          if (prevBoundary !== null) {
+            handleSeek(prevBoundary);
+          }
+          break;
+
+        case 'ArrowRight':
+          event.preventDefault();
+          // 다음 클립 경계로 이동
+          const rightBoundaries = getAllClipBoundaries(
+            timelineClips, 
+            textClips, 
+            soundClips, 
+            PIXELS_PER_SECOND
+          );
+          const nextBoundary = findNextBoundary(currentTime, rightBoundaries);
+          if (nextBoundary !== null) {
+            handleSeek(nextBoundary);
+          }
+          break;
+
         default:
           break;
       }
@@ -204,9 +236,13 @@ export default function VideoEditorClient() {
     handleUndo,
     handleRedo,
     handlePlayPause,
+    handleSeek,
     canUndo,
     canRedo,
-    currentTime
+    currentTime,
+    timelineClips,
+    textClips,
+    soundClips
   ]);
   
   // 총 프레임 계산
@@ -237,7 +273,6 @@ export default function VideoEditorClient() {
 
   // 기존 프로젝트 열기 핸들러 - projectId로 이동
   const handleProjectSwitch = useCallback((projectId: string) => {
-    console.log('🚀 handleProjectSwitch 호출됨 - projectId:', projectId);
     const shortId = getShortId(projectId);
     router.push(`/video-editor?project=${shortId}`);
   }, [router]);
@@ -251,7 +286,6 @@ export default function VideoEditorClient() {
 
   // 수동 저장 핸들러
   const handleSaveProject = useCallback(async () => {
-    console.log('[VideoEditorClient] handleSaveProject 호출됨 - saveProjectRef.current 존재:', !!saveProjectRef.current);
     if (saveProjectRef.current) {
       await saveProjectRef.current();
     }
@@ -328,7 +362,6 @@ export default function VideoEditorClient() {
         setSaveStatus={setSaveStatus}
         setSaveError={setSaveError}
         onSaveProject={(saveFunc) => {
-          console.log('[VideoEditorClient] saveProjectRef 업데이트 받음 - timestamp:', Date.now());
           saveProjectRef.current = saveFunc;
         }}
         onSaveSuccess={handleSaveSuccess}
