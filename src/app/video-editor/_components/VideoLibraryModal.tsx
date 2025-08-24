@@ -5,11 +5,12 @@ import { LibraryModalConfig } from '@/shared/types/library-modal';
 import { LibraryItem } from '@/shared/types/video-editor';
 
 interface VideoLibraryModalProps {
+  isOpen: boolean;
   onClose: () => void;
   onAddToTimeline: (items: LibraryItem[]) => void;
 }
 
-export default function VideoLibraryModal({ onClose, onAddToTimeline }: VideoLibraryModalProps) {
+export default function VideoLibraryModal({ isOpen, onClose, onAddToTimeline }: VideoLibraryModalProps) {
   const config: LibraryModalConfig = {
     mode: 'selection',
     selection: {
@@ -33,5 +34,5 @@ export default function VideoLibraryModal({ onClose, onAddToTimeline }: VideoLib
     }
   };
 
-  return <LibraryModalBase isOpen={true} onClose={onClose} config={config} />;
+  return <LibraryModalBase isOpen={isOpen} onClose={onClose} config={config} />;
 }

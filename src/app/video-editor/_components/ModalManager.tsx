@@ -59,12 +59,11 @@ export default function ModalManager({
 
   return (
     <>
-      {showVideoLibrary && (
-        <VideoLibraryModal
-          onClose={() => setShowVideoLibrary(false)}
-          onAddToTimeline={handleAddToTimeline}
-        />
-      )}
+      <VideoLibraryModal
+        isOpen={showVideoLibrary}
+        onClose={() => setShowVideoLibrary(false)}
+        onAddToTimeline={handleAddToTimeline}
+      />
 
       {showSoundLibrary && (
         <SoundLibraryModal

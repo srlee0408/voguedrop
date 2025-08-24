@@ -58,33 +58,189 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
 
   // Canvas에서 클립 생성 완료 시 실시간 반영
   useEffect(() => {
-    if (!isOpen) return;
+    // BroadcastChannel은 항상 등록 (모달 상태와 무관하게 실시간 업데이트 준비)
 
-    const handleClipCompleted = (event: CustomEvent) => {
-      console.log('🎬 New clip completed:', event.detail);
+    const refetchLibraryQueries = async (eventData: { clipId: string; videoUrl: string; thumbnailUrl: string; timestamp: number; source: string }) => {
+      // 모달이 열린 상태에서만 처리
+      if (!isOpen) {
+        return;
+      }
       
-      // staleTime 무시하고 강제 새로고침
-      queryClient.invalidateQueries({
-        queryKey: ['library-infinite', 'regular'],
-        refetchType: 'all' // 활성/비활성 상태와 관계없이 모든 쿼리 refetch
-      });
+      // 데이터베이스 동기화 및 데이터 일치성 검증  
+      const verifyClipDataIntegrity = async (expectedData: { clipId: string; videoUrl: string; thumbnailUrl: string; timestamp: number }): Promise<{ verified: boolean; dbData?: unknown }> => {
+        try {
+          const response = await fetch(`/api/canvas/library/verify/${expectedData.clipId}`);
+          if (!response.ok) {
+            return { verified: false };
+          }
+          const result = await response.json();
+          
+          if (!result.exists) {
+            return { verified: false };
+          }
+
+          // BroadcastChannel 데이터와 DB 데이터 비교
+          const dbData = result.clipData;
+          const dataMatches = 
+            dbData.videoUrl === expectedData.videoUrl &&
+            dbData.thumbnailUrl === expectedData.thumbnailUrl &&
+            Math.abs(new Date(dbData.createdAt).getTime() - expectedData.timestamp) < 60000; // 1분 오차 허용
+
+          if (!dataMatches) {
+            console.warn('Data mismatch between BroadcastChannel and DB:', {
+              expected: expectedData,
+              actual: dbData
+            });
+          }
+
+          return { 
+            verified: dataMatches,
+            dbData: dataMatches ? dbData : null
+          };
+        } catch (error) {
+          console.error('Database sync verification failed:', error);
+          return { verified: false };
+        }
+      };
+
+      // BroadcastChannel로 받은 클립 데이터 검증
+      if (eventData.clipId) {
+        const { verified } = await verifyClipDataIntegrity(eventData);
+        if (!verified) {
+          console.warn('Clip data verification failed, skipping library update:', eventData.clipId);
+          return;
+        }
+      }
       
-      // favorites도 업데이트 (새 클립이 즐겨찾기일 수 있음)
-      queryClient.invalidateQueries({
-        queryKey: ['library-infinite', 'favorites'],
-        refetchType: 'all' // 활성/비활성 상태와 관계없이 모든 쿼리 refetch
-      });
-      
-      console.log('📱 Library queries invalidated for real-time update');
+      // 리페치 수행
+      try {
+        await Promise.all([
+          queryClient.refetchQueries({
+            queryKey: ['library-infinite', 'regular'],
+            type: 'all'
+          }),
+          queryClient.refetchQueries({
+            queryKey: ['library-infinite', 'favorites'],
+            type: 'all'
+          })
+        ]);
+
+        // 리페치 후 포괄적인 데이터 정합성 검증
+        await verifyLibraryDataIntegrity(eventData.clipId);
+      } catch (error) {
+        console.error('Failed to refetch library queries:', error);
+      }
     };
+
+    // Library 전체 데이터 정합성 검증
+    const verifyLibraryDataIntegrity = async (expectedClipId: string) => {
+      // 1. 새 클립이 Library에 로드되었는지 확인
+      const allRegularClips = getAllClips(regularQuery.data?.pages || []);
+      const allFavoriteClips = getAllClips(favoritesQuery.data?.pages || []);
+      
+      const foundInRegular = allRegularClips.some(clip => String(clip.id) === expectedClipId);
+      const foundInFavorites = allFavoriteClips.some(clip => String(clip.id) === expectedClipId);
+      const isNewClipLoaded = foundInRegular || foundInFavorites;
+
+      // 2. Library 전체 데이터 완성도 검증
+      const totalLoadedClips = allRegularClips.length;
+      const allLoadedClipIds = allRegularClips.map(clip => String(clip.id));
+
+      try {
+        const integrityResponse = await fetch('/api/canvas/library/integrity', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            clipIds: allLoadedClipIds,
+            expectedCount: totalLoadedClips
+          })
+        });
+
+        if (integrityResponse.ok) {
+          const integrityData = await integrityResponse.json();
+          
+          if (!integrityData.isHealthy) {
+            console.warn('Library data integrity issues detected:', {
+              countMismatch: integrityData.countMismatch,
+              missingClips: integrityData.missingClips,
+              dataIssues: integrityData.dataIntegrityIssues,
+              totalClips: integrityData.totalClips,
+              loadedClips: totalLoadedClips
+            });
+
+            // 데이터 불일치 시 전체 리페치
+            setTimeout(async () => {
+              await Promise.all([
+                queryClient.refetchQueries({
+                  queryKey: ['library-infinite', 'regular'],
+                  type: 'all'
+                }),
+                queryClient.refetchQueries({
+                  queryKey: ['library-infinite', 'favorites'], 
+                  type: 'all'
+                })
+              ]);
+            }, 1000);
+          }
+        }
+      } catch (error) {
+        console.error('Library integrity check failed:', error);
+      }
+
+      // 3. 새 클립이 로드되지 않았을 경우 재시도
+      if (!isNewClipLoaded) {
+        console.warn('New clip not found in library after refetch, retrying:', expectedClipId);
+        
+        setTimeout(async () => {
+          await Promise.all([
+            queryClient.refetchQueries({
+              queryKey: ['library-infinite', 'regular'],
+              type: 'all'
+            }),
+            queryClient.refetchQueries({
+              queryKey: ['library-infinite', 'favorites'], 
+              type: 'all'
+            })
+          ]);
+        }, 2000);
+      }
+    };
+
+    // 같은 탭 내 이벤트 리스너
+    const handleClipCompleted = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      refetchLibraryQueries(customEvent.detail);
+    };
+
+    // 다른 탭 간 BroadcastChannel 리스너
+    let broadcastChannel: BroadcastChannel | null = null;
+    try {
+      broadcastChannel = new BroadcastChannel('voguedrop-clips');
+      
+      const handleBroadcastMessage = (event: MessageEvent) => {
+        if (event.data.type === 'canvas-clip-completed') {
+          refetchLibraryQueries(event.data.data);
+        }
+      };
+
+      broadcastChannel.addEventListener('message', handleBroadcastMessage)
+      
+    } catch (error) {
+      console.warn('❌ BroadcastChannel not supported:', error);
+    }
+
 
     // Canvas 클립 완료 이벤트 리스너 등록
-    window.addEventListener('canvas-clip-completed', handleClipCompleted as EventListener);
+    window.addEventListener('canvas-clip-completed', handleClipCompleted);
     
     return () => {
-      window.removeEventListener('canvas-clip-completed', handleClipCompleted as EventListener);
+      window.removeEventListener('canvas-clip-completed', handleClipCompleted);
+      
+      if (broadcastChannel) {
+        broadcastChannel.close();
+      }
     };
-  }, [isOpen, queryClient]);
+  }, [queryClient, pathname, isOpen, favoritesQuery.data?.pages, regularQuery.data?.pages]); // 의존성 배열 완성
 
   // 데이터 추출 (기존 인터페이스 호환성 유지)
   const favoriteClips = getAllClips(favoritesQuery.data?.pages || []);

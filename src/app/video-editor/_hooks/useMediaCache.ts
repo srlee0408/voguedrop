@@ -139,7 +139,7 @@ export function useMediaCache(
 
       return newState;
     });
-  }, [initialized, validUrls.join(',')]); // 배열 비교 최적화
+  }, [initialized, validUrls]); // validUrls 의존성 추가
 
   // 단일 URL 프리로드 함수
   const preloadUrl = useCallback(async (url: string): Promise<void> => {
@@ -261,7 +261,19 @@ export function useMediaCache(
       }));
     } finally {
       activeLoadsRef.current.delete(url);
-      processQueue();
+      // processQueue 호출을 즉시 실행하여 의존성 순환 방지
+      setTimeout(() => {
+        while (
+          loadingQueueRef.current.length > 0 && 
+          activeLoadsRef.current.size < maxConcurrent
+        ) {
+          const nextUrl = loadingQueueRef.current.shift();
+          if (nextUrl && !activeLoadsRef.current.has(nextUrl)) {
+            activeLoadsRef.current.add(nextUrl);
+            preloadUrl(nextUrl);
+          }
+        }
+      }, 0);
     }
   }, [initialized, getMediaType, extractMetadata, extractThumbnails]);
 
@@ -277,7 +289,7 @@ export function useMediaCache(
         preloadUrl(url);
       }
     }
-  }, [maxConcurrent, preloadUrl]);
+  }, [maxConcurrent]);
 
   // 자동 프리로드 처리
   useEffect(() => {

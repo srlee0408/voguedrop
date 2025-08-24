@@ -222,44 +222,70 @@ export function useVideoGeneration({
           return job.status === "completed";
         });
         if (completedJobs.length > 0) {
-          const newVideos: GeneratedVideo[] = completedJobs.map((job: unknown) => {
-            const typedJob = job as {
-              id: string;
-              jobId: string;
-              result: {
-                videoUrl: string;
-                thumbnailUrl: string;
-                isFavorite?: boolean;
+          const newVideos: GeneratedVideo[] = completedJobs
+            .filter((job: unknown) => {
+              const typedJob = job as { result: { videoUrl?: string } | null };
+              return typedJob.result && typedJob.result.videoUrl;
+            })
+            .map((job: unknown) => {
+              const typedJob = job as {
+                id: string;
+                jobId: string;
+                modelType: string;
+                result: {
+                  videoUrl: string;
+                  thumbnailUrl: string;
+                  isFavorite?: boolean;
+                };
+                createdAt: string;
               };
-              createdAt: string;
-              modelType: string;
-            };
-            return {
-              id: typedJob.id,
-              url: typedJob.result.videoUrl,
-              thumbnail: typedJob.result.thumbnailUrl,
-              createdAt: new Date(typedJob.createdAt),
-              modelType: typedJob.modelType as "seedance" | "hailo",
-              isFavorite: typedJob.result.isFavorite || false,
-            };
-          });
+              return {
+                id: typedJob.id, // 실제 데이터베이스 ID 사용
+                url: typedJob.result.videoUrl,
+                thumbnail: typedJob.result.thumbnailUrl,
+                createdAt: new Date(typedJob.createdAt),
+                modelType: (typedJob.modelType || "hailo") as "seedance" | "hailo",
+                isFavorite: typedJob.result.isFavorite || false,
+              };
+            });
           if (newVideos.length > 0) {
             slotManager.placeVideoInSlot(targetSlot, newVideos[0]);
             onVideoCompleted?.(newVideos[0], targetSlot);
             
             // 🎯 Library에 클립 생성 완료 알림 (실시간 반영)
             if (typeof window !== 'undefined') {
+              const eventData = {
+                clipId: newVideos[0].id,
+                videoUrl: newVideos[0].url,
+                thumbnailUrl: newVideos[0].thumbnail,
+                timestamp: Date.now(),
+                source: 'canvas'
+              };
+
+              // 같은 탭 내 통신 (기존 방식)
               const event = new CustomEvent('canvas-clip-completed', {
-                detail: {
-                  clipId: newVideos[0].id,
-                  videoUrl: newVideos[0].url,
-                  thumbnailUrl: newVideos[0].thumbnail,
-                  timestamp: Date.now(),
-                  source: 'canvas'
-                }
+                detail: eventData
               });
               window.dispatchEvent(event);
-              console.log('🚀 Canvas clip completed event dispatched:', newVideos[0]);
+
+              // 다른 탭 간 통신 (BroadcastChannel)
+              try {
+                const channel = new BroadcastChannel('voguedrop-clips');
+                const message = {
+                  type: 'canvas-clip-completed',
+                  data: eventData
+                };
+                
+                channel.postMessage(message);
+                
+                // 채널 닫기 전에 잠시 대기
+                setTimeout(() => {
+                  channel.close();
+                }, 100);
+                
+              } catch {
+                // BroadcastChannel 에러 시 무시
+              }
             }
           }
         }
