@@ -2,6 +2,7 @@
 
 import { useRef, useEffect, useState } from 'react'
 import Image from 'next/image'
+import { Loader2 } from 'lucide-react'
 
 interface HoverVideoProps {
   src: string
@@ -14,6 +15,7 @@ interface HoverVideoProps {
   isParentHovering?: boolean
   isPreloaded?: boolean
   onLoading?: (loading: boolean) => void
+  showBufferingIndicator?: boolean // 좌측 상단 버퍼링 인디케이터 표시 여부
 }
 
 export function HoverVideo({
@@ -26,10 +28,11 @@ export function HoverVideo({
   fallbackContent,
   isParentHovering,
   isPreloaded = false,
-  onLoading
+  onLoading,
+  showBufferingIndicator = false
 }: HoverVideoProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
-  const [, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
   const [localHover, setLocalHover] = useState(false)
 
   // 하이브리드 hover 상태: isParentHovering이 제공되면 사용, 아니면 자체 hover 사용
@@ -88,6 +91,17 @@ export function HoverVideo({
   const cleanUrl = src.split('?')[0];
   const isVideo = cleanUrl.endsWith('.mp4') || cleanUrl.endsWith('.webm') || cleanUrl.endsWith('.mov') || cleanUrl.includes('video')
 
+  // 버퍼링 인디케이터 컴포넌트 (좌측 상단 고정)
+  const BufferingIndicator = () => {
+    if (!showBufferingIndicator || !isLoading || !isHovered) return null;
+    
+    return (
+      <div className="absolute top-2 left-2 z-50 bg-black/70 backdrop-blur-sm rounded-full p-1 flex items-center justify-center">
+        <Loader2 className="w-3 h-3 animate-spin text-white" />
+      </div>
+    );
+  };
+
   // showMode별 렌더링 분기
   if (showMode === 'thumbnail-first' && thumbnailSrc) {
     // Library Modal 방식: 썸네일 기본, 호버 시 비디오 오버레이
@@ -145,6 +159,9 @@ export function HoverVideo({
             />
           </div>
         )}
+        
+        {/* 버퍼링 인디케이터 */}
+        <BufferingIndicator />
         
         {!src && fallbackContent}
       </div>
@@ -207,6 +224,10 @@ export function HoverVideo({
           onLoading?.(false)
         }}
       />
+      
+      {/* 버퍼링 인디케이터 */}
+      <BufferingIndicator />
+      
       {!src && fallbackContent}
     </div>
   )

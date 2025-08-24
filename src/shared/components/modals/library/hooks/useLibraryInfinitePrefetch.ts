@@ -47,13 +47,13 @@ export function useLibraryInfinitePrefetch() {
   };
 
   const fetchFavorites = async () => {
-    const response = await fetch('/api/canvas/library/favorites?limit=20');
+    const response = await fetch('/api/canvas/library?type=favorites&limit=20&prefetch=true');
     if (!response.ok) throw new Error('Failed to fetch favorites');
     return response.json();
   };
 
   const fetchRegular = async () => {
-    const response = await fetch('/api/canvas/library/regular?limit=20');
+    const response = await fetch('/api/canvas/library?type=regular&limit=20&prefetch=true');
     if (!response.ok) throw new Error('Failed to fetch regular clips');
     return response.json();
   };

@@ -140,3 +140,23 @@ export function CompactInfiniteLoader(props: InfiniteScrollLoaderProps) {
     />
   );
 }
+
+// 좌측 상단 고정 로더 (성능 최적화 버전)
+export function FixedTopLeftLoader({ 
+  isLoading, 
+  message = "Loading more...",
+  className = ""
+}: {
+  isLoading: boolean;
+  message?: string;
+  className?: string;
+}) {
+  if (!isLoading) return null;
+
+  return (
+    <div className={`fixed top-4 left-4 z-50 bg-gray-800/90 backdrop-blur-sm rounded-lg px-3 py-2 flex items-center gap-2 shadow-lg pointer-events-none ${className}`}>
+      <Loader2 className="w-4 h-4 animate-spin text-primary" />
+      <span className="text-sm text-gray-300">{message}</span>
+    </div>
+  );
+}

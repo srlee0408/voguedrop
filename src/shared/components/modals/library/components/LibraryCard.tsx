@@ -126,6 +126,7 @@ export const LibraryCard = memo(function LibraryCard({
             isParentHovering={isHovering}
             isPreloaded={isVideoPreloaded}
             onLoading={setIsVideoBuffering}
+            showBufferingIndicator={false}
           />
         ) : thumbnailUrl ? (
           <Image 
@@ -152,11 +153,11 @@ export const LibraryCard = memo(function LibraryCard({
           </div>
         )}
         
-        {/* Video Loading Indicator - Center */}
+        {/* Video Loading Indicator - Top Left */}
         {isHovering && isVideoBuffering && (
-          <div className="absolute inset-0 flex items-center justify-center z-10">
-            <div className="bg-black/70 p-3 rounded-full flex items-center justify-center">
-              <Loader2 className="w-6 h-6 animate-spin text-white" />
+          <div className="absolute top-2 left-2 z-10">
+            <div className="bg-black/70 backdrop-blur-sm rounded-full p-1 flex items-center justify-center">
+              <Loader2 className="w-4 h-4 animate-spin text-white" />
             </div>
           </div>
         )}

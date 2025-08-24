@@ -20,12 +20,13 @@ export async function GET(request: NextRequest) {
     
     const supabase = await createClient();
 
-    // URL 파라미터 가져오기
+    // URL 파라미터 가져오기 (성능 최적화를 위한 추가 파라미터 지원)
     const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get('limit') || '20'); // 무한스크롤용 기본값 20
+    const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 50); // 최대 50개로 제한
     const type = searchParams.get('type') || 'all'; // 타입 필터: all, favorites, regular, clips, projects, uploads
     const cursor = searchParams.get('cursor'); // 페이지네이션 커서 (created_at 기준)
     const countsOnly = searchParams.get('counts_only') === 'true'; // 카운트만 조회
+    const prefetch = searchParams.get('prefetch') === 'true'; // 프리페칭 모드
 
     // 카운트만 요청하는 경우
     if (countsOnly) {
@@ -221,13 +222,14 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    // 페이지네이션 정보 계산
+    // 페이지네이션 정보 계산 (무한 스크롤 최적화)
     const hasNextPage = sanitizedVideos.length === limit;
     const nextCursor = hasNextPage && sanitizedVideos.length > 0 
       ? sanitizedVideos[sanitizedVideos.length - 1].created_at 
       : undefined;
 
-    return NextResponse.json({
+    // 응답 데이터 구성 (타입별 최적화)
+    const responseData = {
       // 기존 필드들 (backward compatibility)
       videos: sanitizedVideos,
       clips: sanitizedVideos,
@@ -235,7 +237,7 @@ export async function GET(request: NextRequest) {
       uploads: sanitizedUploads,
       count: sanitizedVideos.length,
       
-      // 새로운 페이지네이션 필드들
+      // 새로운 페이지네이션 필드들 (무한 스크롤 최적화)
       data: {
         clips: sanitizedVideos,
         projects: sanitizedProjects,
@@ -250,11 +252,37 @@ export async function GET(request: NextRequest) {
         hasNextPage,
         nextCursor,
         limit,
-        type
+        type,
+        isPrefetch: prefetch
       },
       
-      // 무한 스크롤 지원을 위한 totalCount (실제 DB 카운트)
-      totalCount: hasNextPage ? -1 : sanitizedVideos.length // -1은 더 있음을 의미
+      // 성능 메트릭 (개발/디버깅용)
+      performance: {
+        fetchedAt: new Date().toISOString(),
+        itemCount: sanitizedVideos.length,
+        hasMore: hasNextPage
+      }
+    };
+
+    // 캐싱 헤더 설정 (성능 최적화)
+    const headers = new Headers({
+      'Content-Type': 'application/json',
+    });
+    
+    // 프리페칭의 경우 더 긴 캐시 시간 적용
+    if (prefetch || type === 'favorites') {
+      headers.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
+    } else {
+      headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=120');
+    }
+    
+    // ETag 추가 (데이터 무결성)
+    const etag = `"${user.id}-${type}-${cursor || 'initial'}-${limit}"`;
+    headers.set('ETag', etag);
+
+    return new NextResponse(JSON.stringify(responseData), { 
+      status: 200, 
+      headers 
     });
 
   } catch {

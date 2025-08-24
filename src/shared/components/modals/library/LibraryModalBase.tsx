@@ -6,13 +6,14 @@ import { X, Info, Loader2, Video, Folder, Upload, Heart } from 'lucide-react';
 import { LibraryModalBaseProps, LibraryCategory } from '@/shared/types/library-modal';
 import { LibraryVideo, LibraryProject, UserUploadedVideo, LibraryItem } from '@/shared/types/video-editor';
 import { useLibraryData } from './hooks/useLibraryData';
-import { useLibraryFavorites } from './hooks/useLibraryFavorites';
-import { useLibraryRegular } from './hooks/useLibraryRegular';
+import { useLibraryFavoritesInfinite, useLibraryRegularInfinite } from './hooks/useLibraryInfiniteQuery';
 import { LibraryCard } from './components/LibraryCard';
 import { LibraryCardActions } from './components/LibraryCardActions';
 import { LibrarySidebar } from './components/LibrarySidebar';
 import { LibraryUpload } from './components/LibraryUpload';
 import { LibrarySection } from './components/LibrarySection';
+import { VirtualizedLibrarySection } from './components/VirtualizedLibrarySection';
+import { getAllClips } from './hooks/useLibraryInfiniteQuery';
 
 export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBaseProps) {
   const pathname = usePathname();
@@ -30,33 +31,37 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
     updateCounts
   } = useLibraryData(isOpen, false); // Skip clips loading
 
-  // 즐겨찾기 클립 데이터 (프리페칭된 데이터를 최대한 활용)
-  const {
-    data: favoriteClips,
-    loading: favoritesLoading,
-    error: favoritesError,
-    hasNextPage: favoritesHasNext,
-    isFetchingNextPage: favoritesFetching,
-    fetchNextPage: fetchMoreFavorites,
-    refetch: refetchFavorites
-  } = useLibraryFavorites({ 
-    enabled: isOpen && (activeCategory === 'favorites' || activeCategory === 'clips'),
-    limit: 20
-  });
+  // 즐겨찾기 클립 데이터 (무한 스크롤 최적화)
+  const favoritesQuery = useLibraryFavoritesInfinite(
+    isOpen && (activeCategory === 'favorites' || activeCategory === 'clips'),
+    20,
+    true // prefetch 모드
+  );
 
-  // 일반 클립 데이터 (프리페칭된 데이터를 최대한 활용)
-  const {
-    data: regularClips,
-    loading: regularLoading,
-    error: regularError,
-    hasNextPage: regularHasNext,
-    isFetchingNextPage: regularFetching,
-    fetchNextPage: fetchMoreRegular,
-    refetch: refetchRegular
-  } = useLibraryRegular({ 
-    enabled: isOpen && (activeCategory === 'clips'),
-    limit: 20
-  });
+  // 일반 클립 데이터 (무한 스크롤 최적화)
+  const regularQuery = useLibraryRegularInfinite(
+    isOpen && activeCategory === 'clips',
+    20,
+    true // prefetch 모드
+  );
+
+  // 데이터 추출 (기존 인터페이스 호환성 유지)
+  const favoriteClips = getAllClips(favoritesQuery.data?.pages || []);
+  const regularClips = getAllClips(regularQuery.data?.pages || []);
+  
+  const favoritesLoading = favoritesQuery.isLoading;
+  const favoritesError = favoritesQuery.error;
+  const favoritesHasNext = favoritesQuery.hasNextPage;
+  const favoritesFetching = favoritesQuery.isFetchingNextPage;
+  const fetchMoreFavorites = favoritesQuery.fetchNextPage;
+  const refetchFavorites = favoritesQuery.refetch;
+  
+  const regularLoading = regularQuery.isLoading;
+  const regularError = regularQuery.error;
+  const regularHasNext = regularQuery.hasNextPage;
+  const regularFetching = regularQuery.isFetchingNextPage;
+  const fetchMoreRegular = regularQuery.fetchNextPage;
+  const refetchRegular = regularQuery.refetch;
 
   // 타입 안전성을 위한 명시적 타입 캐스팅
   const safeError = (error: unknown): Error | null => {
@@ -370,7 +375,7 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
           {/* Content Area */}
           <div className="flex-1 overflow-y-auto p-6">
             {activeCategory === 'favorites' && (
-              <LibrarySection
+              <VirtualizedLibrarySection
                 title="Favorites"
                 icon={Heart}
                 items={filteredItems.favorites}
@@ -387,11 +392,12 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
                 onDownload={handleClipDownload}
                 emptyMessage="No favorite clips found"
                 emptyDescription="Add clips to favorites to see them here"
+                showFixedLoader={false}
               />
             )}
             
             {activeCategory === 'clips' && (
-              <LibrarySection
+              <VirtualizedLibrarySection
                 title="Clips"
                 icon={Video}
                 items={filteredItems.regular}
@@ -408,6 +414,7 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
                 onDownload={handleClipDownload}
                 emptyMessage="No clips found"
                 emptyDescription="Generate videos in Canvas to see them here"
+                showFixedLoader={false}
               />
             )}
             

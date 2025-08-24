@@ -25,31 +25,39 @@ interface LibraryApiPageResponse {
   totalCount: number;
 }
 
-// Query Keys for Infinite Query
+// Query Keys for Infinite Query (확장된 타입 지원)
 export const libraryInfiniteQueryKeys = {
   all: ['library-infinite'] as const,
   clips: (limit = 20) => [...libraryInfiniteQueryKeys.all, 'clips', limit] as const,
+  favorites: (limit = 20) => [...libraryInfiniteQueryKeys.all, 'favorites', limit] as const,
+  regular: (limit = 20) => [...libraryInfiniteQueryKeys.all, 'regular', limit] as const,
   projects: (limit = 20) => [...libraryInfiniteQueryKeys.all, 'projects', limit] as const,
   uploads: (limit = 20) => [...libraryInfiniteQueryKeys.all, 'uploads', limit] as const,
   combined: (limit = 20) => [...libraryInfiniteQueryKeys.all, 'combined', limit] as const,
 };
 
-// API 함수들
+// API 함수들 (성능 최적화 및 타입 확장)
 const fetchLibraryPage = async (
   cursor: string | undefined,
   limit = 20,
-  type: 'all' | 'clips' | 'projects' | 'uploads' = 'all'
+  type: 'all' | 'clips' | 'projects' | 'uploads' | 'favorites' | 'regular' = 'all',
+  prefetch = false
 ): Promise<LibraryPage> => {
   const params = new URLSearchParams({
     limit: limit.toString(),
     type: type,
+    ...(prefetch && { prefetch: 'true' })
   });
   
   if (cursor) {
     params.append('cursor', cursor);
   }
   
-  const response = await fetch(`/api/canvas/library?${params.toString()}`);
+  const response = await fetch(`/api/canvas/library?${params.toString()}`, {
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
   
   if (!response.ok) {
     throw new Error(`Failed to fetch library data: ${response.statusText}`);
@@ -129,6 +137,45 @@ export function useLibraryUploadsInfinite(enabled = true, limit = 20) {
         return false;
       }
       return failureCount < 1;
+    },
+  });
+}
+
+// 새로 추가된 훅들 (성능 최적화)
+export function useLibraryFavoritesInfinite(enabled = true, limit = 20, prefetch = false) {
+  return useInfiniteQuery({
+    queryKey: libraryInfiniteQueryKeys.favorites(limit),
+    queryFn: ({ pageParam }) => fetchLibraryPage(pageParam, limit, 'favorites', prefetch),
+    enabled,
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.hasNextPage ? lastPage.nextCursor : undefined,
+    staleTime: prefetch ? 5 * 60 * 1000 : 30 * 1000, // 프리페칭: 5분, 일반: 30초
+    gcTime: prefetch ? 10 * 60 * 1000 : 5 * 60 * 1000, // 프리페칭: 10분, 일반: 5분
+    refetchOnWindowFocus: false,
+    retry: (failureCount, error) => {
+      if (error instanceof Error && error.message.includes('401')) {
+        return false;
+      }
+      return failureCount < 2;
+    },
+  });
+}
+
+export function useLibraryRegularInfinite(enabled = true, limit = 20, prefetch = false) {
+  return useInfiniteQuery({
+    queryKey: libraryInfiniteQueryKeys.regular(limit),
+    queryFn: ({ pageParam }) => fetchLibraryPage(pageParam, limit, 'regular', prefetch),
+    enabled,
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.hasNextPage ? lastPage.nextCursor : undefined,
+    staleTime: prefetch ? 5 * 60 * 1000 : 30 * 1000, // 프리페칭: 5분, 일반: 30초
+    gcTime: prefetch ? 10 * 60 * 1000 : 5 * 60 * 1000, // 프리페칭: 10분, 일반: 5분
+    refetchOnWindowFocus: false,
+    retry: (failureCount, error) => {
+      if (error instanceof Error && error.message.includes('401')) {
+        return false;
+      }
+      return failureCount < 2;
     },
   });
 }
