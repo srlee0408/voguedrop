@@ -32,14 +32,14 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
 
   // 즐겨찾기 클립 데이터 (필요 시에만 로드)
   const favoritesQuery = useLibraryFavoritesInfinite(
-    isOpen && activeCategory === 'favorites',
+    isOpen,
     20,
     false // prefetch 비활성화로 불필요한 로딩 방지
   );
 
   // 일반 클립 데이터 (clips 탭 선택 시에만 로드, 백그라운드에서 미리 준비)
   const regularQuery = useLibraryRegularInfinite(
-    isOpen, 
+    isOpen,
     20,
     false
   );
