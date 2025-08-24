@@ -41,7 +41,7 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
   const regularQuery = useLibraryRegularInfinite(
     isOpen, 
     20,
-    false // 모달이 열리면 백그라운드에서 미리 준비 (즐겨찾기 추가를 위해 필요)
+    false
   );
 
   // 데이터 추출 (기존 인터페이스 호환성 유지)
