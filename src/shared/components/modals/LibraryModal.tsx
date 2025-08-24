@@ -19,14 +19,13 @@ export function LibraryModal({
   onProjectSwitch,
   currentProjectName
 }: LibraryModalProps) {
-  // 공통 즐겨찾기 훅 사용
-  const { favoriteIds, toggleFavorite } = useFavorites();
+  // 공통 즐겨찾기 훅 사용 (favoriteIds는 더 이상 사용하지 않음)
+  const { toggleFavorite } = useFavorites();
 
   const config: LibraryModalConfig = {
     mode: 'view',
     favorites: {
       enabled: true,
-      favoriteIds: favoriteIds, // 공통 훅에서 가져온 데이터 사용
       onToggle: async (videoId: string) => {
         try {
           await toggleFavorite(videoId); // 공통 DB 업데이트 로직 사용

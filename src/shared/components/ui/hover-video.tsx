@@ -38,14 +38,23 @@ export function HoverVideo({
   // 하이브리드 hover 상태: isParentHovering이 제공되면 사용, 아니면 자체 hover 사용
   const isHovered = isParentHovering !== undefined ? isParentHovering : localHover
 
-  // 프리로딩 효과: 프리로드된 비디오는 미리 메타데이터 로드
+  // 프리로딩 효과: 프리로드된 비디오는 미리 전체 비디오 로드
   useEffect(() => {
     const video = videoRef.current
     if (!video || !isPreloaded) return
 
-    // 프리로드된 경우 메타데이터 미리 로드
-    video.preload = "metadata"
+    // 프리로드된 경우 전체 비디오 데이터 미리 로드 (딜레이 해결)
+    video.preload = "auto"
     video.load()
+    
+    // 미리 버퍼링을 시작하여 호버 시 즉시 재생 가능하도록 함
+    const preloadPromise = video.play()
+    preloadPromise.then(() => {
+      video.pause()
+      video.currentTime = 0
+    }).catch(() => {
+      // 자동재생 실패 시 무시 (일반적인 브라우저 정책)
+    })
   }, [isPreloaded])
 
   useEffect(() => {
@@ -53,26 +62,27 @@ export function HoverVideo({
     if (!video) return
 
     if (isHovered) {
-      // 호버 시작 시 로딩 상태 설정
-      setIsLoading(true)
-      onLoading?.(true)
-      
-      // 프리로드된 경우 더 빠른 재생 시작
-      const playPromise = video.play()
-      
-      if (isPreloaded) {
-        // 프리로드된 경우 로딩 상태를 더 빨리 해제
-        setTimeout(() => {
-          setIsLoading(false)
-          onLoading?.(false)
-        }, 100)
-      }
-      
-      playPromise.catch(() => {
-        // Handle autoplay failure silently
+      if (isPreloaded && video.readyState >= 3) {
+        // 프리로드되고 충분히 버퍼링된 경우 즉시 재생 (딜레이 없음)
         setIsLoading(false)
         onLoading?.(false)
-      })
+        video.play().catch(() => {
+          // 자동재생 실패 시 무시
+        })
+      } else {
+        // 일반적인 경우 로딩 상태 표시
+        setIsLoading(true)
+        onLoading?.(true)
+        
+        const playPromise = video.play()
+        playPromise.then(() => {
+          setIsLoading(false)
+          onLoading?.(false)
+        }).catch(() => {
+          setIsLoading(false)
+          onLoading?.(false)
+        })
+      }
     } else {
       video.pause()
       

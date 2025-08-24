@@ -18,7 +18,7 @@ export interface LibraryModalConfig {
   /** 즐겨찾기 설정 */
   favorites?: {
     enabled: boolean;
-    favoriteIds: Set<string>;
+    favoriteIds?: Set<string>; // 선택적 필드로 변경 (서버 응답의 is_favorite 사용)
     onToggle: (videoId: string) => void;
   };
   

@@ -124,7 +124,7 @@ export const LibraryCard = memo(function LibraryCard({
             pauseMode="stop"
             thumbnailObjectFit="contain"
             isParentHovering={isHovering}
-            isPreloaded={isVideoPreloaded}
+            isPreloaded={isVideoPreloaded || priority} // priority 카드는 자동 프리로드
             onLoading={setIsVideoBuffering}
             showBufferingIndicator={false}
           />

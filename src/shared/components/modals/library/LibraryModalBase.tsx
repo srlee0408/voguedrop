@@ -11,7 +11,6 @@ import { LibraryCard } from './components/LibraryCard';
 import { LibraryCardActions } from './components/LibraryCardActions';
 import { LibrarySidebar } from './components/LibrarySidebar';
 import { LibraryUpload } from './components/LibraryUpload';
-import { LibrarySection } from './components/LibrarySection';
 import { VirtualizedLibrarySection } from './components/VirtualizedLibrarySection';
 import { getAllClips } from './hooks/useLibraryInfiniteQuery';
 
@@ -31,18 +30,18 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
     updateCounts
   } = useLibraryData(isOpen, false); // Skip clips loading
 
-  // 즐겨찾기 클립 데이터 (무한 스크롤 최적화)
+  // 즐겨찾기 클립 데이터 (필요 시에만 로드)
   const favoritesQuery = useLibraryFavoritesInfinite(
-    isOpen && (activeCategory === 'favorites' || activeCategory === 'clips'),
+    isOpen && activeCategory === 'favorites',
     20,
-    true // prefetch 모드
+    false // prefetch 비활성화로 불필요한 로딩 방지
   );
 
-  // 일반 클립 데이터 (무한 스크롤 최적화)
+  // 일반 클립 데이터 (clips 탭 선택 시에만 로드, 백그라운드에서 미리 준비)
   const regularQuery = useLibraryRegularInfinite(
-    isOpen && activeCategory === 'clips',
+    isOpen, 
     20,
-    true // prefetch 모드
+    false // 모달이 열리면 백그라운드에서 미리 준비 (즐겨찾기 추가를 위해 필요)
   );
 
   // 데이터 추출 (기존 인터페이스 호환성 유지)
@@ -54,14 +53,12 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
   const favoritesHasNext = favoritesQuery.hasNextPage;
   const favoritesFetching = favoritesQuery.isFetchingNextPage;
   const fetchMoreFavorites = favoritesQuery.fetchNextPage;
-  const refetchFavorites = favoritesQuery.refetch;
   
   const regularLoading = regularQuery.isLoading;
   const regularError = regularQuery.error;
   const regularHasNext = regularQuery.hasNextPage;
   const regularFetching = regularQuery.isFetchingNextPage;
   const fetchMoreRegular = regularQuery.fetchNextPage;
-  const refetchRegular = regularQuery.refetch;
 
   // 타입 안전성을 위한 명시적 타입 캐스팅
   const safeError = (error: unknown): Error | null => {
@@ -280,10 +277,17 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname, onClose, config.onProjectSwitch, config.openProject]);
 
-  // 필터링된 카운트 계산
+  // 필터링된 카운트 계산 (즐겨찾기는 실제 is_favorite 상태를 반영)
   const filteredCounts = useMemo(() => {
+    // 즐겨찾기 카운트는 모든 클립에서 is_favorite=true인 개수를 직접 계산
+    const allClips = [...filteredItems.favorites, ...filteredItems.regular];
+    const uniqueClips = allClips.filter((clip, index, arr) => 
+      arr.findIndex(c => c.id === clip.id) === index
+    );
+    const favoritesCount = uniqueClips.filter(clip => clip.is_favorite).length;
+    
     return {
-      favorites: filteredItems.favorites.length,
+      favorites: favoritesCount,
       clips: filteredItems.regular.length,
       projects: filteredItems.projects.length,
       uploads: filteredItems.uploads.length
@@ -291,13 +295,12 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
   }, [filteredItems]);
 
   // 즐겨찾기 토글 핸들러
-  const handleFavoriteToggle = useCallback(async (videoId: string) => {
+  const handleFavoriteToggle = useCallback((videoId: string) => {
     if (config.favorites?.onToggle) {
-      await config.favorites.onToggle(videoId);
-      // 데이터 다시 가져오기
-      await Promise.all([refetchFavorites(), refetchRegular()]);
+      config.favorites.onToggle(videoId);
+      // React Query의 낙관적 업데이트가 즉시 반영하므로 refetch 불필요
     }
-  }, [config.favorites, refetchFavorites, refetchRegular]);
+  }, [config.favorites]);
 
   // 클립 다운로드 핸들러
   const handleClipDownload = useCallback((clip: LibraryVideo) => {
@@ -383,7 +386,7 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
                 error={safeError(favoritesError)}
                 hasNextPage={favoritesHasNext}
                 isFetchingNextPage={favoritesFetching}
-                onFetchNextPage={fetchMoreFavorites}
+                onFetchNextPage={async () => { await fetchMoreFavorites(); }}
                 config={config}
                 selectedItems={selectedItems}
                 downloadingVideos={downloadingVideos}
@@ -405,7 +408,7 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
                 error={safeError(regularError)}
                 hasNextPage={regularHasNext}
                 isFetchingNextPage={regularFetching}
-                onFetchNextPage={fetchMoreRegular}
+                onFetchNextPage={async () => { await fetchMoreRegular(); }}
                 config={config}
                 selectedItems={selectedItems}
                 downloadingVideos={downloadingVideos}

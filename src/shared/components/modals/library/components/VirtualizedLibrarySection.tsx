@@ -53,7 +53,6 @@ interface VirtualizedLibrarySectionProps {
 // 그리드 설정 상수
 const GRID_COLUMNS = 4;
 const ITEM_HEIGHT = 300; // 카드 높이 + 액션 높이 + 여백
-const ITEM_WIDTH = 280; // 카드 너비 + 여백
 const OVERSCAN = 3; // 화면 밖 렌더링할 행 수
 
 /**
@@ -76,8 +75,7 @@ export const VirtualizedLibrarySection = memo(function VirtualizedLibrarySection
   onFavoriteToggle,
   onDownload,
   emptyMessage = "No clips found",
-  emptyDescription = "Generate videos in Canvas to see them here",
-  showFixedLoader = true
+  emptyDescription = "Generate videos in Canvas to see them here"
 }: VirtualizedLibrarySectionProps) {
   const parentRef = useRef<HTMLDivElement>(null);
   
@@ -104,11 +102,12 @@ export const VirtualizedLibrarySection = memo(function VirtualizedLibrarySection
   });
 
   // 비디오 프리로딩 (가상화된 아이템 기준)
+  const virtualItems = rowVirtualizer.getVirtualItems();
   const visibleItems = useMemo(() => {
-    return rowVirtualizer.getVirtualItems()
+    return virtualItems
       .flatMap(virtualItem => itemRows[virtualItem.index] || [])
       .filter(Boolean);
-  }, [rowVirtualizer.getVirtualItems(), itemRows]);
+  }, [virtualItems, itemRows]);
 
   const { isVideoPreloaded } = useLibraryVideoPreload(visibleItems, {
     enabled: visibleItems.length > 0,
@@ -268,7 +267,7 @@ export const VirtualizedLibrarySection = memo(function VirtualizedLibrarySection
                       <LibraryCardActions
                         item={clip}
                         type="clip"
-                        isFavorite={config.favorites?.favoriteIds?.has(String(clip.id)) || clip.is_favorite}
+                        isFavorite={clip.is_favorite}
                         isDownloading={downloadingVideos.has(String(clip.id))}
                         onFavoriteToggle={config.favorites?.enabled && onFavoriteToggle ? () => onFavoriteToggle(String(clip.id)) : undefined}
                         onDownload={config.download?.enabled && onDownload ? () => onDownload(clip) : undefined}
