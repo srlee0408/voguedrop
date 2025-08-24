@@ -286,15 +286,6 @@ export const VirtualizedLibrarySection = memo(function VirtualizedLibrarySection
           })}
         </div>
       </div>
-      
-      {/* 성능 디버깅 정보 (개발 모드) */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="text-xs text-gray-600 mt-2">
-          Virtual rows: {rowVirtualizer.getVirtualItems().length} / {itemRows.length}
-          {' • '}
-          Visible items: {visibleItems.length} / {items.length}
-        </div>
-      )}
     </div>
   );
 });

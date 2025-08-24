@@ -103,16 +103,14 @@ export default function ModalManager({
         />
       )}
       
-      {showLibrary && (
-        <LibraryModal
-          isOpen={showLibrary}
-          onClose={() => setShowLibrary(false)}
-          favoriteVideos={favoriteVideos}
-          onToggleFavorite={onToggleFavorite}
-          onProjectSwitch={onProjectSwitch}
-          currentProjectName={projectTitle}
-        />
-      )}
+      <LibraryModal
+        isOpen={showLibrary}
+        onClose={() => setShowLibrary(false)}
+        favoriteVideos={favoriteVideos}
+        onToggleFavorite={onToggleFavorite}
+        onProjectSwitch={onProjectSwitch}
+        currentProjectName={projectTitle}
+      />
     </>
   );
 }

@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { X, Info, Loader2, Video, Folder, Upload, Heart } from 'lucide-react';
 import { LibraryModalBaseProps, LibraryCategory } from '@/shared/types/library-modal';
 import { LibraryVideo, LibraryProject, UserUploadedVideo, LibraryItem } from '@/shared/types/video-editor';
@@ -16,11 +17,10 @@ import { getAllClips } from './hooks/useLibraryInfiniteQuery';
 
 export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBaseProps) {
   const pathname = usePathname();
+  const queryClient = useQueryClient();
   const [activeCategory, setActiveCategory] = useState<LibraryCategory>('favorites');
   const [selectedItems, setSelectedItems] = useState<Map<string, number>>(new Map());
   const [isAdding, setIsAdding] = useState(false);
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
   const [downloadingVideos, setDownloadingVideos] = useState<Set<string>>(new Set());
   
   const { 
@@ -30,19 +30,61 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
     updateCounts
   } = useLibraryData(isOpen, false); // Skip clips loading
 
-  // 즐겨찾기 클립 데이터 (필요 시에만 로드)
+  // 즐겨찾기 클립 데이터 (캐싱 최적화 적용)
   const favoritesQuery = useLibraryFavoritesInfinite(
     isOpen,
     20,
-    false // prefetch 비활성화로 불필요한 로딩 방지
+    false, // prefetch 비활성화로 불필요한 로딩 방지
+    {
+      staleTime: 2 * 60 * 1000,    // 2분간 fresh - 즐겨찾기는 자주 변경됨
+      gcTime: 10 * 60 * 1000,      // 10분간 메모리 유지
+      refetchOnWindowFocus: false, // 윈도우 포커스 시 리페치 방지
+      refetchOnMount: false,       // 마운트 시 리페치 방지
+    }
   );
 
-  // 일반 클립 데이터 (clips 탭 선택 시에만 로드, 백그라운드에서 미리 준비)
+  // 일반 클립 데이터 (모든 페이지에서 실시간 반영)
   const regularQuery = useLibraryRegularInfinite(
     isOpen,
-    20,
-    false
+    50,
+    false,
+    {
+      staleTime: 0,                 // 모든 페이지에서 즉시 반영 (실시간 업데이트)
+      gcTime: 15 * 60 * 1000,       // 15분간 메모리 유지
+      refetchOnWindowFocus: false,  // 윈도우 포커스 시 리페치 방지
+      refetchOnMount: false,        // 마운트 시 리페치 방지 (gcTime으로 성능 보장)
+    }
   );
+
+  // Canvas에서 클립 생성 완료 시 실시간 반영
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleClipCompleted = (event: CustomEvent) => {
+      console.log('🎬 New clip completed:', event.detail);
+      
+      // staleTime 무시하고 강제 새로고침
+      queryClient.invalidateQueries({
+        queryKey: ['library-infinite', 'regular'],
+        refetchType: 'all' // 활성/비활성 상태와 관계없이 모든 쿼리 refetch
+      });
+      
+      // favorites도 업데이트 (새 클립이 즐겨찾기일 수 있음)
+      queryClient.invalidateQueries({
+        queryKey: ['library-infinite', 'favorites'],
+        refetchType: 'all' // 활성/비활성 상태와 관계없이 모든 쿼리 refetch
+      });
+      
+      console.log('📱 Library queries invalidated for real-time update');
+    };
+
+    // Canvas 클립 완료 이벤트 리스너 등록
+    window.addEventListener('canvas-clip-completed', handleClipCompleted as EventListener);
+    
+    return () => {
+      window.removeEventListener('canvas-clip-completed', handleClipCompleted as EventListener);
+    };
+  }, [isOpen, queryClient]);
 
   // 데이터 추출 (기존 인터페이스 호환성 유지)
   const favoriteClips = getAllClips(favoritesQuery.data?.pages || []);
@@ -213,44 +255,21 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
 
   // 필터링된 아이템들
   const filteredItems = useMemo(() => {
-    const filterByDate = (date: Date) => {
-      const matchesStartDate = !startDate || date >= new Date(startDate);
-      const matchesEndDate = !endDate || date <= new Date(endDate + 'T23:59:59');
-      return matchesStartDate && matchesEndDate;
-    };
-
-    // 즐겨찾기 클립 필터링
-    const filteredFavorites = config.dateFilter?.enabled 
-      ? favoriteClips.filter(item => filterByDate(new Date(item.created_at)))
-      : favoriteClips;
-
-    // 일반 클립 필터링
-    const filteredRegular = config.dateFilter?.enabled 
-      ? regularClips.filter(item => filterByDate(new Date(item.created_at)))
-      : regularClips;
-      
-    let filteredProjects = config.dateFilter?.enabled
-      ? projectItems.filter(item => filterByDate(new Date(item.updated_at)))
-      : projectItems;
-    
     // 프로젝트 필터 적용 - 비디오가 있는 프로젝트만 표시
+    let filteredProjects = projectItems;
     if (config.projectFilter?.enabled && config.projectFilter.requireVideo) {
       filteredProjects = filteredProjects.filter(project => 
         project.latest_video_url && project.latest_video_url.trim() !== ''
       );
     }
-      
-    const filteredUploads = config.dateFilter?.enabled
-      ? uploadItems.filter(item => filterByDate(new Date(item.uploaded_at)))
-      : uploadItems;
 
     return { 
-      favorites: filteredFavorites, 
-      regular: filteredRegular, 
+      favorites: favoriteClips, 
+      regular: regularClips, 
       projects: filteredProjects, 
-      uploads: filteredUploads 
+      uploads: uploadItems 
     };
-  }, [favoriteClips, regularClips, projectItems, uploadItems, startDate, endDate, config.dateFilter, config.projectFilter]);
+  }, [favoriteClips, regularClips, projectItems, uploadItems, config.projectFilter]);
 
   // 업로드 완료 핸들러
   const handleUploadComplete = useCallback((video: UserUploadedVideo) => {
@@ -360,13 +379,6 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
             activeCategory={activeCategory}
             onCategoryChange={handleCategoryChange}
             counts={filteredCounts}
-            dateFilter={config.dateFilter?.enabled ? {
-              enabled: true,
-              startDate,
-              endDate,
-              onStartDateChange: setStartDate,
-              onEndDateChange: setEndDate
-            } : undefined}
             uploadSection={activeCategory === 'uploads' ? (
               <LibraryUpload 
                 onUploadComplete={handleUploadComplete}

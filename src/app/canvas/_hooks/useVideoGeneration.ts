@@ -246,6 +246,21 @@ export function useVideoGeneration({
           if (newVideos.length > 0) {
             slotManager.placeVideoInSlot(targetSlot, newVideos[0]);
             onVideoCompleted?.(newVideos[0], targetSlot);
+            
+            // 🎯 Library에 클립 생성 완료 알림 (실시간 반영)
+            if (typeof window !== 'undefined') {
+              const event = new CustomEvent('canvas-clip-completed', {
+                detail: {
+                  clipId: newVideos[0].id,
+                  videoUrl: newVideos[0].url,
+                  thumbnailUrl: newVideos[0].thumbnail,
+                  timestamp: Date.now(),
+                  source: 'canvas'
+                }
+              });
+              window.dispatchEvent(event);
+              console.log('🚀 Canvas clip completed event dispatched:', newVideos[0]);
+            }
           }
         }
 

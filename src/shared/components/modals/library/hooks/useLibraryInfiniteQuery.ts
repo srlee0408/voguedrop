@@ -141,17 +141,32 @@ export function useLibraryUploadsInfinite(enabled = true, limit = 20) {
   });
 }
 
+// Query Options 인터페이스
+interface LibraryQueryOptions {
+  staleTime?: number;
+  gcTime?: number;
+  refetchOnWindowFocus?: boolean;
+  refetchOnMount?: boolean | 'always';
+}
+
 // 새로 추가된 훅들 (성능 최적화)
-export function useLibraryFavoritesInfinite(enabled = true, limit = 20, prefetch = false) {
+export function useLibraryFavoritesInfinite(
+  enabled = true, 
+  limit = 20, 
+  prefetch = false,
+  options?: LibraryQueryOptions
+) {
   return useInfiniteQuery({
     queryKey: libraryInfiniteQueryKeys.favorites(limit),
     queryFn: ({ pageParam }) => fetchLibraryPage(pageParam, limit, 'favorites', prefetch),
     enabled,
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.hasNextPage ? lastPage.nextCursor : undefined,
-    staleTime: prefetch ? 5 * 60 * 1000 : 30 * 1000, // 프리페칭: 5분, 일반: 30초
-    gcTime: prefetch ? 10 * 60 * 1000 : 5 * 60 * 1000, // 프리페칭: 10분, 일반: 5분
-    refetchOnWindowFocus: false,
+    // 커스텀 옵션 우선, 없으면 기본값 사용
+    staleTime: options?.staleTime ?? (prefetch ? 5 * 60 * 1000 : 30 * 1000),
+    gcTime: options?.gcTime ?? (prefetch ? 10 * 60 * 1000 : 5 * 60 * 1000),
+    refetchOnWindowFocus: options?.refetchOnWindowFocus ?? false,
+    refetchOnMount: options?.refetchOnMount ?? false,
     retry: (failureCount, error) => {
       if (error instanceof Error && error.message.includes('401')) {
         return false;
@@ -161,16 +176,23 @@ export function useLibraryFavoritesInfinite(enabled = true, limit = 20, prefetch
   });
 }
 
-export function useLibraryRegularInfinite(enabled = true, limit = 20, prefetch = false) {
+export function useLibraryRegularInfinite(
+  enabled = true, 
+  limit = 20, 
+  prefetch = false,
+  options?: LibraryQueryOptions
+) {
   return useInfiniteQuery({
     queryKey: libraryInfiniteQueryKeys.regular(limit),
     queryFn: ({ pageParam }) => fetchLibraryPage(pageParam, limit, 'regular', prefetch),
     enabled,
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.hasNextPage ? lastPage.nextCursor : undefined,
-    staleTime: prefetch ? 5 * 60 * 1000 : 30 * 1000, // 프리페칭: 5분, 일반: 30초
-    gcTime: prefetch ? 10 * 60 * 1000 : 5 * 60 * 1000, // 프리페칭: 10분, 일반: 5분
-    refetchOnWindowFocus: false,
+    // 커스텀 옵션 우선, 없으면 기본값 사용
+    staleTime: options?.staleTime ?? (prefetch ? 5 * 60 * 1000 : 30 * 1000),
+    gcTime: options?.gcTime ?? (prefetch ? 10 * 60 * 1000 : 5 * 60 * 1000),
+    refetchOnWindowFocus: options?.refetchOnWindowFocus ?? false,
+    refetchOnMount: options?.refetchOnMount ?? false,
     retry: (failureCount, error) => {
       if (error instanceof Error && error.message.includes('401')) {
         return false;
