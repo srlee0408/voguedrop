@@ -37,14 +37,14 @@ export function LibrarySidebar({
     label: string;
   }> = [
     {
-      id: 'favorites',
-      icon: <Heart className="w-5 h-5" />,
-      label: 'Favorites'
-    },
-    {
       id: 'clips',
       icon: <Video className="w-5 h-5" />,
       label: 'Clips'
+    },
+    {
+      id: 'favorites',
+      icon: <Heart className="w-5 h-5" />,
+      label: 'Favorites'
     },
     {
       id: 'projects',

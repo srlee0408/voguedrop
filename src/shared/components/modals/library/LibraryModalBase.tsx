@@ -18,7 +18,7 @@ import { getAllClips } from './hooks/useLibraryInfiniteQuery';
 export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBaseProps) {
   const pathname = usePathname();
   const queryClient = useQueryClient();
-  const [activeCategory, setActiveCategory] = useState<LibraryCategory>('favorites');
+  const [activeCategory, setActiveCategory] = useState<LibraryCategory>('clips');
   const [selectedItems, setSelectedItems] = useState<Map<string, number>>(new Map());
   const [isAdding, setIsAdding] = useState(false);
   const [downloadingVideos, setDownloadingVideos] = useState<Set<string>>(new Set());
