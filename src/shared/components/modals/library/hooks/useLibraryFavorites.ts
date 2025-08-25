@@ -1,6 +1,9 @@
 import { useInfiniteQuery, InfiniteData } from '@tanstack/react-query';
 import { LibraryResponse } from '@/shared/types/library-modal';
 import { LibraryVideo } from '@/shared/types/video-editor';
+// cache keys는 이 훅에서 직접 사용하지 않음
+import { LIBRARY_CACHE_POLICY } from '../constants/cache-policy';
+import { fetchFavoritesPage } from '../_services/api';
 
 /**
  * useLibraryFavorites 훅 옵션
@@ -27,41 +30,9 @@ interface UseLibraryFavoritesReturn {
 }
 
 /**
- * 즐겨찾기 클립을 페이지별로 가져오는 API 함수
- * PROJECT_GUIDE.md API 패턴에 따른 명시적 타입 정의
- */
-async function fetchFavoritesPage(
-  pageParam: string | undefined,
-  limit: number
-): Promise<LibraryResponse> {
-  const params = new URLSearchParams({
-    limit: limit.toString()
-  });
-  
-  if (pageParam) {
-    params.set('cursor', pageParam);
-  }
-
-  const response = await fetch(`/api/canvas/library/favorites?${params}`, {
-    cache: 'no-store',
-    headers: {
-      'Cache-Control': 'no-store'
-    }
-  });
-  
-  if (!response.ok) {
-    const errorMessage = `Failed to fetch favorite clips (${response.status})`;
-    throw new Error(errorMessage);
-  }
-
-  return response.json();
-}
-
-/**
  * 즐겨찾기 클립 데이터를 관리하는 커스텀 훅
- * PROJECT_GUIDE.md React Query 패턴 준수
- * @param options 훅 설정 옵션
- * @returns 즐겨찾기 클립 데이터와 관련 상태/메서드
+ * - API 서비스 사용
+ * - 중앙 캐시 정책 사용
  */
 export function useLibraryFavorites({
   enabled = true,
@@ -83,15 +54,15 @@ export function useLibraryFavorites({
     string | undefined
   >({
     queryKey: ['library', 'favorites', limit],
-    queryFn: ({ pageParam }) => fetchFavoritesPage(pageParam, limit),
+    queryFn: ({ pageParam }) => fetchFavoritesPage({ limit, cursor: pageParam }),
     initialPageParam: undefined,
     getNextPageParam: (lastPage) => 
       lastPage.pagination?.hasNextPage ? lastPage.pagination.nextCursor : undefined,
     enabled,
-    staleTime: 1000 * 60 * 15, // 15분간 캐시 유지 (프리페칭과 동일)
-    gcTime: 1000 * 60 * 30,    // 30분 후 가비지 컬렉션
-    refetchOnMount: false,     // 캐시 우선 사용
-    refetchOnReconnect: false, // 네트워크 재연결 시 자동 refetch 비활성화
+    staleTime: LIBRARY_CACHE_POLICY.favorites.staleTime,
+    gcTime: LIBRARY_CACHE_POLICY.favorites.gcTime,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
   });
 
   // 모든 페이지의 데이터를 평면화

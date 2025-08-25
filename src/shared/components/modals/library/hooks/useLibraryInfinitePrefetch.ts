@@ -2,6 +2,7 @@ import { useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { LIBRARY_CACHE_KEYS } from '../constants/cache-keys';
 import { useAuth } from '@/shared/lib/auth/AuthContext';
+import { fetchLibraryCounts, fetchLibraryPage } from '../_services/api';
 
 // 프리페칭 상태 추적을 위한 플래그
 interface InfinitePrefetchFlags {
@@ -28,35 +29,15 @@ export function useLibraryInfinitePrefetch() {
   });
 
   // API 함수들 (첫 페이지만 가져오는 용도)
-  const fetchFirstPageCounts = async () => {
-    const response = await fetch('/api/canvas/library?limit=1&counts_only=true');
-    if (!response.ok) throw new Error('Failed to fetch library counts');
-    return response.json();
-  };
+  const fetchFirstPageCounts = async () => fetchLibraryCounts();
 
-  const fetchFirstPageBasic = async () => {
-    const response = await fetch('/api/canvas/library?limit=10&type=all');
-    if (!response.ok) throw new Error('Failed to fetch first page basic');
-    return response.json();
-  };
+  const fetchFirstPageBasic = async () => fetchLibraryPage({ type: 'all', limit: 10 });
 
-  const fetchFirstPageFull = async () => {
-    const response = await fetch('/api/canvas/library?limit=20&type=all');
-    if (!response.ok) throw new Error('Failed to fetch first page full');
-    return response.json();
-  };
+  const fetchFirstPageFull = async () => fetchLibraryPage({ type: 'all', limit: 20 });
 
-  const fetchFavorites = async () => {
-    const response = await fetch('/api/canvas/library?type=favorites&limit=20&prefetch=true');
-    if (!response.ok) throw new Error('Failed to fetch favorites');
-    return response.json();
-  };
+  const fetchFavorites = async () => fetchLibraryPage({ type: 'favorites', limit: 20, prefetch: true });
 
-  const fetchRegular = async () => {
-    const response = await fetch('/api/canvas/library?type=regular&limit=20&prefetch=true');
-    if (!response.ok) throw new Error('Failed to fetch regular clips');
-    return response.json();
-  };
+  const fetchRegular = async () => fetchLibraryPage({ type: 'regular', limit: 20, prefetch: true });
 
   // 1단계: 카운트 정보만 프리페칭 (매우 빠름)
   const prefetchFirstPageCounts = useCallback(async () => {

@@ -120,3 +120,15 @@ export const CACHE_INVALIDATION_SCOPES = {
     LIBRARY_CACHE_KEYS.base, // 모든 library 캐시
   ]
 } as const;
+
+/**
+ * 캐시 무효화용 공통 predicate 모음
+ * - 가변 세부 키(페이지 크기, 커서 등)에 관계없이 전체 범위를 무효화할 때 사용
+ */
+export const CACHE_INVALIDATION_PREDICATES = {
+  allLibrary: (query: { queryKey: readonly unknown[] }) => query.queryKey[0] === 'library',
+  clips: createCachePredicate('clips'),
+  projects: createCachePredicate('projects'),
+  uploads: createCachePredicate('uploads'),
+  combined: createCachePredicate('combined'),
+} as const;

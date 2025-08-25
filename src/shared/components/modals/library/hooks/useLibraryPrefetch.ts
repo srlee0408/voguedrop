@@ -2,6 +2,7 @@ import { useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { LIBRARY_CACHE_KEYS } from '../constants/cache-keys';
 import { useAuth } from '@/shared/lib/auth/AuthContext';
+import { fetchLibraryCounts } from '../_services/api';
 
 // 프리페칭 상태 추적을 위한 플래그
 interface PrefetchFlags {
@@ -23,23 +24,25 @@ export function useLibraryPrefetch() {
     fullData: false
   });
 
-  // API 함수들
-  const fetchLibraryCounts = async () => {
-    const response = await fetch('/api/canvas/library?counts_only=true');
-    if (!response.ok) throw new Error('Failed to fetch library counts');
-    return response.json();
-  };
-
+  // API 함수들 (서비스 사용)
   const fetchBasicLibraryData = async () => {
-    const response = await fetch('/api/canvas/library?limit=20');
-    if (!response.ok) throw new Error('Failed to fetch basic library data');
-    return response.json();
+    const params = new URLSearchParams({ limit: '20' });
+    const res = await fetch(`/api/canvas/library?${params.toString()}`, {
+      headers: { 'Cache-Control': 'no-store' },
+      cache: 'no-store',
+    });
+    if (!res.ok) throw new Error('Failed to fetch basic library data');
+    return res.json();
   };
 
   const fetchFullLibraryData = async () => {
-    const response = await fetch('/api/canvas/library?limit=50');
-    if (!response.ok) throw new Error('Failed to fetch full library data');
-    return response.json();
+    const params = new URLSearchParams({ limit: '50' });
+    const res = await fetch(`/api/canvas/library?${params.toString()}`, {
+      headers: { 'Cache-Control': 'no-store' },
+      cache: 'no-store',
+    });
+    if (!res.ok) throw new Error('Failed to fetch full library data');
+    return res.json();
   };
 
   // 1단계: 카운트 정보만 프리페칭 (가장 가벼운 데이터)

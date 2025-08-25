@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { useQueryClient, InfiniteData } from '@tanstack/react-query';
-import { LIBRARY_CACHE_KEYS } from '../constants/cache-keys';
+import { LIBRARY_CACHE_KEYS, CACHE_INVALIDATION_PREDICATES } from '../constants/cache-keys';
 import { LibraryPage } from './useLibraryInfiniteQuery';
 
 /**
@@ -65,9 +65,7 @@ export function useSmartCacheManager() {
     delete: {
       immediate: [],
       // 모든 library 관련 쿼리를 전부 무효화 (limit/세부 키 변형 포함)
-      predicates: [
-        (query) => query.queryKey[0] === 'library'
-      ],
+      predicates: [CACHE_INVALIDATION_PREDICATES.allLibrary],
     },
     edit: {
       immediate: [

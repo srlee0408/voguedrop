@@ -3,6 +3,8 @@ import { LibraryVideo, LibraryProject, UserUploadedVideo } from '@/shared/types/
 import { LibraryCounts } from '@/shared/types/library-modal';
 import { LIBRARY_CACHE_KEYS } from '../constants/cache-keys';
 import { LibraryPage } from './useLibraryInfiniteQuery';
+import { LIBRARY_CACHE_POLICY } from '../constants/cache-policy';
+import { fetchLibraryPage } from '../_services/api';
 
 // 통합 라이브러리 데이터 타입
 export interface LibraryData {
@@ -13,37 +15,21 @@ export interface LibraryData {
 }
 
 // API 응답 타입
-interface LibraryApiResponse {
-  clips?: LibraryVideo[];
-  videos?: LibraryVideo[]; // API에서 videos로 반환할 수도 있음
-  projects?: LibraryProject[];
-  uploads?: UserUploadedVideo[];
-  counts?: LibraryCounts;
-}
+// API 응답 타입은 서비스에서 처리하므로 로컬 정의 제거
 
-// Query Keys - 통합된 캐시 키 사용 (deprecated, 직접 LIBRARY_CACHE_KEYS 사용 권장)
-export const libraryQueryKeys = LIBRARY_CACHE_KEYS;
+// 더 이상 별칭을 노출하지 않음. 직접 LIBRARY_CACHE_KEYS만 사용.
 
 // API 함수들
 const fetchLibraryData = async (limit = 50): Promise<LibraryData> => {
-  const response = await fetch(`/api/canvas/library?limit=${limit}`);
-  
-  if (!response.ok) {
-    throw new Error('Failed to fetch library data');
-  }
-  
-  const data: LibraryApiResponse = await response.json();
-  
-  // 응답 데이터 정규화
-  const clips = data.clips || data.videos || [];
-  const projects = data.projects || [];
-  const uploads = data.uploads || [];
-  
+  const res = await fetchLibraryPage({ type: 'all', limit });
+  const clips = res.clips || res.videos || [];
+  const projects = res.projects || [];
+  const uploads = res.uploads || [];
   return {
     clips,
     projects,
     uploads,
-    counts: data.counts || {
+    counts: res.counts || {
       favorites: 0,
       clips: clips.length,
       projects: projects.length,
@@ -73,8 +59,8 @@ export function useLibraryClips(enabled = true, limit = 50) {
     queryKey: LIBRARY_CACHE_KEYS.clips.all(),
     queryFn: () => fetchLibraryClips(limit),
     enabled,
-    staleTime: 5 * 60 * 1000, // 5분간 fresh (실시간성 향상)
-    gcTime: 2 * 60 * 60 * 1000, // 2시간간 캐시 유지 (프리페칭된 데이터 오래 보존)
+    staleTime: LIBRARY_CACHE_POLICY.clips.staleTime,
+    gcTime: LIBRARY_CACHE_POLICY.clips.gcTime,
     retry: (failureCount, error) => {
       // 401 에러 (인증 실패)는 재시도하지 않음
       if (error instanceof Error && error.message.includes('401')) {
@@ -90,8 +76,8 @@ export function useLibraryProjects(enabled = true, limit = 50) {
     queryKey: LIBRARY_CACHE_KEYS.projects.all(),
     queryFn: () => fetchLibraryProjects(limit),
     enabled,
-    staleTime: 15 * 60 * 1000, // 15분간 fresh
-    gcTime: 4 * 60 * 60 * 1000, // 4시간간 캐시 유지 (프로젝트 데이터는 오래 보존)
+    staleTime: LIBRARY_CACHE_POLICY.projects.staleTime,
+    gcTime: LIBRARY_CACHE_POLICY.projects.gcTime,
     retry: (failureCount, error) => {
       if (error instanceof Error && error.message.includes('401')) {
         return false;
@@ -106,8 +92,8 @@ export function useLibraryUploads(enabled = true, limit = 50) {
     queryKey: LIBRARY_CACHE_KEYS.uploads.all(),
     queryFn: () => fetchLibraryUploads(limit),
     enabled,
-    staleTime: 30 * 60 * 1000, // 30분간 fresh
-    gcTime: 6 * 60 * 60 * 1000, // 6시간간 캐시 유지 (업로드 데이터는 가장 오래 보존)
+    staleTime: LIBRARY_CACHE_POLICY.uploads.staleTime,
+    gcTime: LIBRARY_CACHE_POLICY.uploads.gcTime,
     retry: (failureCount, error) => {
       if (error instanceof Error && error.message.includes('401')) {
         return false;
@@ -127,8 +113,8 @@ export function useCombinedLibraryData(enabled = true, limit = 50) {
     queryKey: LIBRARY_CACHE_KEYS.combined.all(limit),
     queryFn: () => fetchLibraryData(limit),
     enabled,
-    staleTime: 10 * 60 * 1000, // 10분간 fresh
-    gcTime: 3 * 60 * 60 * 1000, // 3시간간 캐시 유지 (프리페칭된 통합 데이터는 오래 보존)
+    staleTime: LIBRARY_CACHE_POLICY.combined.staleTime,
+    gcTime: LIBRARY_CACHE_POLICY.combined.gcTime,
     retry: (failureCount, error) => {
       if (error instanceof Error && error.message.includes('401')) {
         return false;

@@ -1,0 +1,147 @@
+---
+alwaysApply: true
+description: Canonical project file/folder structure, feature-first co-location, and where new code should live
+---
+
+# Project Structure Rules
+
+This rule documents the canonical file/folder layout for the project and where new code should live. It complements feature guides and helps the AI navigate the codebase reliably.
+
+## Path mapping
+- All links are relative to the repository root using the special format `(mdc:...)`.
+- For brevity, we refer to TypeScript/TSX under `src/` using these prefixes:
+  - `app/...` → actual path: `src/app/...`
+  - `lib/...` → actual path: `src/lib/...`
+  - `shared/...` → actual path: `src/shared/...`
+
+## Top-level layout
+```
+.
+├── .cursor/rules/
+│   ├── canvas-implementation-guide.mdc
+│   └── project-structure.mdc     # ← this file
+├── docs/                         # Architecture docs & feature guides
+├── lambda/                       # Vercel/Edge Lambda helpers
+├── public/                       # Static assets (fonts, images)
+├── supabase/                     # Edge functions & SQL migrations
+└── src/                          # Application source
+```
+
+## Feature-first co-location
+High-level separation between shared building blocks and feature-specific code:
+```
+src/
+├── shared/                    # Global shared resources
+│   ├── components/            # Reusable UI, modals, layout
+│   ├── hooks/                 # Global hooks (e.g., useTranslation)
+│   ├── lib/                   # Shared libs (auth, supabase, utils)
+│   ├── types/                 # Global type definitions
+│   └── constants/             # Global constants
+└── app/                       # Feature (route)-scoped code
+    ├── canvas/                # Canvas feature (pages, components, hooks)
+    ├── video-editor/          # Video editor feature
+    └── api/                   # Route handlers (Next.js App Router)
+```
+
+## App routes and feature modules
+
+### Canvas feature
+- Entry page: [app/canvas/page.tsx](mdc:app/canvas/page.tsx)
+- Structure:
+```
+app/canvas/
+├── page.tsx
+├── _components/
+│   ├── Canvas.tsx
+│   ├── LeftPanel.tsx
+│   ├── CanvasHistoryPanel.tsx
+│   ├── ImageSection.tsx
+│   ├── CanvasControls.tsx
+│   ├── VideoGenerationProgress.tsx
+│   ├── PrompterSection.tsx
+│   ├── EffectsSection.tsx
+│   └── EffectsGallery.tsx
+├── _context/                  # Canvas-scoped React contexts
+├── _hooks/                    # Canvas-scoped hooks
+├── _services/                 # Canvas-specific client API helpers
+└── _types/
+```
+- Client API helper: [app/canvas/_services/api.ts](mdc:app/canvas/_services/api.ts)
+
+### Video Editor feature
+- Entry page: [app/video-editor/page.tsx](mdc:app/video-editor/page.tsx)
+- Key areas:
+```
+app/video-editor/
+├── _components/               # UI and editor widgets
+├── _context/                  # Editor contexts (Playback, Clip, Project)
+├── _hooks/                    # Editor hooks
+├── _utils/                    # Editor utilities (timeline, clips)
+└── _types/                    # Editor-specific types
+```
+
+### Home and Auth routes
+- Home: [app/(home)/page.tsx](mdc:app/page.tsx)
+- Auth group: [app/(auth)/layout.tsx](mdc:app/(auth)/layout.tsx)
+
+## API routes
+Place route handlers under `app/api/...` using Next.js route conventions.
+
+Key groups:
+- Canvas: [app/api/canvas](mdc:app/api/canvas)
+  - Generate (async): [app/api/canvas/generate-async/route.ts](mdc:app/api/canvas/generate-async/route.ts)
+  - Jobs polling: [app/api/canvas/jobs/[jobId]/route.ts](mdc:app/api/canvas/jobs/[jobId]/route.ts)
+  - History: [app/api/canvas/history/route.ts](mdc:app/api/canvas/history/route.ts)
+  - Effects/Categories: [app/api/canvas/effects/route.ts](mdc:app/api/canvas/effects/route.ts), [app/api/canvas/categories/route.ts](mdc:app/api/canvas/categories/route.ts)
+  - Library: [app/api/canvas/library/route.ts](mdc:app/api/canvas/library/route.ts)
+- Video: [app/api/video](mdc:app/api/video)
+- Sound: [app/api/sound](mdc:app/api/sound)
+- Gallery: [app/api/gallery](mdc:app/api/gallery)
+- Auth: [app/api/auth](mdc:app/api/auth)
+- Webhooks (fal.ai): [app/api/webhooks/fal-ai/route.ts](mdc:app/api/webhooks/fal-ai/route.ts)
+
+## Shared components and modals
+- Reusable UI: [shared/components/ui](mdc:shared/components/ui)
+- Global modals (including Library modal system): [shared/components/modals](mdc:shared/components/modals)
+  - Library modal hooks: [shared/components/modals/library/hooks](mdc:shared/components/modals/library/hooks)
+
+## Libraries and services
+- Canvas services: [lib/services/canvas/generation.service.ts](mdc:lib/services/canvas/generation.service.ts)
+- Video editor services: [lib/services/video-editor](mdc:lib/services/video-editor)
+- Supabase clients: [lib/supabase](mdc:lib/supabase)
+- Monitoring/Logging: [lib/monitoring](mdc:lib/monitoring), [lib/logging](mdc:lib/logging)
+- Utilities: [lib/utils](mdc:lib/utils)
+
+## State, contexts, and hooks
+- Global auth context: [shared/lib/auth/AuthContext.tsx](mdc:shared/lib/auth/AuthContext.tsx)
+- Canvas contexts: [app/canvas/_context](mdc:app/canvas/_context)
+- Global hooks: [lib/hooks](mdc:lib/hooks), [shared/hooks](mdc:shared/hooks)
+
+## Types and constants
+- Shared types: [shared/types](mdc:shared/types)
+- Shared constants: [shared/constants](mdc:shared/constants)
+- Canvas-specific types: [app/canvas/_types](mdc:app/canvas/_types)
+
+## Supabase and data layer
+- Edge functions: [supabase/functions](mdc:supabase/functions)
+- SQL migrations: [supabase/migrations](mdc:supabase/migrations)
+- Seeds: [supabase/seeds](mdc:supabase/seeds)
+
+## Assets and build
+- Static assets: [public](mdc:public)
+- Remotion assets/config: [remotion](mdc:src/remotion), [remotion.config.ts](mdc:remotion.config.ts)
+- Tailwind config: [tailwind.config.ts](mdc:tailwind.config.ts)
+
+## Where to add new code
+- New Canvas UI element → `app/canvas/_components`
+- New Canvas hook/state → `app/canvas/_hooks`
+- New Canvas client API call → `app/canvas/_services/api.ts`
+- New server API route (Canvas) → `app/api/canvas/<feature>/route.ts`
+- Cross-feature reusable UI → `shared/components/ui`
+- Cross-feature modal → `shared/components/modals`
+- Domain service (Canvas/Editor) → `lib/services/<domain>`
+- Shared utility → `lib/utils`
+- Shared types/constants → `shared/types`, `shared/constants`
+
+Follow this structure to keep feature code co-located and shared code reusable across features.
+
