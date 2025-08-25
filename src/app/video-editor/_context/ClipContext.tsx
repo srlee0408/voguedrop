@@ -569,19 +569,31 @@ export function ClipProvider({ children }: ClipProviderProps) {
   // 비디오 클립 위치 업데이트
   const handleUpdateVideoClipPosition = useCallback(async (id: string, newPosition: number) => {
     const { CommonClipManager } = await import('../_utils/common-clip-manager');
-    CommonClipManager.updateClipPosition(id, newPosition, timelineClips, setTimelineClips, saveToHistory);
+
+    CommonClipManager.updateClipPosition(id, newPosition, timelineClips, (updated) => {
+
+      setTimelineClips(updated);
+    }, saveToHistory);
   }, [timelineClips, saveToHistory]);
   
   // 모든 비디오 클립 업데이트
   const handleUpdateAllVideoClips = useCallback(async (newClips: VideoClip[]) => {
     const { CommonClipManager } = await import('../_utils/common-clip-manager');
-    CommonClipManager.updateAllClips(newClips, setTimelineClips, saveToHistory);
+
+    CommonClipManager.updateAllClips(newClips, (updated) => {
+
+      setTimelineClips(updated);
+    }, saveToHistory);
   }, [saveToHistory]);
   
   // 비디오 클립 재정렬
   const handleReorderVideoClips = useCallback(async (newClips: VideoClip[]) => {
     const { CommonClipManager } = await import('../_utils/common-clip-manager');
-    CommonClipManager.reorderClips(newClips, setTimelineClips);
+
+    CommonClipManager.reorderClips(newClips, (updated) => {
+
+      setTimelineClips(updated);
+    });
   }, []);
   
   // 텍스트 클립 추가

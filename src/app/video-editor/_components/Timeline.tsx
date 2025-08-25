@@ -10,7 +10,7 @@ import TimelineGrid from './TimelineGrid';
 import { useDragAndDrop } from '../_hooks/useDragAndDrop';
 import { useSelectionState } from '../_hooks/useSelectionState';
 import { useClips } from '../_context/Providers';
-import { calculateTimelineDuration, generateTimeMarkers } from '../_utils/common-clip-utils';
+import { calculateTimelineDuration, generateTimeMarkers, magneticPositioning } from '../_utils/common-clip-utils';
 import { getClipsForLane, canAddNewLane, getTextClipsForLane, canAddNewTextLane, getVideoClipsForLane, canAddNewVideoLane } from '../_utils/lane-arrangement';
 
 interface TimelineProps {
@@ -79,7 +79,7 @@ export default function Timeline({
   soundLanes = [0], // Default to single lane
   textLanes = [0], // Default to single text lane
   videoLanes = [0], // Default to single video lane
-  onAddClip, // eslint-disable-line @typescript-eslint/no-unused-vars
+  onAddClip: addClipAction, // eslint-disable-line @typescript-eslint/no-unused-vars
   onAddText, // eslint-disable-line @typescript-eslint/no-unused-vars
   onAddSound, // eslint-disable-line @typescript-eslint/no-unused-vars
   onAddSoundLane,
@@ -104,6 +104,9 @@ export default function Timeline({
   onSplitSoundClip,
   onResizeTextClip,
   onResizeSoundClip,
+  onReorderVideoClips,
+  onReorderTextClips,
+  onReorderSoundClips,
   onUpdateVideoClipPosition,
   onUpdateTextClipPosition,
   onResizeVideoClip,
@@ -126,6 +129,7 @@ export default function Timeline({
   canUndo = false,
   canRedo = false,
 }: TimelineProps) {
+
   // 줌 레벨 상태 관리
   const [pixelsPerSecond, setPixelsPerSecond] = useState(initialPixelsPerSecond);
   // Use Context for selection state management
@@ -144,6 +148,13 @@ export default function Timeline({
   
   // State for tracking drag target lane for all clip types
   const [dragTargetLane, setDragTargetLane] = useState<{ laneIndex: number, laneType: 'video' | 'text' | 'sound' } | null>(null);
+  // 드래그 중 마지막 마우스 X 좌표 (고스트 프리뷰 계산용)
+  const [lastMouseX, setLastMouseX] = useState<number | null>(null);
+  const [lastMouseY, setLastMouseY] = useState<number | null>(null);
+  // 새 레인 드롭존 타겟 타입 (video/text/sound)
+  const [newLaneTargetType, setNewLaneTargetType] = useState<'video' | 'text' | 'sound' | null>(null);
+  // 마지막으로 감지된 유효 드래그 레인(마우스 업 시 보정용)
+  const [lastHoverLane, setLastHoverLane] = useState<{ laneIndex: number, laneType: 'video' | 'text' | 'sound' } | null>(null);
   
   // Convert multi-selection to legacy format for compatibility
   const rectSelectedClips = multiSelectedClips;
@@ -212,6 +223,9 @@ export default function Timeline({
   } = useSelectionState();
 
   const playheadRef = useRef<HTMLDivElement>(null);
+  
+  // 최신 레인 정보를 동기적으로 저장하기 위한 ref
+  const latestValidLaneRef = useRef<{ laneIndex: number; laneType: 'video' | 'text' | 'sound' } | null>(null);
 
   // 줌 변경 핸들러
   const handleZoomChange = (direction: 'in' | 'out') => {
@@ -252,57 +266,125 @@ export default function Timeline({
   }, [currentTime, pixelsPerSecond]);
 
   // Helper function to detect target lane from mouse position
-  const detectTargetLane = useCallback((clientY: number, clipType: 'video' | 'text' | 'sound'): { laneIndex: number, laneType: 'video' | 'text' | 'sound' } | null => { // eslint-disable-line @typescript-eslint/no-unused-vars
-    const container = document.querySelector('.timeline-content');
-    if (!container) return null;
+  const detectTargetLane = useCallback((clientY: number, clipType: 'video' | 'text' | 'sound'): { laneIndex: number, laneType: 'video' | 'text' | 'sound' } | null => {
+    const container = selectionContainerRef.current;
+    if (!container) {
+      return null;
+    }
     
-    const rect = container.getBoundingClientRect();
-    const y = clientY - rect.top;
+    // DOM 기반 레인 감지: 실제 클릭 가능한 클립 영역으로 정확히 판단
+    const clipAreas = container.querySelectorAll<HTMLElement>(`[data-clip-area-track-type="${clipType}"]`);
     
-    // Calculate track heights
-    const headerHeight = 32;
-    const videoTrackHeight = 32;
-    const textTrackHeight = 32;
-    const soundTrackHeight = 48; // Each sound lane is 48px
-    
-    let currentY = headerHeight;
-    
-    // Check video lanes (reversed order in DOM)
-    const videoSectionHeight = videoLanes.length * videoTrackHeight;
-    if (y >= currentY && y < currentY + videoSectionHeight) {
-      const videoLaneY = y - currentY;
-      const reversedLaneIndex = Math.floor(videoLaneY / videoTrackHeight);
-      // Convert back to original lane index (reverse the reversal)
-      const laneIndex = videoLanes.length - 1 - reversedLaneIndex;
-      if (laneIndex >= 0 && laneIndex < videoLanes.length) {
-        return { laneIndex: videoLanes[laneIndex], laneType: 'video' };
+    // 1. 먼저 정확한 클립 영역 내에 있는지 확인
+    for (const clipArea of Array.from(clipAreas)) {
+      const r = clipArea.getBoundingClientRect();
+      
+      if (clientY >= r.top && clientY <= r.bottom) {
+        const laneIdAttr = clipArea.getAttribute('data-clip-area-lane-id');
+        const laneIndex = laneIdAttr ? parseInt(laneIdAttr, 10) : NaN;
+        if (!Number.isNaN(laneIndex)) {
+          return { laneIndex, laneType: clipType };
+        }
       }
     }
-    currentY += videoSectionHeight;
     
-    // Check text lanes  
-    const textSectionHeight = textLanes.length * textTrackHeight;
-    if (y >= currentY && y < currentY + textSectionHeight) {
-      const textLaneY = y - currentY;
-      const laneIndex = Math.floor(textLaneY / textTrackHeight);
-      if (laneIndex >= 0 && laneIndex < textLanes.length) {
-        return { laneIndex: textLanes[laneIndex], laneType: 'text' };
-      }
-    }
-    currentY += textSectionHeight;
+    // 2. 클립 영역에서 찾지 못했다면 기존 방식으로도 시도 (대안)
+    const tracks = container.querySelectorAll<HTMLElement>(`[data-track-type="${clipType}"]`);
     
-    // Check sound lanes
-    const soundSectionHeight = soundLanes.length * soundTrackHeight;
-    if (y >= currentY && y < currentY + soundSectionHeight) {
-      const soundLaneY = y - currentY;
-      const laneIndex = Math.floor(soundLaneY / soundTrackHeight);
-      if (laneIndex >= 0 && laneIndex < soundLanes.length) {
-        return { laneIndex: soundLanes[laneIndex], laneType: 'sound' };
+    for (const track of Array.from(tracks)) {
+      const r = track.getBoundingClientRect();
+      // 트랙의 중앙 60% 영역만 감지 (더 정확한 매칭)
+      const centerMargin = (r.bottom - r.top) * 0.2; // 상하 20%씩 마진
+      const adjustedTop = r.top + centerMargin;
+      const adjustedBottom = r.bottom - centerMargin;
+      
+      if (clientY >= adjustedTop && clientY <= adjustedBottom) {
+        const laneIdAttr = track.getAttribute('data-lane-id');
+        const laneIndex = laneIdAttr ? parseInt(laneIdAttr, 10) : NaN;
+        if (!Number.isNaN(laneIndex)) {
+          return { laneIndex, laneType: clipType };
+        }
       }
     }
     
     return null;
-  }, [soundLanes, textLanes, videoLanes]);
+  }, [selectionContainerRef]);
+
+  // 새 레인 드롭존 감지 (각 섹션 하단 24px 영역)
+  const detectNewLaneDropzone = useCallback((clientY: number, clipType: 'video' | 'text' | 'sound'): 'video' | 'text' | 'sound' | null => {
+    const container = selectionContainerRef.current;
+    if (!container) {
+
+      return null;
+    }
+    const rect = container.getBoundingClientRect();
+    const y = clientY - rect.top;
+
+
+    // 섹션 및 높이 설정 (ruler height = 32px)
+    const headerHeight = 32;
+    const videoTrackHeight = 32;
+    const textTrackHeight = 32;
+    const soundTrackHeight = 48;
+
+    let currentY = headerHeight; // ruler 포함
+
+    // 비디오 섹션
+    const videoSectionHeight = videoLanes.length * videoTrackHeight;
+    if (clipType === 'video') {
+      const dropzoneTop = currentY + videoSectionHeight;
+      const dropzoneBottom = dropzoneTop + 24;
+
+      if (y >= dropzoneTop && y <= dropzoneBottom) return 'video';
+    }
+    currentY += videoSectionHeight;
+
+    // 텍스트 섹션
+    const textSectionHeight = textLanes.length * textTrackHeight;
+    if (clipType === 'text') {
+      const dropzoneTop = currentY + textSectionHeight;
+      const dropzoneBottom = dropzoneTop + 24;
+
+      if (y >= dropzoneTop && y <= dropzoneBottom) return 'text';
+    }
+    currentY += textSectionHeight;
+
+    // 사운드 섹션
+    const soundSectionHeight = soundLanes.length * soundTrackHeight;
+    if (clipType === 'sound') {
+      const dropzoneTop = currentY + soundSectionHeight;
+      const dropzoneBottom = dropzoneTop + 24;
+
+      if (y >= dropzoneTop && y <= dropzoneBottom) return 'sound';
+    }
+
+
+    return null;
+  }, [soundLanes, textLanes, videoLanes, selectionContainerRef]);
+
+  // 주어진 Y좌표에서 가장 가까운 레인 찾기 (동일 타입)
+  const findNearestLaneAtY = useCallback((clientY: number, clipType: 'video' | 'text' | 'sound'): { laneIndex: number; laneType: 'video' | 'text' | 'sound' } | null => {
+    const container = selectionContainerRef.current;
+    if (!container) return null;
+    const clipAreas = container.querySelectorAll<HTMLElement>(`[data-clip-area-track-type="${clipType}"]`);
+    let bestCandidate: { laneIndex: number; dist: number } | undefined;
+    Array.from(clipAreas).forEach(clipArea => {
+      const r = clipArea.getBoundingClientRect();
+      const centerY = (r.top + r.bottom) / 2;
+      const dist = Math.abs(clientY - centerY);
+      const laneAttr = clipArea.getAttribute('data-clip-area-lane-id');
+      const laneIdx = laneAttr ? parseInt(laneAttr, 10) : NaN;
+      if (!Number.isNaN(laneIdx)) {
+        if (!bestCandidate || dist < bestCandidate.dist) {
+          bestCandidate = { laneIndex: laneIdx, dist };
+        }
+      }
+    });
+    if (bestCandidate) {
+      return { laneIndex: bestCandidate.laneIndex, laneType: clipType as 'video' | 'text' | 'sound' };
+    }
+    return null;
+  }, [selectionContainerRef]);
 
   // Calculate timeline duration with zoom
   const basePixelsPerSecond = 40;
@@ -316,6 +398,60 @@ export default function Timeline({
   // 줌 적용된 픽셀 값
   const timeMarkers = generateTimeMarkers(timelineLengthInSeconds);
   const playheadPosition = currentTime * pixelsPerSecond;
+
+  // 드래그 고스트 프리뷰 계산 (단순 요청 위치 기준 - 실제 드롭 시 자석 배치 적용)
+  const getGhostPreviewForLane = (
+    laneType: 'video' | 'text' | 'sound',
+    laneIndex: number
+  ): { left: number; width: number } | null => {
+    if (!isDragging || !activeClip || !activeClipType) return null;
+    if (activeClipType !== laneType) return null;
+    if (!dragTargetLane || dragTargetLane.laneType !== laneType || dragTargetLane.laneIndex !== laneIndex) return null;
+
+    // 현재 드래그 델타 계산
+    const deltaScreenPx = (lastMouseX ?? dragStartX) - dragStartX;
+    const zoomRatio = pixelsPerSecond / 40; // 화면(px) → 내부 기준(px) 변환
+    const deltaBasePx = deltaScreenPx / zoomRatio;
+
+    // 활성 클립 데이터 추출
+    let currentPosition = 0;
+    let currentDuration = 120; // fallback width
+    if (activeClipType === 'video') {
+      const clip = clips.find(c => c.id === activeClip);
+      currentPosition = clip?.position ?? 0;
+      currentDuration = clip?.duration ?? 120;
+    } else if (activeClipType === 'text') {
+      const clip = textClips.find(c => c.id === activeClip);
+      currentPosition = clip?.position ?? 0;
+      currentDuration = clip?.duration ?? 120;
+    } else if (activeClipType === 'sound') {
+      const clip = soundClips.find(c => c.id === activeClip);
+      currentPosition = clip?.position ?? 0;
+      currentDuration = clip?.duration ?? 120;
+    }
+
+    const requestedPosition = Math.max(0, currentPosition + deltaBasePx);
+
+    // 대상 레인의 클립 목록 수집
+    let laneClips: Array<{ id: string; position: number; duration: number }> = [];
+    if (laneType === 'video') {
+      laneClips = getVideoClipsForLane(clips, laneIndex) as Array<{ id: string; position: number; duration: number }>;
+    } else if (laneType === 'text') {
+      laneClips = getTextClipsForLane(textClips, laneIndex) as Array<{ id: string; position: number; duration: number }>;
+    } else if (laneType === 'sound') {
+      laneClips = getClipsForLane(soundClips, laneIndex) as Array<{ id: string; position: number; duration: number }>;
+    }
+
+    // 드롭 시와 동일한 자석 배치 로직으로 프리뷰 위치 계산
+    const { targetPosition } = magneticPositioning(
+      laneClips,
+      activeClip,
+      requestedPosition,
+      currentDuration
+    );
+
+    return { left: targetPosition, width: currentDuration };
+  };
 
   // Update rect selected clips based on selection area
   const updateRectSelectedClips = (left: number, right: number, top: number, bottom: number) => {
@@ -365,6 +501,7 @@ export default function Timeline({
     startDrag(e.clientX);
     setActiveClipInfo(clipId, clipType);
     selectClip(clipId, clipType);
+
   };
 
   // Handle resize start
@@ -560,14 +697,34 @@ export default function Timeline({
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       // Store last mouse event for lane detection
-      // setLastMouseEvent(e);
+      setLastMouseX(e.clientX);
+      setLastMouseY(e.clientY);
       
       if (!activeClip) return;
 
       // For all clip types, detect target lane during drag
       if (isDragging && activeClipType) {
-        const targetLane = detectTargetLane(e.clientY, activeClipType);
+        let targetLane = detectTargetLane(e.clientY, activeClipType);
+        
+        // fallback: 정확한 트랙 영역에 없을 때 가장 가까운 레인 찾기
+        if (!targetLane) {
+          targetLane = findNearestLaneAtY(e.clientY, activeClipType);
+        }
+
         setDragTargetLane(targetLane);
+        if (targetLane) {
+          setLastHoverLane(targetLane);
+          // 유효한 레인 정보를 ref에 동기적으로 저장
+          latestValidLaneRef.current = targetLane;
+        }
+        // 기존 레인이 감지되지 않을 때만 새 레인 드롭존 감지
+        if (!targetLane) {
+          const newLaneType = detectNewLaneDropzone(e.clientY, activeClipType);
+          setNewLaneTargetType(newLaneType);
+
+        } else {
+          setNewLaneTargetType(null);
+        }
       }
 
       if (isResizing) {
@@ -672,14 +829,78 @@ export default function Timeline({
     };
 
     const handleMouseUp = () => {
+      // 드래그 상태가 초기화되기 전에 현재 값들을 미리 캡처
+      const currentDragTargetLane = dragTargetLane;
+      const currentLastHoverLane = lastHoverLane;
+      
+      // 더 확실한 방법: 드래그 중 마지막으로 유효했던 레인 사용 (드롭 시점 감지는 부정확할 수 있음)
+      let dropDetectedLane: { laneIndex: number; laneType: 'video' | 'text' | 'sound' } | null = null;
+      if (lastMouseY !== null && activeClipType) {
+        dropDetectedLane = detectTargetLane(lastMouseY, activeClipType) || findNearestLaneAtY(lastMouseY, activeClipType);
+      }
+      
+      // ref에서 최신 유효 레인 정보 가져오기
+      const latestValidLane = latestValidLaneRef.current;
+      
       if (activeClip) {
         const clipElement = document.querySelector(`[data-clip-id="${activeClip}"]`) as HTMLElement;
         
         if (clipElement && isDragging) {
-          const delta = parseFloat(clipElement.style.transform.replace(/translateX\(|px\)/g, '')) || 0;
+          const parsed = clipElement.style.transform
+            ? parseFloat(clipElement.style.transform.replace(/translateX\(|px\)/g, ''))
+            : NaN;
+          // 화면 px → 내부 기준 px 변환 (40px/sec 기준)
+          const zoomRatio = pixelsPerSecond / 40;
+          const deltaScreenPx = Number.isFinite(parsed)
+            ? parsed
+            : ((lastMouseX !== null ? lastMouseX - dragStartX : 0));
+          const delta = deltaScreenPx / zoomRatio;
 
           // 다중 선택 이동: 선택된 각 타입별로 독립 적용 (레인 구조 유지)
           const hasMulti = rectSelectedClips && rectSelectedClips.length > 0;
+          
+          // 새 레인 드롭존으로 드롭한 경우: 레인 추가 후 타겟 레인 지정
+          let overrideTargetLane: { laneIndex: number, laneType: 'video' | 'text' | 'sound' } | null = null;
+          if (newLaneTargetType && activeClipType === newLaneTargetType) {
+            if (newLaneTargetType === 'video' && onAddVideoLane && canAddNewVideoLane(videoLanes)) {
+              const newLaneIndex = videoLanes.length; // 새 레인 인덱스 예상
+              onAddVideoLane();
+              overrideTargetLane = { laneIndex: newLaneIndex, laneType: 'video' };
+            } else if (newLaneTargetType === 'text' && onAddTextLane && canAddNewTextLane(textLanes)) {
+              const newLaneIndex = textLanes.length;
+              onAddTextLane();
+              overrideTargetLane = { laneIndex: newLaneIndex, laneType: 'text' };
+            } else if (newLaneTargetType === 'sound' && onAddSoundLane && canAddNewLane(soundLanes)) {
+              const newLaneIndex = soundLanes.length;
+              onAddSoundLane();
+              overrideTargetLane = { laneIndex: newLaneIndex, laneType: 'sound' };
+            }
+
+          }
+
+          // 마우스 업 순간의 최종 레인 재평가 (ref의 최신 유효 레인 최우선 사용)
+          let finalResolvedLane = overrideTargetLane ?? latestValidLane ?? dropDetectedLane ?? currentDragTargetLane ?? currentLastHoverLane;
+          if (!finalResolvedLane && lastMouseY !== null && activeClipType) {
+            const detected = detectTargetLane(lastMouseY, activeClipType) || findNearestLaneAtY(lastMouseY, activeClipType);
+            if (detected) {
+              finalResolvedLane = detected;
+            }
+          }
+          // Fallback: elementFromPoint로 최종 클립 영역 직접 히트테스트
+          if (!finalResolvedLane && lastMouseX !== null && lastMouseY !== null && activeClipType) {
+            const el = document.elementFromPoint(lastMouseX, lastMouseY) as HTMLElement | null;
+            const clipAreaEl = el ? el.closest(`[data-clip-area-track-type="${activeClipType}"]`) as HTMLElement | null : null;
+            if (clipAreaEl) {
+              const laneAttr = clipAreaEl.getAttribute('data-clip-area-lane-id');
+              const laneIdx = laneAttr ? parseInt(laneAttr, 10) : NaN;
+              if (!Number.isNaN(laneIdx)) {
+                finalResolvedLane = { laneIndex: laneIdx, laneType: activeClipType };
+
+              }
+            }
+          }
+
+
           
           if (hasMulti) {
             import('../_utils/common-clip-utils').then(({ handleClipDrag }) => {
@@ -688,44 +909,95 @@ export default function Timeline({
                 const videoIds = rectSelectedClips.filter(c => c.type === 'video').map(c => c.id);
                 let working = [...clips];
                 videoIds.forEach(id => {
-                  handleClipDrag(id, 'video', working, delta, dragTargetLane, (newClips) => {
+                  handleClipDrag(id, 'video', working, delta, finalResolvedLane ?? null, (newClips) => {
                     working = newClips;
                   });
                 });
                 onUpdateAllVideoClips(working);
+
+              } else if (onReorderVideoClips) {
+                const videoIds = rectSelectedClips.filter(c => c.type === 'video').map(c => c.id);
+                let working = [...clips];
+                videoIds.forEach(id => {
+                  handleClipDrag(id, 'video', working, delta, finalResolvedLane ?? null, (newClips) => {
+                    working = newClips;
+                  });
+                });
+                onReorderVideoClips(working);
+
               }
               // 텍스트
               if (onUpdateAllTextClips) {
                 const textIds = rectSelectedClips.filter(c => c.type === 'text').map(c => c.id);
                 let workingText = [...textClips];
                 textIds.forEach(id => {
-                  handleClipDrag(id, 'text', workingText, delta, dragTargetLane, (newClips) => {
+                  handleClipDrag(id, 'text', workingText, delta, finalResolvedLane ?? null, (newClips) => {
                     workingText = newClips;
                   });
                 });
                 onUpdateAllTextClips(workingText);
+
+              } else if (onReorderTextClips) {
+                const textIds = rectSelectedClips.filter(c => c.type === 'text').map(c => c.id);
+                let workingText = [...textClips];
+                textIds.forEach(id => {
+                  handleClipDrag(id, 'text', workingText, delta, finalResolvedLane ?? null, (newClips) => {
+                    workingText = newClips;
+                  });
+                });
+                onReorderTextClips(workingText);
+
               }
               // 사운드
               if (onUpdateAllSoundClips) {
                 const soundIds = rectSelectedClips.filter(c => c.type === 'sound').map(c => c.id);
                 let workingSound = [...soundClips];
                 soundIds.forEach(id => {
-                  handleClipDrag(id, 'sound', workingSound, delta, dragTargetLane, (newClips) => {
+                  handleClipDrag(id, 'sound', workingSound, delta, finalResolvedLane ?? null, (newClips) => {
                     workingSound = newClips;
                   });
                 });
                 onUpdateAllSoundClips(workingSound);
+
+              } else if (onReorderSoundClips) {
+                const soundIds = rectSelectedClips.filter(c => c.type === 'sound').map(c => c.id);
+                let workingSound = [...soundClips];
+                soundIds.forEach(id => {
+                  handleClipDrag(id, 'sound', workingSound, delta, finalResolvedLane ?? null, (newClips) => {
+                    workingSound = newClips;
+                  });
+                });
+                onReorderSoundClips(workingSound);
+
               }
             });
           } else {
             // 단일 이동 (기존 동작)
             import('../_utils/common-clip-utils').then(({ handleClipDrag }) => {
-              if (activeClipType === 'video' && onUpdateAllVideoClips) {
-                handleClipDrag(activeClip, 'video', clips, delta, dragTargetLane, onUpdateAllVideoClips);
-              } else if (activeClipType === 'text' && onUpdateAllTextClips) {
-                handleClipDrag(activeClip, 'text', textClips, delta, dragTargetLane, onUpdateAllTextClips);
-              } else if (activeClipType === 'sound' && onUpdateAllSoundClips) {
-                handleClipDrag(activeClip, 'sound', soundClips, delta, dragTargetLane, onUpdateAllSoundClips);
+              if (activeClipType === 'video') {
+                if (onUpdateAllVideoClips) {
+                  handleClipDrag(activeClip, 'video', clips, delta, finalResolvedLane ?? null, onUpdateAllVideoClips);
+
+                } else if (onReorderVideoClips) {
+                  handleClipDrag(activeClip, 'video', clips, delta, finalResolvedLane ?? null, onReorderVideoClips);
+
+                }
+              } else if (activeClipType === 'text') {
+                if (onUpdateAllTextClips) {
+                  handleClipDrag(activeClip, 'text', textClips, delta, finalResolvedLane ?? null, onUpdateAllTextClips);
+
+                } else if (onReorderTextClips) {
+                  handleClipDrag(activeClip, 'text', textClips, delta, finalResolvedLane ?? null, onReorderTextClips);
+
+                }
+              } else if (activeClipType === 'sound') {
+                if (onUpdateAllSoundClips) {
+                  handleClipDrag(activeClip, 'sound', soundClips, delta, finalResolvedLane ?? null, onUpdateAllSoundClips);
+
+                } else if (onReorderSoundClips) {
+                  handleClipDrag(activeClip, 'sound', soundClips, delta, finalResolvedLane ?? null, onReorderSoundClips);
+
+                }
               }
             });
           }
@@ -784,6 +1056,12 @@ export default function Timeline({
       
       setActiveClipInfo(null, null);
       setDragTargetLane(null);
+      setNewLaneTargetType(null);
+      setLastMouseX(null);
+      setLastMouseY(null);
+      // ref 초기화
+      latestValidLaneRef.current = null;
+      setLastHoverLane(null);
       // setLastMouseEvent(null);
       resetDragState();
     };
@@ -1259,8 +1537,21 @@ export default function Timeline({
                 pixelsPerSecond={pixelsPerSecond}
                 isSelectingRange={isSelectingRange}
                 onTrackClick={handleTrackClick}
+                isDragTarget={dragTargetLane?.laneType === 'video' && dragTargetLane?.laneIndex === laneIndex}
+                ghostPreview={getGhostPreviewForLane('video', laneIndex)}
               />
             ))}
+
+            {/* Video New Lane Dropzone */}
+            {isDragging && activeClipType === 'video' && newLaneTargetType === 'video' && canAddNewVideoLane(videoLanes) && (
+              <div className="relative h-6 border-b border-gray-800/70">
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="px-2 py-0.5 text-[10px] rounded bg-sky-900/40 border border-sky-500/50 text-sky-300">
+                    + New Video Lane (drop to create)
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Text tracks - render each lane */}
             {textLanes.map((laneIndex) => (
@@ -1280,8 +1571,21 @@ export default function Timeline({
                 pixelsPerSecond={pixelsPerSecond}
                 isSelectingRange={isSelectingRange}
                 onTrackClick={handleTrackClick}
+                isDragTarget={dragTargetLane?.laneType === 'text' && dragTargetLane?.laneIndex === laneIndex}
+                ghostPreview={getGhostPreviewForLane('text', laneIndex)}
               />
             ))}
+
+            {/* Text New Lane Dropzone */}
+            {isDragging && activeClipType === 'text' && newLaneTargetType === 'text' && canAddNewTextLane(textLanes) && (
+              <div className="relative h-6 border-b border-gray-800/70">
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="px-2 py-0.5 text-[10px] rounded bg-sky-900/40 border border-sky-500/50 text-sky-300">
+                    + New Text Lane (drop to create)
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Sound tracks - render each lane */}
             {soundLanes.map((laneIndex) => (
@@ -1303,8 +1607,21 @@ export default function Timeline({
                 pixelsPerSecond={pixelsPerSecond}
                 isSelectingRange={isSelectingRange}
                 onTrackClick={handleTrackClick}
+                isDragTarget={dragTargetLane?.laneType === 'sound' && dragTargetLane?.laneIndex === laneIndex}
+                ghostPreview={getGhostPreviewForLane('sound', laneIndex)}
               />
             ))}
+
+            {/* Sound New Lane Dropzone */}
+            {isDragging && activeClipType === 'sound' && newLaneTargetType === 'sound' && canAddNewLane(soundLanes) && (
+              <div className="relative h-6">
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="px-2 py-0.5 text-[10px] rounded bg-sky-900/40 border border-sky-500/50 text-sky-300">
+                    + New Sound Lane (drop to create)
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Selection box */}
             {isSelectingRange && selectionBounds && (

@@ -22,6 +22,9 @@ interface TimelineTrackProps {
   pixelsPerSecond?: number;
   isSelectingRange?: boolean;
   onTrackClick?: (e: React.MouseEvent<HTMLDivElement>) => void;
+  // 드래그 타겟 레인 하이라이트 및 고스트 프리뷰 표시용
+  isDragTarget?: boolean;
+  ghostPreview?: { left: number; width: number } | null;
 }
 
 /**
@@ -45,16 +48,19 @@ export default function TimelineTrack({
   pixelsPerSecond = 40,
   isSelectingRange = false,
   onTrackClick,
+  isDragTarget = false,
+  ghostPreview = null,
 }: TimelineTrackProps) {
   // 줌 비율 계산 (기준: 40px/초)
   const zoomRatio = pixelsPerSecond / 40;
+
   
   const renderVideoClip = (clip: VideoClipType) => {
     const isRectSelected = rectSelectedClips.some(c => c.id === clip.id && c.type === 'video');
     const isSelected = selectedClips.includes(clip.id);
     const clipWidth = clip.duration * zoomRatio;
     const isActive = activeClip === clip.id;
-    
+
     return (
       <div 
         key={clip.id}
@@ -90,6 +96,7 @@ export default function TimelineTrack({
     const isRectSelected = rectSelectedClips.some(c => c.id === clip.id && c.type === 'text');
     const isSelected = selectedClips.includes(clip.id);
     const clipWidth = clip.duration * zoomRatio;
+
     
     return (
       <div
@@ -131,6 +138,7 @@ export default function TimelineTrack({
     const isRectSelected = rectSelectedClips.some(c => c.id === clip.id && c.type === 'sound');
     const isSelected = selectedClips.includes(clip.id);
     const clipWidth = clip.duration * zoomRatio;
+
     
     return (
       <div
@@ -197,12 +205,26 @@ export default function TimelineTrack({
 
   return (
     <div 
-      className={`border-b border-gray-700 ${getTrackHeight()} flex items-center`} 
+      className={`border-b border-gray-700 ${getTrackHeight()} flex items-center ${isDragTarget ? 'bg-sky-500/10' : ''}`} 
       onClick={onTrackClick}
-      data-lane-id={type === 'sound' ? laneIndex : undefined}
+      data-lane-id={laneIndex}
       data-track-type={type}
     >
-      <div className={`relative w-full ${getClipContainerHeight()}`}>
+      <div 
+        className={`relative w-full ${getClipContainerHeight()}`}
+        data-clip-area-lane-id={laneIndex}
+        data-clip-area-track-type={type}
+      >
+        {/* 드래그 중 고스트 프리뷰 */}
+        {ghostPreview && (
+          <div
+            className="absolute top-0 h-full border-2 border-dashed border-sky-400/60 bg-sky-400/10 rounded pointer-events-none z-[5]"
+            style={{
+              left: `${ghostPreview.left * zoomRatio}px`,
+              width: `${ghostPreview.width * zoomRatio}px`,
+            }}
+          />
+        )}
         
         {clips.map((clip) => {
           if (type === 'video') return renderVideoClip(clip as VideoClipType);

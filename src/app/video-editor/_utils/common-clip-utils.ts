@@ -346,12 +346,13 @@ export function handleClipDrag<T extends CommonClip>(
   const currentClip = currentClips.find(c => c.id === activeClipId);
   if (!currentClip) return;
 
+  // delta는 내부 기준(px, 40px/sec)에 맞춰 전달되어야 함
   const newPosition = Math.max(0, currentClip.position + delta);
   
-  // 레인 변경 감지
+  // 레인 변경 감지 (laneType 매칭 안 되더라도 우선 laneIndex가 있으면 해당 레인 적용)
   const originalLane = currentClip.laneIndex ?? 0;
-  const targetLaneInfo = dragTargetLane && dragTargetLane.laneType === clipType ? dragTargetLane : null;
-  const targetLane = targetLaneInfo ? targetLaneInfo.laneIndex : originalLane;
+  const targetLane = dragTargetLane ? dragTargetLane.laneIndex : originalLane;
+  
 
   // 모든 클립 타입에서 동일한 magneticPositioning 사용 - 연쇄 충돌 지원
   if (targetLane !== originalLane) {
