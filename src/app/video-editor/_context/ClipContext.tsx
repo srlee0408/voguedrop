@@ -29,8 +29,6 @@ import {
   canAddNewVideoLane,
   getNextAvailableTextLane,
   getNextAvailableVideoLane,
-  isEmptyTextLane,
-  isEmptyVideoLane,
   validateTextLaneIndex,
   validateVideoLaneIndex
 } from '../_utils/lane-arrangement';

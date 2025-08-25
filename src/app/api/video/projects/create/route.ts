@@ -33,6 +33,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       videoClips: [],
       textClips: [],
       soundClips: [],
+      videoLanes: [0],
+      textLanes: [0],
       soundLanes: [0],
       aspectRatio: '9:16' as const,
       durationInFrames: 0,

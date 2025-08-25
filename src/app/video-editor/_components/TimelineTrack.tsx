@@ -224,15 +224,6 @@ export default function TimelineTrack({
       data-track-type={type}
     >
       <div className={`relative w-full ${getClipContainerHeight()}`}>
-        {/* Lane indicator for sound tracks */}
-        {type === 'sound' && laneIndex !== undefined && (
-          <div 
-            className="absolute top-0 left-0 text-[8px] text-gray-500 px-1 pointer-events-none z-10"
-            style={{ fontSize: '8px', lineHeight: '12px' }}
-          >
-            Lane {laneIndex + 1}
-          </div>
-        )}
         
         {clips.map((clip) => {
           if (type === 'video') return renderVideoClip(clip as VideoClipType);

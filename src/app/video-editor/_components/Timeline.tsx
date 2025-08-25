@@ -1056,76 +1056,76 @@ export default function Timeline({
         
             {/* Video Lanes Section */}
             {videoLanes.slice().reverse().map((laneIndex) => (
-              <div key={`video-lane-${laneIndex}`} className="border-b border-r border-gray-700 h-8 flex items-center justify-between px-2 bg-gray-950/30">
-                <span className="text-[10px] text-blue-400 font-medium">Video {laneIndex + 1}</span>
-                <div className="flex items-center gap-1">
-                  <button 
-                    onClick={() => onAddVideoToLane?.(laneIndex)}
-                    className="flex-1 h-5 bg-black rounded flex items-center justify-center gap-1 hover:bg-gray-900 transition-colors group min-w-[60px]"
-                  >
-                    <i className="ri-add-line text-[10px] text-[#38f47cf9] group-hover:text-white"></i>
-                    <span className="text-[10px] text-[#38f47cf9] group-hover:text-white">Add</span>
-                  </button>
+              <div key={`video-lane-${laneIndex}`} className="border-b border-r border-gray-700 h-8 flex items-center justify-between px-2 bg-gray-950/30 group/lane hover:bg-gray-900/40 transition-colors">
+                <div className="flex items-center gap-2 flex-1">
+                  <span className="text-[10px] text-blue-400 font-medium">Video {laneIndex + 1}</span>
                   {laneIndex > 0 && (
                     <button 
                       onClick={() => onDeleteVideoLane?.(laneIndex)}
-                      className="w-4 h-4 bg-red-900 rounded flex items-center justify-center hover:bg-red-800 transition-colors group"
+                      className="opacity-0 group-hover/lane:opacity-100 w-3 h-3 bg-red-900/80 rounded-sm flex items-center justify-center hover:bg-red-700 transition-all duration-200"
                       title={`Delete Video Lane ${laneIndex + 1}`}
                     >
-                      <i className="ri-close-line text-[8px] text-red-400 group-hover:text-white"></i>
+                      <i className="ri-delete-bin-7-line text-[7px] text-red-300 hover:text-white"></i>
                     </button>
                   )}
                 </div>
+                <button 
+                  onClick={() => onAddVideoToLane?.(laneIndex)}
+                  className="h-5 bg-black rounded flex items-center justify-center gap-1 hover:bg-gray-900 transition-colors group/add min-w-[60px] px-2"
+                >
+                  <i className="ri-add-line text-[10px] text-[#38f47cf9] group-hover/add:text-white"></i>
+                  <span className="text-[10px] text-[#38f47cf9] group-hover/add:text-white">Add</span>
+                </button>
               </div>
             ))}
 
             {/* Text Lanes Section */}
             {textLanes.map((laneIndex) => (
-              <div key={`text-lane-${laneIndex}`} className="border-b border-r border-gray-700 h-8 flex items-center justify-between px-2 bg-gray-950/20">
-                <span className="text-[10px] text-green-400 font-medium">Text {laneIndex + 1}</span>
-                <div className="flex items-center gap-1">
-                  <button 
-                    onClick={() => onAddTextToLane?.(laneIndex)}
-                    className="flex-1 h-5 bg-black rounded flex items-center justify-center gap-1 hover:bg-gray-900 transition-colors group min-w-[60px]"
-                  >
-                    <i className="ri-add-line text-[10px] text-[#38f47cf9] group-hover:text-white"></i>
-                    <span className="text-[10px] text-[#38f47cf9] group-hover:text-white">Add</span>
-                  </button>
+              <div key={`text-lane-${laneIndex}`} className="border-b border-r border-gray-700 h-8 flex items-center justify-between px-2 bg-gray-950/20 group/lane hover:bg-gray-900/30 transition-colors">
+                <div className="flex items-center gap-2 flex-1">
+                  <span className="text-[10px] text-green-400 font-medium">Text {laneIndex + 1}</span>
                   {laneIndex > 0 && (
                     <button 
                       onClick={() => onDeleteTextLane?.(laneIndex)}
-                      className="w-4 h-4 bg-red-900 rounded flex items-center justify-center hover:bg-red-800 transition-colors group"
+                      className="opacity-0 group-hover/lane:opacity-100 w-3 h-3 bg-red-900/80 rounded-sm flex items-center justify-center hover:bg-red-700 transition-all duration-200"
                       title={`Delete Text Lane ${laneIndex + 1}`}
                     >
-                      <i className="ri-close-line text-[8px] text-red-400 group-hover:text-white"></i>
+                      <i className="ri-delete-bin-7-line text-[7px] text-red-300 hover:text-white"></i>
                     </button>
                   )}
                 </div>
+                <button 
+                  onClick={() => onAddTextToLane?.(laneIndex)}
+                  className="h-5 bg-black rounded flex items-center justify-center gap-1 hover:bg-gray-900 transition-colors group/add min-w-[60px] px-2"
+                >
+                  <i className="ri-add-line text-[10px] text-[#38f47cf9] group-hover/add:text-white"></i>
+                  <span className="text-[10px] text-[#38f47cf9] group-hover/add:text-white">Add</span>
+                </button>
               </div>
             ))}
 
             {/* Sound Lanes Section */}
             {soundLanes.map((laneIndex) => (
-              <div key={`sound-lane-${laneIndex}`} className="border-r border-gray-700 h-12 flex items-center justify-between px-2 bg-gray-950/10">
-                <span className="text-[10px] text-purple-400 font-medium">Sound {laneIndex + 1}</span>
-                <div className="flex items-center gap-1">
-                  <button 
-                    onClick={() => onAddSoundToLane?.(laneIndex)}
-                    className="flex-1 h-6 bg-black rounded flex items-center justify-center gap-1.5 hover:bg-gray-900 transition-colors group min-w-[60px]"
-                  >
-                    <i className="ri-music-line text-[10px] text-[#38f47cf9] group-hover:text-white"></i>
-                    <span className="text-[10px] text-[#38f47cf9] group-hover:text-white">Add</span>
-                  </button>
+              <div key={`sound-lane-${laneIndex}`} className="border-r border-gray-700 h-12 flex items-center justify-between px-2 bg-gray-950/10 group/lane hover:bg-gray-900/20 transition-colors">
+                <div className="flex items-center gap-2 flex-1">
+                  <span className="text-[10px] text-purple-400 font-medium">Sound {laneIndex + 1}</span>
                   {laneIndex > 0 && (
                     <button 
                       onClick={() => onDeleteSoundLane?.(laneIndex)}
-                      className="w-4 h-4 bg-red-900 rounded flex items-center justify-center hover:bg-red-800 transition-colors group"
+                      className="opacity-0 group-hover/lane:opacity-100 w-3 h-3 bg-red-900/80 rounded-sm flex items-center justify-center hover:bg-red-700 transition-all duration-200"
                       title={`Delete Sound Lane ${laneIndex + 1}`}
                     >
-                      <i className="ri-close-line text-[8px] text-red-400 group-hover:text-white"></i>
+                      <i className="ri-delete-bin-7-line text-[7px] text-red-300 hover:text-white"></i>
                     </button>
                   )}
                 </div>
+                <button 
+                  onClick={() => onAddSoundToLane?.(laneIndex)}
+                  className="h-6 bg-black rounded flex items-center justify-center gap-1.5 hover:bg-gray-900 transition-colors group/add min-w-[60px] px-2"
+                >
+                  <i className="ri-music-line text-[10px] text-[#38f47cf9] group-hover/add:text-white"></i>
+                  <span className="text-[10px] text-[#38f47cf9] group-hover/add:text-white">Add</span>
+                </button>
               </div>
             ))}
           </div>
