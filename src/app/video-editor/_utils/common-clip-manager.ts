@@ -1,5 +1,6 @@
-import { SoundClip } from '@/shared/types/video-editor';
-import { duplicateClip, splitClip, CommonClip, ClipType } from './common-clip-utils';
+import { SoundClip, VideoClip, TextClip } from '@/shared/types/video-editor';
+import { duplicateClip, splitClip, CommonClip, ClipType, isSoundClip, isVideoClip, isTextClip } from './common-clip-utils';
+import { applyResizeTrim, splitVideoClip, splitTextClip, splitSoundClip } from './clip-operations';
 
 /**
  * 공통 클립 관리 클래스
@@ -44,8 +45,42 @@ export class CommonClipManager {
     updateFunction: (clips: T[]) => void,
     onHistorySave?: () => void
   ): void {
-    splitClip(clipId, currentTime, pixelsPerSecond, clips, updateFunction);
-    onHistorySave?.();
+    const clip = clips.find(c => c.id === clipId) as CommonClip | undefined;
+    if (!clip) return;
+
+    // 플레이헤드 기준 절대 픽셀 위치 계산
+    const playheadPosPx = currentTime * pixelsPerSecond;
+
+    let firstPart: CommonClip | null = null;
+    let secondPart: CommonClip | null = null;
+
+    try {
+      if (isVideoClip(clip)) {
+        const result = splitVideoClip(clip as VideoClip, playheadPosPx, pixelsPerSecond);
+        if (result) { firstPart = result.firstClip; secondPart = result.secondClip; }
+      } else if (isSoundClip(clip)) {
+        const result = splitSoundClip(clip as SoundClip, playheadPosPx, pixelsPerSecond);
+        if (result) { firstPart = result.firstClip; secondPart = result.secondClip; }
+      } else if (isTextClip(clip)) {
+        const result = splitTextClip(clip as TextClip, playheadPosPx);
+        if (result) { firstPart = result.firstClip; secondPart = result.secondClip; }
+      } else {
+        // Fallback to generic split (duration/position only)
+        splitClip(clipId, currentTime, pixelsPerSecond, clips, updateFunction);
+        onHistorySave?.();
+        return;
+      }
+
+      if (firstPart && secondPart) {
+        const updatedClips = clips.map(c => c.id === clipId ? (firstPart as T) : c);
+        updateFunction([ ...updatedClips, secondPart as T ]);
+        onHistorySave?.();
+      }
+    } catch (err) {
+      // 안전망: 문제가 생기면 제네릭 분할로 대체
+      splitClip(clipId, currentTime, pixelsPerSecond, clips, updateFunction);
+      onHistorySave?.();
+    }
   }
 
   /**
@@ -77,20 +112,29 @@ export class CommonClipManager {
     deltaPosition?: number,
     onHistorySave?: () => void
   ): void {
+    const PIXELS_PER_SECOND_DEFAULT = 40;
     const updatedClips = clips.map(clip => {
-      if (clip.id === clipId) {
-        const updatedClip = { ...clip, duration: newDuration } as T;
-        
-        // left handle인 경우 위치도 조정
-        if (handle === 'left' && deltaPosition !== undefined) {
-          updatedClip.position = clip.position + deltaPosition;
-        }
-        
-        return updatedClip;
+      if (clip.id !== clipId) return clip;
+
+      // 시간 트리밍 필드를 가진 경우 공통 트리밍 유틸 사용 (비디오/사운드)
+      if ('maxDuration' in clip || 'startTime' in clip || 'endTime' in clip) {
+        const updates = applyResizeTrim(
+          clip as VideoClip | SoundClip,
+          newDuration,
+          handle,
+          deltaPosition,
+          PIXELS_PER_SECOND_DEFAULT
+        );
+        return { ...(clip as T), ...(updates as Partial<T>) } as T;
       }
-      return clip;
+
+      // 텍스트 등 단순 duration만 가지는 경우 기존 로직 유지
+      const updatedClip = { ...clip, duration: newDuration } as T;
+      if (handle === 'left' && deltaPosition !== undefined) {
+        (updatedClip as unknown as { position: number }).position = clip.position + deltaPosition;
+      }
+      return updatedClip;
     });
-    
     updateFunction(updatedClips);
     onHistorySave?.();
   }

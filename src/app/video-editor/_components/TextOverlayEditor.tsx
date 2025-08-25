@@ -405,7 +405,7 @@ export default function TextOverlayEditor({
           return (
             <div
               key={clip.id}
-              className="absolute"
+              className="absolute select-none"
               style={{
                 left: `${x}px`,
                 top: `${y}px`,

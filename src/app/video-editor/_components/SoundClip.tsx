@@ -369,10 +369,10 @@ export default function SoundClip({
   return (
     <div
       ref={clipRef}
-      className={`group relative w-full h-full ${isActive ? 'z-10' : ''}`}
+      className={`group relative w-full h-full select-none ${isActive ? 'z-10' : ''}`}
       onDoubleClick={handleDoubleClick}
     >
-      <div className={`relative w-full h-10 bg-slate-800/70 backdrop-blur-sm rounded overflow-hidden ${
+      <div className={`relative w-full h-10 bg-slate-800/70 backdrop-blur-sm rounded overflow-hidden cursor-pointer ${
         isActive ? 'ring-2 ring-[#38f47cf9]' : ''
       }`}>
         {/* Background with subtle gradient */}

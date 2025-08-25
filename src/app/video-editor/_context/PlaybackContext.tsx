@@ -3,7 +3,7 @@
 import { createContext, useContext, useState, useCallback, useRef, useMemo, ReactNode, useEffect } from 'react';
 import { PlayerRef } from '@remotion/player';
 import { useClips } from './ClipContext';
-import { calculateTimelineDuration } from '../_utils/timeline-helpers';
+import { calculateTimelineDuration } from '../_utils/common-clip-utils';
 
 /**
  * 재생 제어 Context의 타입 정의

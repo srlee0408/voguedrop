@@ -10,7 +10,7 @@ import TimelineGrid from './TimelineGrid';
 import { useDragAndDrop } from '../_hooks/useDragAndDrop';
 import { useSelectionState } from '../_hooks/useSelectionState';
 import { useClips } from '../_context/Providers';
-import { calculateTimelineDuration, generateTimeMarkers } from '../_utils/timeline-helpers';
+import { calculateTimelineDuration, generateTimeMarkers } from '../_utils/common-clip-utils';
 import { getClipsForLane, canAddNewLane, getTextClipsForLane, canAddNewTextLane, getVideoClipsForLane, canAddNewVideoLane } from '../_utils/lane-arrangement';
 
 interface TimelineProps {
@@ -610,13 +610,14 @@ export default function Timeline({
         }
 
         if (resizeHandle === 'left') {
-          newPosition = Math.max(minAllowedPosition, startPosition + delta);
-          newWidth = startWidth + (startPosition - newPosition);
+          const rightEdge = startPosition + startWidth; // keep right edge fixed
+          const proposedLeft = startPosition + delta;
+          newPosition = Math.max(minAllowedPosition, proposedLeft);
+          newWidth = rightEdge - newPosition;
           
-          // Ensure we don't exceed maxDuration when resizing left
           if (currentClip?.maxDuration && newWidth > currentClip.maxDuration) {
             newWidth = currentClip.maxDuration;
-            newPosition = startPosition + startWidth - newWidth;
+            newPosition = rightEdge - newWidth;
           }
         } else {
           newWidth = startWidth + delta;
@@ -628,8 +629,15 @@ export default function Timeline({
         }
 
         // Apply minimum constraints
-        newWidth = Math.max(80, newWidth);
-        newPosition = Math.max(0, newPosition);
+        const minWidthPx = 80;
+        newWidth = Math.max(minWidthPx, newWidth);
+        
+        if (resizeHandle === 'left') {
+          const rightEdge = startPosition + startWidth;
+          newPosition = Math.max(minAllowedPosition, rightEdge - newWidth);
+        } else {
+          newPosition = Math.max(0, newPosition);
+        }
 
         setFinalResizeWidth(newWidth);
         setFinalResizePosition(newPosition);
@@ -645,11 +653,21 @@ export default function Timeline({
       } else if (isDragging) {
         const delta = e.clientX - dragStartX;
         updateDragDirection(e.clientX);
+
+        // 단일 또는 다중 선택된 클립을 함께 시각적으로 이동
+        const targetClips: Array<{ id: string, type: 'video' | 'text' | 'sound' }> =
+          (rectSelectedClips && rectSelectedClips.length > 0)
+            ? rectSelectedClips
+            : (activeClip && activeClipType)
+              ? [{ id: activeClip, type: activeClipType }]
+              : [];
         
-        const clipElement = document.querySelector(`[data-clip-id="${activeClip}"]`) as HTMLElement;
-        if (clipElement) {
-          clipElement.style.transform = `translateX(${delta}px)`;
-        }
+        targetClips.forEach(({ id }) => {
+          const node = document.querySelector(`[data-clip-id="${id}"]`) as HTMLElement | null;
+          if (node) {
+            node.style.transform = `translateX(${delta}px)`;
+          }
+        });
       }
     };
 
@@ -659,20 +677,65 @@ export default function Timeline({
         
         if (clipElement && isDragging) {
           const delta = parseFloat(clipElement.style.transform.replace(/translateX\(|px\)/g, '')) || 0;
+
+          // 다중 선택 이동: 선택된 각 타입별로 독립 적용 (레인 구조 유지)
+          const hasMulti = rectSelectedClips && rectSelectedClips.length > 0;
           
-          // Import common clip handling utilities
-          import('../_utils/common-clip-utils').then(({ handleClipDrag }) => {
-            if (activeClipType === 'video' && onUpdateAllVideoClips) {
-              handleClipDrag(activeClip, 'video', clips, delta, dragTargetLane, onUpdateAllVideoClips);
-            } else if (activeClipType === 'text' && onUpdateAllTextClips) {
-              handleClipDrag(activeClip, 'text', textClips, delta, dragTargetLane, onUpdateAllTextClips);
-            } else if (activeClipType === 'sound' && onUpdateAllSoundClips) {
-              handleClipDrag(activeClip, 'sound', soundClips, delta, dragTargetLane, onUpdateAllSoundClips);
-              clipElement.style.transform = '';
-              return;
-            }
+          if (hasMulti) {
+            import('../_utils/common-clip-utils').then(({ handleClipDrag }) => {
+              // 비디오
+              if (onUpdateAllVideoClips) {
+                const videoIds = rectSelectedClips.filter(c => c.type === 'video').map(c => c.id);
+                let working = [...clips];
+                videoIds.forEach(id => {
+                  handleClipDrag(id, 'video', working, delta, dragTargetLane, (newClips) => {
+                    working = newClips;
+                  });
+                });
+                onUpdateAllVideoClips(working);
+              }
+              // 텍스트
+              if (onUpdateAllTextClips) {
+                const textIds = rectSelectedClips.filter(c => c.type === 'text').map(c => c.id);
+                let workingText = [...textClips];
+                textIds.forEach(id => {
+                  handleClipDrag(id, 'text', workingText, delta, dragTargetLane, (newClips) => {
+                    workingText = newClips;
+                  });
+                });
+                onUpdateAllTextClips(workingText);
+              }
+              // 사운드
+              if (onUpdateAllSoundClips) {
+                const soundIds = rectSelectedClips.filter(c => c.type === 'sound').map(c => c.id);
+                let workingSound = [...soundClips];
+                soundIds.forEach(id => {
+                  handleClipDrag(id, 'sound', workingSound, delta, dragTargetLane, (newClips) => {
+                    workingSound = newClips;
+                  });
+                });
+                onUpdateAllSoundClips(workingSound);
+              }
+            });
+          } else {
+            // 단일 이동 (기존 동작)
+            import('../_utils/common-clip-utils').then(({ handleClipDrag }) => {
+              if (activeClipType === 'video' && onUpdateAllVideoClips) {
+                handleClipDrag(activeClip, 'video', clips, delta, dragTargetLane, onUpdateAllVideoClips);
+              } else if (activeClipType === 'text' && onUpdateAllTextClips) {
+                handleClipDrag(activeClip, 'text', textClips, delta, dragTargetLane, onUpdateAllTextClips);
+              } else if (activeClipType === 'sound' && onUpdateAllSoundClips) {
+                handleClipDrag(activeClip, 'sound', soundClips, delta, dragTargetLane, onUpdateAllSoundClips);
+              }
+            });
+          }
+
+          // 모든 임시 transform 제거
+          const targetClips: Array<{ id: string }> = hasMulti ? rectSelectedClips : [{ id: activeClip }];
+          targetClips.forEach(({ id }) => {
+            const node = document.querySelector(`[data-clip-id="${id}"]`) as HTMLElement | null;
+            if (node) node.style.transform = '';
           });
-          clipElement.style.transform = '';
         }
         
         // Handle resize end using common utility
@@ -857,7 +920,7 @@ export default function Timeline({
   const selectionBounds = getSelectionBounds();
 
   return (
-    <div className="bg-gray-800 border-t border-gray-700 flex flex-col h-full">
+    <div className="bg-gray-800 border-t border-gray-700 flex flex-col h-full select-none">
       {/* Playback controls */}
       <TimelineControls
         isPlaying={isPlaying}

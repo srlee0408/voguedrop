@@ -59,10 +59,10 @@ export default function TextClip({
   return (
     <div
       ref={clipRef}
-      className={`group relative w-full h-full ${isActive ? 'z-10' : ''}`}
+      className={`group relative w-full h-full select-none ${isActive ? 'z-10' : ''}`}
       onDoubleClick={handleDoubleClick}
     >
-      <div className={`w-full h-5 bg-purple-900/50 backdrop-blur-sm rounded cursor-move hover:bg-purple-900/60 transition-colors ${
+      <div className={`w-full h-5 bg-purple-900/50 backdrop-blur-sm rounded cursor-pointer hover:bg-purple-900/60 transition-colors ${
         isActive ? 'ring-2 ring-[#38f47cf9]' : ''
       }`}>
         <div className="absolute inset-0 flex items-center px-1 overflow-hidden">

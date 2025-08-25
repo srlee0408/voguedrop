@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { getShortId } from '@/shared/lib/utils';
 import { useClips, usePlayback, useProject, useHistory } from '../_context/Providers';
-import { getAllClipBoundaries, findPreviousBoundary, findNextBoundary } from '../_utils/timeline-helpers';
+import { getAllClipBoundaries, findPreviousBoundary, findNextBoundary } from '../_utils/common-clip-utils';
 import EditorLayout from './EditorLayout';
 import PreviewSection from './PreviewSection';
 import TimelineSection from './TimelineSection';

@@ -11,14 +11,12 @@ import {
   applyResizeTrim,
 } from '../_utils/clip-operations';
 import { analyzeAudioFile } from '../_utils/audio-analysis';
-import { calculateTimelineDuration } from '../_utils/timeline-helpers';
+import { calculateTimelineDuration } from '../_utils/common-clip-utils';
 import {
   magneticPositioning,
-} from '../_utils/common-clip-utils';
-import {
   freePositioning,
   soundPositioning,
-} from '../_utils/timeline-utils';
+} from '../_utils/common-clip-utils';
 import { 
   getUsedLanesFromClips,
   canAddNewLane, 

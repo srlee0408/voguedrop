@@ -1,6 +1,7 @@
 'use client';
 
 import { VideoClip as VideoClipType, TextClip as TextClipType, SoundClip as SoundClipType } from '@/shared/types/video-editor';
+import VideoClip from './VideoClip';
 import TextClip from './TextClip';
 import SoundClip from './SoundClip';
 
@@ -52,20 +53,14 @@ export default function TimelineTrack({
     const isRectSelected = rectSelectedClips.some(c => c.id === clip.id && c.type === 'video');
     const isSelected = selectedClips.includes(clip.id);
     const clipWidth = clip.duration * zoomRatio;
-    const showText = clipWidth > 30; // 30px 이하면 텍스트 숨김
+    const isActive = activeClip === clip.id;
     
     return (
       <div 
         key={clip.id}
         data-clip-id={clip.id}
         data-clip-type="video"
-        className={`group absolute top-0 timeline-clip ${
-          isRectSelected
-            ? 'ring-2 ring-red-400 rounded'
-            : isSelected
-              ? 'ring-2 ring-[#38f47cf9] rounded'
-              : ''
-        }`}
+        className="group absolute top-0 timeline-clip"
         style={{ 
           width: `${clipWidth}px`,
           left: `${clip.position * zoomRatio}px`
@@ -78,31 +73,15 @@ export default function TimelineTrack({
           }
         }}
       >
-        <div 
-          className="w-full h-5 bg-gradient-to-r from-gray-900 to-gray-800 rounded cursor-pointer hover:from-gray-800 hover:to-gray-700 transition-colors relative overflow-hidden border border-gray-700"
-        >
-          {/* Title - 작을 때는 숨김 */}
-          {showText && (
-            <div className="absolute inset-0 flex items-center">
-              <div className="px-2 py-0.5 text-[10px] font-medium text-white/90 truncate">
-                {clip.title || 'Video Clip'}
-              </div>
-            </div>
-          )}
-          {/* Resize handles - 줌 레벨에 따라 크기 조정 */}
-          <div 
-            className={`absolute inset-y-0 left-0 bg-[#38f47cf9] rounded-l cursor-ew-resize resize-handle ${
-              clipWidth < 50 ? 'w-0.5' : 'w-1'
-            }`}
-            onMouseDown={(e) => onResizeStart(e, clip.id, 'left', 'video')}
-          />
-          <div 
-            className={`absolute inset-y-0 right-0 bg-[#38f47cf9] rounded-r cursor-ew-resize resize-handle ${
-              clipWidth < 50 ? 'w-0.5' : 'w-1'
-            }`}
-            onMouseDown={(e) => onResizeStart(e, clip.id, 'right', 'video')}
-          />
-        </div>
+        <VideoClip
+          clip={clip}
+          onResizeStart={(e, handle) => onResizeStart(e, clip.id, handle, 'video')}
+          isActive={isActive}
+          isSelected={isSelected}
+          isRectSelected={isRectSelected}
+          clipWidth={clipWidth}
+          pixelsPerSecond={pixelsPerSecond}
+        />
       </div>
     );
   };
