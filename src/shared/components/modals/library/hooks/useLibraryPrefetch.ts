@@ -1,6 +1,6 @@
 import { useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { libraryQueryKeys } from './useLibraryQuery';
+import { LIBRARY_CACHE_KEYS } from '../constants/cache-keys';
 import { useAuth } from '@/shared/lib/auth/AuthContext';
 
 // 프리페칭 상태 추적을 위한 플래그
@@ -48,7 +48,7 @@ export function useLibraryPrefetch() {
     
     try {
       await queryClient.prefetchQuery({
-        queryKey: [...libraryQueryKeys.all, 'counts'],
+        queryKey: [...LIBRARY_CACHE_KEYS.combined.all(), 'counts'],
         queryFn: fetchLibraryCounts,
         staleTime: 10 * 60 * 1000, // 10분간 fresh
       });
@@ -64,7 +64,7 @@ export function useLibraryPrefetch() {
     
     try {
       await queryClient.prefetchQuery({
-        queryKey: libraryQueryKeys.combined(20),
+        queryKey: LIBRARY_CACHE_KEYS.combined.all(20),
         queryFn: fetchBasicLibraryData,
         staleTime: 15 * 60 * 1000, // 15분간 fresh
       });
@@ -80,7 +80,7 @@ export function useLibraryPrefetch() {
     
     try {
       await queryClient.prefetchQuery({
-        queryKey: libraryQueryKeys.combined(50),
+        queryKey: LIBRARY_CACHE_KEYS.combined.all(50),
         queryFn: fetchFullLibraryData,
         staleTime: 30 * 60 * 1000, // 30분간 fresh
       });

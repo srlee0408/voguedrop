@@ -36,10 +36,18 @@ export async function GET() {
       .map(v => v.id)
       .filter(Boolean);
 
-    return NextResponse.json({
+    const headers = new Headers({
+      'Content-Type': 'application/json',
+      // 즐겨찾기 토글 직후의 즉시 일관성을 위해 캐시 금지
+      'Cache-Control': 'no-store, no-cache, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
+
+    return new NextResponse(JSON.stringify({
       favoriteIds,
       total: favoriteIds.length
-    });
+    }), { status: 200, headers });
 
   } catch (error) {
     console.error('API error:', error);

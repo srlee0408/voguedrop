@@ -42,7 +42,12 @@ async function fetchFavoritesPage(
     params.set('cursor', pageParam);
   }
 
-  const response = await fetch(`/api/canvas/library/favorites?${params}`);
+  const response = await fetch(`/api/canvas/library/favorites?${params}`, {
+    cache: 'no-store',
+    headers: {
+      'Cache-Control': 'no-store'
+    }
+  });
   
   if (!response.ok) {
     const errorMessage = `Failed to fetch favorite clips (${response.status})`;

@@ -12,6 +12,7 @@ interface LibraryCardActionsProps {
   isFavorite?: boolean;
   isDownloading?: boolean;
   isCurrentProject?: boolean;
+  isTogglingFavorite?: boolean;
   onFavoriteToggle?: () => void;
   onDownload?: () => void;
   onProjectNavigate?: (project: LibraryProject) => void;
@@ -24,6 +25,7 @@ export const LibraryCardActions = memo(function LibraryCardActions({
   isFavorite = false,
   isDownloading = false,
   isCurrentProject = false,
+  isTogglingFavorite = false,
   onFavoriteToggle,
   onDownload,
   onProjectNavigate,
@@ -102,21 +104,31 @@ export const LibraryCardActions = memo(function LibraryCardActions({
         
         {/* 즐겨찾기 버튼 - clip 타입에서만 */}
         {onFavoriteToggle && type === 'clip' && (
-          <Tooltip text={isFavorite ? "Remove from Favorites" : "Add to Favorites"} position="top">
+          <Tooltip text={
+            isTogglingFavorite ? "Processing..." : 
+            isFavorite ? "Remove from Favorites" : "Add to Favorites"
+          } position="top">
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                onFavoriteToggle();
+                if (!isTogglingFavorite) {
+                  onFavoriteToggle();
+                }
               }}
-              className="p-1.5 rounded-md bg-gray-800 hover:bg-gray-700 transition-colors"
+              disabled={isTogglingFavorite}
+              className="p-1.5 rounded-md bg-gray-800 hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Star className={`w-4 h-4 ${
-                isFavorite
-                  ? "fill-current"
-                  : "text-gray-400 hover:text-white"
-              }`} style={{
-                color: isFavorite ? (theme?.primaryColor || '#fbbf24') : undefined
-              }} />
+              {isTogglingFavorite ? (
+                <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
+              ) : (
+                <Star className={`w-4 h-4 ${
+                  isFavorite
+                    ? "fill-current"
+                    : "text-gray-400 hover:text-white"
+                }`} style={{
+                  color: isFavorite ? (theme?.primaryColor || '#fbbf24') : undefined
+                }} />
+              )}
             </button>
           </Tooltip>
         )}

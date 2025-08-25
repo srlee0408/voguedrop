@@ -1,6 +1,6 @@
 import { useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { libraryInfiniteQueryKeys } from './useLibraryInfiniteQuery';
+import { LIBRARY_CACHE_KEYS } from '../constants/cache-keys';
 import { useAuth } from '@/shared/lib/auth/AuthContext';
 
 // 프리페칭 상태 추적을 위한 플래그
@@ -64,7 +64,7 @@ export function useLibraryInfinitePrefetch() {
     
     try {
       await queryClient.prefetchInfiniteQuery({
-        queryKey: [...libraryInfiniteQueryKeys.all, 'counts-only'],
+        queryKey: [...LIBRARY_CACHE_KEYS.combined.all(), 'counts-only'],
         queryFn: () => fetchFirstPageCounts(),
         initialPageParam: undefined,
         staleTime: 10 * 60 * 1000,
@@ -81,7 +81,7 @@ export function useLibraryInfinitePrefetch() {
     
     try {
       await queryClient.prefetchInfiniteQuery({
-        queryKey: libraryInfiniteQueryKeys.combined(10),
+        queryKey: LIBRARY_CACHE_KEYS.infinite.combined(10),
         queryFn: () => fetchFirstPageBasic(),
         initialPageParam: undefined,
         staleTime: 15 * 60 * 1000,
@@ -98,7 +98,7 @@ export function useLibraryInfinitePrefetch() {
     
     try {
       await queryClient.prefetchInfiniteQuery({
-        queryKey: libraryInfiniteQueryKeys.combined(20),
+        queryKey: LIBRARY_CACHE_KEYS.infinite.combined(20),
         queryFn: () => fetchFirstPageFull(),
         initialPageParam: undefined,
         staleTime: 30 * 60 * 1000,
@@ -115,7 +115,7 @@ export function useLibraryInfinitePrefetch() {
     
     try {
       await queryClient.prefetchInfiniteQuery({
-        queryKey: ['library', 'favorites', 20],
+        queryKey: LIBRARY_CACHE_KEYS.infinite.clips('favorites', 20),
         queryFn: () => fetchFavorites(),
         initialPageParam: undefined,
         staleTime: 15 * 60 * 1000, // 15분간 fresh
@@ -132,7 +132,7 @@ export function useLibraryInfinitePrefetch() {
     
     try {
       await queryClient.prefetchInfiniteQuery({
-        queryKey: ['library', 'regular', 20],
+        queryKey: LIBRARY_CACHE_KEYS.infinite.clips('regular', 20),
         queryFn: () => fetchRegular(),
         initialPageParam: undefined,
         staleTime: 15 * 60 * 1000, // 15분간 fresh
@@ -209,24 +209,31 @@ export function useLibraryInfinitePrefetch() {
     
     try {
       // 첫 페이지가 캐시에 있는지 확인
-      const firstPageData = queryClient.getQueryData(libraryInfiniteQueryKeys.combined(20));
-      if (!firstPageData) return;
+      const infiniteData = queryClient.getQueryData(
+        LIBRARY_CACHE_KEYS.infinite.combined(20)
+      ) as
+        | { pages: { hasNextPage: boolean; nextCursor?: string }[]; pageParams: unknown[] }
+        | undefined;
+      if (!infiniteData || !infiniteData.pages || infiniteData.pages.length === 0) return;
+
+      const lastPage = infiniteData.pages[infiniteData.pages.length - 1];
+      if (!lastPage?.hasNextPage || !lastPage?.nextCursor) return;
       
-      // 두 번째 페이지 프리페칭
-      const response = await fetch('/api/canvas/library?limit=20&cursor=page_2');
+      // 다음 커서를 사용해 두 번째(이후) 페이지 프리페칭
+      const response = await fetch(`/api/canvas/library?limit=20&cursor=${encodeURIComponent(lastPage.nextCursor)}`);
       if (response.ok) {
         const data = await response.json();
         
-        // 수동으로 캐시에 두 번째 페이지 추가
+        // 수동으로 캐시에 다음 페이지 추가
         queryClient.setQueryData(
-          libraryInfiniteQueryKeys.combined(20),
+          LIBRARY_CACHE_KEYS.infinite.combined(20),
           (oldData: { pages: unknown[]; pageParams: unknown[] } | undefined) => {
             if (!oldData || !oldData.pages) return oldData;
             
             return {
               ...oldData,
               pages: [...oldData.pages, data],
-              pageParams: [...oldData.pageParams, 'page_2']
+              pageParams: [...oldData.pageParams, lastPage.nextCursor]
             };
           }
         );

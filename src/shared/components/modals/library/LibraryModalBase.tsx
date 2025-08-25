@@ -2,26 +2,55 @@
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
-import { useQueryClient, InfiniteData } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { X, Info, Loader2, Video, Folder, Upload, Heart } from 'lucide-react';
 import { LibraryModalBaseProps, LibraryCategory } from '@/shared/types/library-modal';
 import { LibraryVideo, LibraryProject, UserUploadedVideo, LibraryItem } from '@/shared/types/video-editor';
 import { useLibraryData } from './hooks/useLibraryData';
 import { useLibraryFavoritesInfinite, useLibraryRegularInfinite } from './hooks/useLibraryInfiniteQuery';
+import { useSmartCacheManager } from './hooks/useSmartCacheManager';
 import { LibraryCard } from './components/LibraryCard';
 import { LibraryCardActions } from './components/LibraryCardActions';
 import { LibrarySidebar } from './components/LibrarySidebar';
 import { LibraryUpload } from './components/LibraryUpload';
 import { VirtualizedLibrarySection } from './components/VirtualizedLibrarySection';
-import { getAllClips, LibraryPage } from './hooks/useLibraryInfiniteQuery';
+import { getAllClips } from './hooks/useLibraryInfiniteQuery';
 
 export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBaseProps) {
   const pathname = usePathname();
   const queryClient = useQueryClient();
+  const { invalidateSmartly, verifyDataIntegrity } = useSmartCacheManager();
   const [activeCategory, setActiveCategory] = useState<LibraryCategory>('clips');
   const [selectedItems, setSelectedItems] = useState<Map<string, number>>(new Map());
   const [isAdding, setIsAdding] = useState(false);
   const [downloadingVideos, setDownloadingVideos] = useState<Set<string>>(new Set());
+  
+  // 동적 캐싱을 위한 사용자 액션 추적
+  const [lastUserAction, setLastUserAction] = useState<{
+    type: 'upload' | 'delete' | 'favorite' | 'generate' | null;
+    timestamp: number;
+  } | null>(null);
+  
+  // 실시간 모드 판단 (사용자 액션 후 5초간)
+  const isRealtimeMode = useMemo(() => {
+    if (!lastUserAction) return false;
+    return Date.now() - lastUserAction.timestamp < 5000; // 5초
+  }, [lastUserAction]);
+  
+  // 사용자 액션 타이머 자동 정리
+  useEffect(() => {
+    if (lastUserAction) {
+      const timer = setTimeout(() => {
+        setLastUserAction(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [lastUserAction]);
+  
+  // Smart Cache Manager를 사용한 지능적 캐시 무효화
+  const handleCacheInvalidation = useCallback(async (action: 'upload' | 'generate' | 'favorite' | 'delete', targetId?: string) => {
+    await invalidateSmartly(action, { targetId });
+  }, [invalidateSmartly]);
   
   // 모달이 열릴 때마다 선택 상태 초기화 (레인별 독립적 선택을 위해)
   useEffect(() => {
@@ -52,16 +81,16 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
     }
   );
 
-  // 일반 클립 데이터 (모든 페이지에서 실시간 반영)
+  // 일반 클립 데이터 (동적 캐싱 전략 적용)
   const regularQuery = useLibraryRegularInfinite(
     isOpen,
     50,
     false,
     {
-      staleTime: 0,                 // 모든 페이지에서 즉시 반영 (실시간 업데이트)
-      gcTime: 15 * 60 * 1000,       // 15분간 메모리 유지
-      refetchOnWindowFocus: false,  // 윈도우 포커스 시 리페치 방지
-      refetchOnMount: false,        // 마운트 시 리페치 방지 (gcTime으로 성능 보장)
+      staleTime: isRealtimeMode ? 0 : 10 * 1000,  // 실시간 모드: 0초, 일반 모드: 10초
+      gcTime: 15 * 60 * 1000,                     // 15분간 메모리 유지
+      refetchOnWindowFocus: isRealtimeMode,       // 실시간 모드에서만 포커스 시 리페치
+      refetchOnMount: false,                      // 마운트 시 리페치 방지
     }
   );
 
@@ -75,148 +104,36 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
         return;
       }
       
-      // 데이터베이스 동기화 및 데이터 일치성 검증  
-      const verifyClipDataIntegrity = async (expectedData: { clipId: string; videoUrl: string; thumbnailUrl: string; timestamp: number }): Promise<{ verified: boolean; dbData?: unknown }> => {
-        try {
-          const response = await fetch(`/api/canvas/library/verify/${expectedData.clipId}`);
-          if (!response.ok) {
-            return { verified: false };
-          }
-          const result = await response.json();
-          
-          if (!result.exists) {
-            return { verified: false };
-          }
+      // 클립 생성 액션 기록 (실시간 모드 활성화)
+      setLastUserAction({ type: 'generate', timestamp: Date.now() });
+      
 
-          // BroadcastChannel 데이터와 DB 데이터 비교
-          const dbData = result.clipData;
-          const dataMatches = 
-            dbData.videoUrl === expectedData.videoUrl &&
-            dbData.thumbnailUrl === expectedData.thumbnailUrl &&
-            Math.abs(new Date(dbData.createdAt).getTime() - expectedData.timestamp) < 60000; // 1분 오차 허용
-
-          if (!dataMatches) {
-            console.warn('Data mismatch between BroadcastChannel and DB:', {
-              expected: expectedData,
-              actual: dbData
-            });
-          }
-
-          return { 
-            verified: dataMatches,
-            dbData: dataMatches ? dbData : null
-          };
-        } catch (error) {
-          console.error('Database sync verification failed:', error);
-          return { verified: false };
-        }
-      };
-
-      // BroadcastChannel로 받은 클립 데이터 검증
-      if (eventData.clipId) {
-        const { verified } = await verifyClipDataIntegrity(eventData);
-        if (!verified) {
-          console.warn('Clip data verification failed, skipping library update:', eventData.clipId);
-          return;
-        }
+      // BroadcastChannel로 받은 클립 데이터 기본 검증
+      if (!eventData.clipId || !eventData.videoUrl) {
+        console.warn('Invalid clip data received, skipping library update');
+        return;
       }
       
-      // 리페치 수행
+      // Smart Cache Manager를 사용한 지능적 캐시 무효화
       try {
-        await Promise.all([
-          queryClient.refetchQueries({
-            queryKey: ['library-infinite', 'regular'],
-            type: 'all'
-          }),
-          queryClient.refetchQueries({
-            queryKey: ['library-infinite', 'favorites'],
-            type: 'all'
-          })
-        ]);
-
-        // 리페치 후 포괄적인 데이터 정합성 검증
-        await verifyLibraryDataIntegrity(eventData.clipId);
-      } catch (error) {
-        console.error('Failed to refetch library queries:', error);
-      }
-    };
-
-    // Library 전체 데이터 정합성 검증
-    const verifyLibraryDataIntegrity = async (expectedClipId: string) => {
-      // 1. 새 클립이 Library에 로드되었는지 확인 (queryClient에서 최신 데이터 조회)
-      const currentRegularData = queryClient.getQueryData(['library-infinite', 'regular', 0]) as InfiniteData<LibraryPage> | undefined;
-      const currentFavoritesData = queryClient.getQueryData(['library-infinite', 'favorites', 20]) as InfiniteData<LibraryPage> | undefined;
-      
-      const allRegularClips = getAllClips(currentRegularData?.pages || []);
-      const allFavoriteClips = getAllClips(currentFavoritesData?.pages || []);
-      
-      const foundInRegular = allRegularClips.some(clip => String(clip.id) === expectedClipId);
-      const foundInFavorites = allFavoriteClips.some(clip => String(clip.id) === expectedClipId);
-      const isNewClipLoaded = foundInRegular || foundInFavorites;
-
-      // 2. Library 전체 데이터 완성도 검증
-      const totalLoadedClips = allRegularClips.length;
-      const allLoadedClipIds = allRegularClips.map(clip => String(clip.id));
-
-      try {
-        const integrityResponse = await fetch('/api/canvas/library/integrity', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            clipIds: allLoadedClipIds,
-            expectedCount: totalLoadedClips
-          })
-        });
-
-        if (integrityResponse.ok) {
-          const integrityData = await integrityResponse.json();
-          
-          if (!integrityData.isHealthy) {
-            console.warn('Library data integrity issues detected:', {
-              countMismatch: integrityData.countMismatch,
-              missingClips: integrityData.missingClips,
-              dataIssues: integrityData.dataIntegrityIssues,
-              totalClips: integrityData.totalClips,
-              loadedClips: totalLoadedClips
-            });
-
-            // 데이터 불일치 시 전체 리페치
-            setTimeout(async () => {
-              await Promise.all([
-                queryClient.refetchQueries({
-                  queryKey: ['library-infinite', 'regular'],
-                  type: 'all'
-                }),
-                queryClient.refetchQueries({
-                  queryKey: ['library-infinite', 'favorites'], 
-                  type: 'all'
-                })
-              ]);
-            }, 1000);
-          }
-        }
-      } catch (error) {
-        console.error('Library integrity check failed:', error);
-      }
-
-      // 3. 새 클립이 로드되지 않았을 경우 재시도
-      if (!isNewClipLoaded) {
-        console.warn('New clip not found in library after refetch, retrying:', expectedClipId);
+        await handleCacheInvalidation('generate', eventData.clipId);
         
-        setTimeout(async () => {
-          await Promise.all([
-            queryClient.refetchQueries({
-              queryKey: ['library-infinite', 'regular'],
-              type: 'all'
-            }),
-            queryClient.refetchQueries({
-              queryKey: ['library-infinite', 'favorites'], 
-              type: 'all'
-            })
-          ]);
-        }, 2000);
+        // 데이터 정합성 검증 (Smart Cache Manager 사용)
+        const integrity = await verifyDataIntegrity({
+          type: 'clip',
+          id: eventData.clipId,
+          action: 'create'
+        });
+        
+        if (!integrity.verified) {
+          console.warn('Clip data integrity verification failed, retrying cache invalidation');
+          setTimeout(() => handleCacheInvalidation('generate', eventData.clipId), 2000);
+        }
+      } catch (error) {
+        console.error('Failed to invalidate cache with Smart Cache Manager:', error);
       }
     };
+
 
     // 같은 탭 내 이벤트 리스너
     const handleClipCompleted = (event: Event) => {
@@ -252,7 +169,7 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
         broadcastChannel.close();
       }
     };
-  }, [queryClient, pathname, isOpen]); // pages 의존성 제거하여 무한 리렌더링 방지
+  }, [queryClient, pathname, isOpen, handleCacheInvalidation, verifyDataIntegrity]); // Smart Cache Manager 의존성으로 변경
 
   // 데이터 추출 (기존 인터페이스 호환성 유지)
   const favoriteClips = getAllClips(favoritesQuery.data?.pages || []);
@@ -440,10 +357,28 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
   }, [favoriteClips, regularClips, projectItems, uploadItems, config.projectFilter]);
 
   // 업로드 완료 핸들러
-  const handleUploadComplete = useCallback((video: UserUploadedVideo) => {
+  const handleUploadComplete = useCallback(async (video: UserUploadedVideo) => {
+    // 사용자 액션 기록 (실시간 모드 활성화)
+    setLastUserAction({ type: 'upload', timestamp: Date.now() });
+    
+    // 낙관적 업데이트로 즉시 UI 반영
     updateUploadItems(video);
     updateCounts('uploads', 1);
-  }, [updateUploadItems, updateCounts]);
+    
+    // Smart Cache Manager를 사용한 지능적 캐시 무효화
+    await handleCacheInvalidation('upload', String(video.id));
+    
+    // uploads 섹션 즉시 리페치 (확실한 반영을 위해)
+    setTimeout(() => {
+      queryClient.refetchQueries({
+        predicate: (query) => {
+          const key = query.queryKey;
+          return (key[0] === 'library' && key[1] === 'uploads') ||
+                 (key[0] === 'library' && key[1] === 'combined');
+        }
+      });
+    }, 100);
+  }, [updateUploadItems, updateCounts, handleCacheInvalidation, queryClient]);
 
   // 프로젝트 네비게이션 핸들러
   const handleProjectNavigate = useCallback((project: LibraryProject) => {
@@ -482,10 +417,15 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
   }, [filteredItems]);
 
   // 즐겨찾기 토글 핸들러
-  const handleFavoriteToggle = useCallback((videoId: string) => {
+  const handleFavoriteToggle = useCallback(async (videoId: string) => {
     if (config.favorites?.onToggle) {
+      // 사용자 액션 기록 (실시간 모드 활성화)
+      setLastUserAction({ type: 'favorite', timestamp: Date.now() });
+      
+      // 즐겨찾기 토글 (낙관적 업데이트 포함)
       config.favorites.onToggle(videoId);
-      // React Query의 낙관적 업데이트가 즉시 반영하므로 refetch 불필요
+      
+      // 중복 리페치 제거 - useFavorites의 낙관적 업데이트만 사용
     }
   }, [config.favorites]);
 

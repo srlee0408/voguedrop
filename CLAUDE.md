@@ -204,6 +204,10 @@ const { data, error } = await supabase
 - `project_saves`: 비디오 에디터 프로젝트 저장
 - `sound_generations`: 사운드 생성 작업 추적
 
+### migrations
+- 데이터베이스 스키마 변경 시 migrations 폴더에 파일 생성
+- 파일은 000 순번으로 생성 ex. 000_create_user_favorites_table
+
 ## 코딩 표준 및 에러 방지 가이드
 
 ### TypeScript 필수 규칙

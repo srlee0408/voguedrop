@@ -1,6 +1,7 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { LibraryVideo, LibraryProject, UserUploadedVideo } from '@/shared/types/video-editor';
 import { LibraryCounts } from '@/shared/types/library-modal';
+import { LIBRARY_CACHE_KEYS } from '../constants/cache-keys';
 
 // 페이지네이션된 라이브러리 데이터 타입
 export interface LibraryPage {
@@ -25,16 +26,8 @@ interface LibraryApiPageResponse {
   totalCount: number;
 }
 
-// Query Keys for Infinite Query (확장된 타입 지원)
-export const libraryInfiniteQueryKeys = {
-  all: ['library-infinite'] as const,
-  clips: (limit = 20) => [...libraryInfiniteQueryKeys.all, 'clips', limit] as const,
-  favorites: (limit = 20) => [...libraryInfiniteQueryKeys.all, 'favorites', limit] as const,
-  regular: (limit = 20) => [...libraryInfiniteQueryKeys.all, 'regular', limit] as const,
-  projects: (limit = 20) => [...libraryInfiniteQueryKeys.all, 'projects', limit] as const,
-  uploads: (limit = 20) => [...libraryInfiniteQueryKeys.all, 'uploads', limit] as const,
-  combined: (limit = 20) => [...libraryInfiniteQueryKeys.all, 'combined', limit] as const,
-};
+// Query Keys for Infinite Query - 통합된 캐시 키 사용
+export const libraryInfiniteQueryKeys = LIBRARY_CACHE_KEYS.infinite;
 
 // API 함수들 (성능 최적화 및 타입 확장)
 const fetchLibraryPage = async (
@@ -56,7 +49,9 @@ const fetchLibraryPage = async (
   const response = await fetch(`/api/canvas/library?${params.toString()}`, {
     headers: {
       'Content-Type': 'application/json',
+      'Cache-Control': prefetch ? 'public, s-maxage=300, stale-while-revalidate=600' : 'no-store'
     },
+    cache: prefetch ? 'force-cache' : 'no-store',
   });
   
   if (!response.ok) {
@@ -89,12 +84,12 @@ const fetchLibraryPage = async (
 // Infinite Query Hooks
 export function useLibraryClipsInfinite(enabled = true, limit = 20) {
   return useInfiniteQuery({
-    queryKey: libraryInfiniteQueryKeys.clips(limit),
+    queryKey: libraryInfiniteQueryKeys.clips('regular', limit),
     queryFn: ({ pageParam }) => fetchLibraryPage(pageParam, limit, 'clips'),
     enabled,
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.hasNextPage ? lastPage.nextCursor : undefined,
-    staleTime: 10 * 60 * 1000, // 10분간 fresh
+    staleTime: 5 * 60 * 1000, // 5분간 fresh (실시간성 향상)
     gcTime: 2 * 60 * 60 * 1000, // 2시간간 캐시 유지
     retry: (failureCount, error) => {
       if (error instanceof Error && error.message.includes('401')) {
@@ -112,7 +107,7 @@ export function useLibraryProjectsInfinite(enabled = true, limit = 20) {
     enabled,
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.hasNextPage ? lastPage.nextCursor : undefined,
-    staleTime: 30 * 60 * 1000, // 30분간 fresh
+    staleTime: 15 * 60 * 1000, // 15분간 fresh
     gcTime: 4 * 60 * 60 * 1000, // 4시간간 캐시 유지
     retry: (failureCount, error) => {
       if (error instanceof Error && error.message.includes('401')) {
@@ -130,7 +125,7 @@ export function useLibraryUploadsInfinite(enabled = true, limit = 20) {
     enabled,
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.hasNextPage ? lastPage.nextCursor : undefined,
-    staleTime: 60 * 60 * 1000, // 1시간간 fresh
+    staleTime: 30 * 60 * 1000, // 30분간 fresh
     gcTime: 6 * 60 * 60 * 1000, // 6시간간 캐시 유지
     retry: (failureCount, error) => {
       if (error instanceof Error && error.message.includes('401')) {
@@ -157,13 +152,13 @@ export function useLibraryFavoritesInfinite(
   options?: LibraryQueryOptions
 ) {
   return useInfiniteQuery({
-    queryKey: libraryInfiniteQueryKeys.favorites(limit),
+    queryKey: libraryInfiniteQueryKeys.clips('favorites', limit),
     queryFn: ({ pageParam }) => fetchLibraryPage(pageParam, limit, 'favorites', prefetch),
     enabled,
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.hasNextPage ? lastPage.nextCursor : undefined,
     // 커스텀 옵션 우선, 없으면 기본값 사용
-    staleTime: options?.staleTime ?? (prefetch ? 5 * 60 * 1000 : 30 * 1000),
+    staleTime: options?.staleTime ?? (prefetch ? 5 * 60 * 1000 : 2 * 60 * 1000),
     gcTime: options?.gcTime ?? (prefetch ? 10 * 60 * 1000 : 5 * 60 * 1000),
     refetchOnWindowFocus: options?.refetchOnWindowFocus ?? false,
     refetchOnMount: options?.refetchOnMount ?? false,
@@ -183,13 +178,13 @@ export function useLibraryRegularInfinite(
   options?: LibraryQueryOptions
 ) {
   return useInfiniteQuery({
-    queryKey: libraryInfiniteQueryKeys.regular(limit),
+    queryKey: libraryInfiniteQueryKeys.clips('regular', limit),
     queryFn: ({ pageParam }) => fetchLibraryPage(pageParam, limit, 'regular', prefetch),
     enabled,
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.hasNextPage ? lastPage.nextCursor : undefined,
     // 커스텀 옵션 우선, 없으면 기본값 사용
-    staleTime: options?.staleTime ?? (prefetch ? 5 * 60 * 1000 : 30 * 1000),
+    staleTime: options?.staleTime ?? (prefetch ? 5 * 60 * 1000 : 2 * 60 * 1000),
     gcTime: options?.gcTime ?? (prefetch ? 10 * 60 * 1000 : 5 * 60 * 1000),
     refetchOnWindowFocus: options?.refetchOnWindowFocus ?? false,
     refetchOnMount: options?.refetchOnMount ?? false,
@@ -213,7 +208,7 @@ export function useCombinedLibraryInfinite(enabled = true, limit = 20) {
     enabled,
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.hasNextPage ? lastPage.nextCursor : undefined,
-    staleTime: 15 * 60 * 1000, // 15분간 fresh
+    staleTime: 10 * 60 * 1000, // 10분간 fresh
     gcTime: 3 * 60 * 60 * 1000, // 3시간간 캐시 유지
     retry: (failureCount, error) => {
       if (error instanceof Error && error.message.includes('401')) {

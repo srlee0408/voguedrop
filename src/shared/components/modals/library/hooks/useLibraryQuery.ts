@@ -1,6 +1,8 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, InfiniteData } from '@tanstack/react-query';
 import { LibraryVideo, LibraryProject, UserUploadedVideo } from '@/shared/types/video-editor';
 import { LibraryCounts } from '@/shared/types/library-modal';
+import { LIBRARY_CACHE_KEYS } from '../constants/cache-keys';
+import { LibraryPage } from './useLibraryInfiniteQuery';
 
 // 통합 라이브러리 데이터 타입
 export interface LibraryData {
@@ -19,14 +21,8 @@ interface LibraryApiResponse {
   counts?: LibraryCounts;
 }
 
-// Query Keys - PROJECT_GUIDE.md 네이밍 컨벤션 준수
-export const libraryQueryKeys = {
-  all: ['library'] as const,
-  clips: () => [...libraryQueryKeys.all, 'clips'] as const,
-  projects: () => [...libraryQueryKeys.all, 'projects'] as const,
-  uploads: () => [...libraryQueryKeys.all, 'uploads'] as const,
-  combined: (limit?: number) => [...libraryQueryKeys.all, 'combined', limit] as const,
-};
+// Query Keys - 통합된 캐시 키 사용 (deprecated, 직접 LIBRARY_CACHE_KEYS 사용 권장)
+export const libraryQueryKeys = LIBRARY_CACHE_KEYS;
 
 // API 함수들
 const fetchLibraryData = async (limit = 50): Promise<LibraryData> => {
@@ -74,10 +70,10 @@ const fetchLibraryUploads = async (limit = 50): Promise<UserUploadedVideo[]> => 
 // React Query Hooks
 export function useLibraryClips(enabled = true, limit = 50) {
   return useQuery({
-    queryKey: libraryQueryKeys.clips(),
+    queryKey: LIBRARY_CACHE_KEYS.clips.all(),
     queryFn: () => fetchLibraryClips(limit),
     enabled,
-    staleTime: 10 * 60 * 1000, // 10분간 fresh (클립은 자주 업데이트되지만 프리페칭 효율을 위해 연장)
+    staleTime: 5 * 60 * 1000, // 5분간 fresh (실시간성 향상)
     gcTime: 2 * 60 * 60 * 1000, // 2시간간 캐시 유지 (프리페칭된 데이터 오래 보존)
     retry: (failureCount, error) => {
       // 401 에러 (인증 실패)는 재시도하지 않음
@@ -91,10 +87,10 @@ export function useLibraryClips(enabled = true, limit = 50) {
 
 export function useLibraryProjects(enabled = true, limit = 50) {
   return useQuery({
-    queryKey: libraryQueryKeys.projects(),
+    queryKey: LIBRARY_CACHE_KEYS.projects.all(),
     queryFn: () => fetchLibraryProjects(limit),
     enabled,
-    staleTime: 30 * 60 * 1000, // 30분간 fresh (프로젝트는 덜 자주 변경됨, 프리페칭 효율을 위해 연장)
+    staleTime: 15 * 60 * 1000, // 15분간 fresh
     gcTime: 4 * 60 * 60 * 1000, // 4시간간 캐시 유지 (프로젝트 데이터는 오래 보존)
     retry: (failureCount, error) => {
       if (error instanceof Error && error.message.includes('401')) {
@@ -107,10 +103,10 @@ export function useLibraryProjects(enabled = true, limit = 50) {
 
 export function useLibraryUploads(enabled = true, limit = 50) {
   return useQuery({
-    queryKey: libraryQueryKeys.uploads(),
+    queryKey: LIBRARY_CACHE_KEYS.uploads.all(),
     queryFn: () => fetchLibraryUploads(limit),
     enabled,
-    staleTime: 60 * 60 * 1000, // 1시간간 fresh (업로드는 거의 변경되지 않음, 가장 오래 보존)
+    staleTime: 30 * 60 * 1000, // 30분간 fresh
     gcTime: 6 * 60 * 60 * 1000, // 6시간간 캐시 유지 (업로드 데이터는 가장 오래 보존)
     retry: (failureCount, error) => {
       if (error instanceof Error && error.message.includes('401')) {
@@ -128,10 +124,10 @@ export function useLibraryUploads(enabled = true, limit = 50) {
  */
 export function useCombinedLibraryData(enabled = true, limit = 50) {
   return useQuery({
-    queryKey: libraryQueryKeys.combined(limit),
+    queryKey: LIBRARY_CACHE_KEYS.combined.all(limit),
     queryFn: () => fetchLibraryData(limit),
     enabled,
-    staleTime: 15 * 60 * 1000, // 15분간 fresh (프리페칭 효율을 위해 연장)
+    staleTime: 10 * 60 * 1000, // 10분간 fresh
     gcTime: 3 * 60 * 60 * 1000, // 3시간간 캐시 유지 (프리페칭된 통합 데이터는 오래 보존)
     retry: (failureCount, error) => {
       if (error instanceof Error && error.message.includes('401')) {
@@ -164,7 +160,7 @@ export function useUpdateUploadItems() {
     onSuccess: (newItem) => {
       // uploads 쿼리 업데이트
       queryClient.setQueryData(
-        libraryQueryKeys.uploads(),
+        LIBRARY_CACHE_KEYS.uploads.all(),
         (oldData: UserUploadedVideo[] | undefined) => {
           if (!oldData) return [newItem];
           return [newItem, ...oldData];
@@ -173,7 +169,7 @@ export function useUpdateUploadItems() {
       
       // combined 쿼리 업데이트
       queryClient.setQueryData(
-        libraryQueryKeys.combined(),
+        LIBRARY_CACHE_KEYS.combined.all(),
         (oldData: LibraryData | undefined) => {
           if (!oldData) return undefined;
           return {
@@ -184,6 +180,48 @@ export function useUpdateUploadItems() {
               uploads: oldData.counts.uploads + 1
             }
           };
+        }
+      );
+
+      // infinite uploads 첫 페이지에 낙관적 추가
+      queryClient.setQueryData(
+        LIBRARY_CACHE_KEYS.infinite.uploads(20),
+        (oldData: InfiniteData<LibraryPage> | undefined) => {
+          if (!oldData || !oldData.pages?.length) return oldData;
+          const [first, ...rest] = oldData.pages;
+          const updatedFirst: LibraryPage = {
+            ...first,
+            uploads: [newItem, ...(first.uploads || [])],
+            counts: {
+              ...first.counts,
+              uploads: (first.counts?.uploads || 0) + 1,
+              favorites: first.counts?.favorites || 0,
+              clips: first.counts?.clips || 0,
+              projects: first.counts?.projects || 0,
+            }
+          };
+          return { ...oldData, pages: [updatedFirst, ...rest] };
+        }
+      );
+
+      // infinite combined 첫 페이지에도 반영 (존재할 경우)
+      queryClient.setQueryData(
+        LIBRARY_CACHE_KEYS.infinite.combined(20),
+        (oldData: InfiniteData<LibraryPage> | undefined) => {
+          if (!oldData || !oldData.pages?.length) return oldData;
+          const [first, ...rest] = oldData.pages;
+          const updatedFirst: LibraryPage = {
+            ...first,
+            uploads: [newItem, ...(first.uploads || [])],
+            counts: {
+              ...first.counts,
+              uploads: (first.counts?.uploads || 0) + 1,
+              favorites: first.counts?.favorites || 0,
+              clips: first.counts?.clips || 0,
+              projects: first.counts?.projects || 0,
+            }
+          };
+          return { ...oldData, pages: [updatedFirst, ...rest] };
         }
       );
     },
@@ -200,7 +238,7 @@ export function useUpdateCounts() {
     onSuccess: ({ key, delta }) => {
       // combined 쿼리의 counts 업데이트
       queryClient.setQueryData(
-        libraryQueryKeys.combined(),
+        LIBRARY_CACHE_KEYS.combined.all(),
         (oldData: LibraryData | undefined) => {
           if (!oldData) return undefined;
           return {
@@ -222,7 +260,7 @@ export function useRefreshLibraryData() {
   
   return () => {
     queryClient.invalidateQueries({
-      queryKey: libraryQueryKeys.all,
+      queryKey: [LIBRARY_CACHE_KEYS.base],
     });
   };
 }

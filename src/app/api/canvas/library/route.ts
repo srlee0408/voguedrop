@@ -264,26 +264,22 @@ export async function GET(request: NextRequest) {
       }
     };
 
-    // 캐싱 헤더 설정 (성능 최적화)
-    const headers = new Headers({
-      'Content-Type': 'application/json',
-    });
-    
-    // 프리페칭의 경우 더 긴 캐시 시간 적용
-    if (prefetch || type === 'favorites') {
+    // 캐싱 헤더 설정
+    // 실시간 상호작용(즐겨찾기 토글 직후)에서의 지연/되돌림을 방지하기 위해 기본적으로 no-store로 응답합니다.
+    // 사전 프리페치 요청은 쿼리의 prefetch=true 로 구분되어 edge/CDN 캐시를 사용할 수 있도록 s-maxage 를 부여합니다.
+    const headers = new Headers({ 'Content-Type': 'application/json' });
+
+    if (prefetch) {
+      // 프리페치 전용: CDN 캐시 허용
       headers.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
     } else {
-      headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=120');
+      // 사용자 인터랙션 경로: 항상 최신 데이터 반환
+      headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+      headers.set('Pragma', 'no-cache');
+      headers.set('Expires', '0');
     }
-    
-    // ETag 추가 (데이터 무결성)
-    const etag = `"${user.id}-${type}-${cursor || 'initial'}-${limit}"`;
-    headers.set('ETag', etag);
 
-    return new NextResponse(JSON.stringify(responseData), { 
-      status: 200, 
-      headers 
-    });
+    return new NextResponse(JSON.stringify(responseData), { status: 200, headers });
 
   } catch {
     // Library API error

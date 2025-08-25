@@ -47,15 +47,22 @@ export async function GET(request: NextRequest) {
 
     const data = await response.json();
 
-    // 즐겨찾기 전용 응답 형태로 변환
-    return NextResponse.json({
+    // 즐겨찾기 전용 응답 형태로 변환 (캐시 금지로 즉시 일관성 보장)
+    const headers = new Headers({
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-store, no-cache, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
+
+    return new NextResponse(JSON.stringify({
       favorites: data.clips || [],
       pagination: data.pagination,
       totalCount: data.totalCount,
       counts: {
         favorites: data.counts?.clips || 0
       }
-    });
+    }), { status: 200, headers });
 
   } catch (error) {
     console.error('Favorites API error:', error);

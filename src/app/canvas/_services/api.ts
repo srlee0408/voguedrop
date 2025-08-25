@@ -18,7 +18,9 @@ export class CanvasAPI {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
+        'Cache-Control': 'no-store',
       },
+      cache: 'no-store',
     })
 
     if (!response.ok) {
@@ -47,8 +49,10 @@ export class CanvasAPI {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
+        'Cache-Control': 'no-store',
       },
       body: JSON.stringify(request),
+      cache: 'no-store',
     })
 
     if (!response.ok) {

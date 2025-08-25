@@ -1,8 +1,9 @@
 'use client'
 
-import { useCallback, useMemo } from 'react'
+import { useCallback, useMemo, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/shared/lib/auth/AuthContext'
+import { LIBRARY_CACHE_KEYS } from '@/shared/components/modals/library/constants/cache-keys'
 
 interface FavoritesApiResponse {
   favoriteIds: string[]
@@ -15,6 +16,7 @@ interface FavoritesReturn {
   toggleFavorite: (videoId: string) => Promise<void>
   isFavorite: (videoId: string) => boolean
   refreshFavorites: () => Promise<void>
+  isToggling: (videoId: string) => boolean
 }
 
 // API 호출 함수들
@@ -23,7 +25,12 @@ const fetchFavorites = async (userId: string | null): Promise<string[]> => {
     return []
   }
   
-  const response = await fetch('/api/canvas/favorites')
+  const response = await fetch('/api/canvas/favorites', {
+    cache: 'no-store',
+    headers: {
+      'Cache-Control': 'no-store'
+    }
+  })
   
   if (!response.ok) {
     throw new Error(`Failed to fetch favorites: ${response.status}`)
@@ -42,11 +49,12 @@ const updateFavoriteStatus = async ({
 }): Promise<void> => {
   const response = await fetch('/api/canvas/favorite', {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
     body: JSON.stringify({
       videoId,
       isFavorite,
     }),
+    cache: 'no-store',
   })
 
   if (!response.ok) {
@@ -63,6 +71,8 @@ const updateFavoriteStatus = async ({
 export function useFavorites(): FavoritesReturn {
   const { user } = useAuth()
   const queryClient = useQueryClient()
+  const debounceTimers = useRef<Map<string, NodeJS.Timeout>>(new Map())
+  const togglingItems = useRef<Set<string>>(new Set())
   
   // 즐겨찾기 데이터 조회 (React Query)
   const favoritesQuery = useQuery({
@@ -81,14 +91,14 @@ export function useFavorites(): FavoritesReturn {
     onMutate: async ({ videoId, isFavorite }) => {
       // 진행 중인 모든 관련 쿼리 취소
       await queryClient.cancelQueries({ queryKey: ['favorites', user?.id] })
-      await queryClient.cancelQueries({ queryKey: ['library-infinite', 'favorites'] })
-      await queryClient.cancelQueries({ queryKey: ['library-infinite', 'regular'] })
+      await queryClient.cancelQueries({ queryKey: LIBRARY_CACHE_KEYS.infinite.clips('favorites', 20) })
+      await queryClient.cancelQueries({ queryKey: LIBRARY_CACHE_KEYS.infinite.clips('regular', 50) })
       await queryClient.cancelQueries({ queryKey: ['canvas', 'history'] })
 
       // 이전 값들 백업
       const previousFavorites = queryClient.getQueryData<string[]>(['favorites', user?.id]) || []
-      const previousLibraryFavorites = queryClient.getQueryData(['library-infinite', 'favorites', 20])
-      const previousLibraryRegular = queryClient.getQueryData(['library-infinite', 'regular', 20])
+      const previousLibraryFavorites = queryClient.getQueryData(LIBRARY_CACHE_KEYS.infinite.clips('favorites', 20))
+      const previousLibraryRegular = queryClient.getQueryData(LIBRARY_CACHE_KEYS.infinite.clips('regular', 50))
       const previousCanvasHistory = queryClient.getQueryData(['canvas', 'history'])
 
       // 1. 즐겨찾기 ID 목록 즉시 업데이트
@@ -100,7 +110,7 @@ export function useFavorites(): FavoritesReturn {
 
       // 2. 라이브러리 즐겨찾기 리스트 즉시 업데이트
       if (previousLibraryFavorites) {
-        queryClient.setQueryData(['library-infinite', 'favorites', 20], (old: unknown) => {
+        queryClient.setQueryData(LIBRARY_CACHE_KEYS.infinite.clips('favorites', 20), (old: unknown) => {
           if (!old || typeof old !== 'object' || !('pages' in old)) return old
           
           const typedOld = old as { pages: Array<{ clips?: Array<{ id: string | number, is_favorite?: boolean }>, totalCount?: number }> }
@@ -135,7 +145,7 @@ export function useFavorites(): FavoritesReturn {
 
       // 3. 라이브러리 일반 리스트의 is_favorite 상태 즉시 업데이트
       if (previousLibraryRegular) {
-        queryClient.setQueryData(['library-infinite', 'regular', 20], (old: unknown) => {
+        queryClient.setQueryData(LIBRARY_CACHE_KEYS.infinite.clips('regular', 50), (old: unknown) => {
           if (!old || typeof old !== 'object' || !('pages' in old)) return old
           
           const typedOld = old as { pages: Array<{ clips?: Array<{ id: string | number, is_favorite?: boolean }> }> }
@@ -189,10 +199,10 @@ export function useFavorites(): FavoritesReturn {
         queryClient.setQueryData(['favorites', user?.id], context.previousFavorites)
       }
       if (context?.previousLibraryFavorites) {
-        queryClient.setQueryData(['library-infinite', 'favorites', 20], context.previousLibraryFavorites)
+        queryClient.setQueryData(LIBRARY_CACHE_KEYS.infinite.clips('favorites', 20), context.previousLibraryFavorites)
       }
       if (context?.previousLibraryRegular) {
-        queryClient.setQueryData(['library-infinite', 'regular', 20], context.previousLibraryRegular)
+        queryClient.setQueryData(LIBRARY_CACHE_KEYS.infinite.clips('regular', 50), context.previousLibraryRegular)
       }
       if (context?.previousCanvasHistory) {
         queryClient.setQueryData(['canvas', 'history'], context.previousCanvasHistory)
@@ -201,21 +211,19 @@ export function useFavorites(): FavoritesReturn {
       console.error('Error toggling favorite:', err)
     },
     onSuccess: () => {
-      // 성공 시에는 백그라운드에서 조용히 동기화 (UI 깜빡임 방지)
-      setTimeout(() => {
-        queryClient.invalidateQueries({ 
-          queryKey: ['favorites', user?.id],
-          refetchType: 'none' // 데이터 리페칭 없이 캐시만 stale로 표시
-        })
-        queryClient.invalidateQueries({ 
-          queryKey: ['library-infinite'],
-          refetchType: 'none'
-        })
-        queryClient.invalidateQueries({ 
-          queryKey: ['canvas', 'history'],
-          refetchType: 'none'
-        })
-      }, 2000) // 2초 후 백그라운드 동기화
+      // 성공 시 즉시 캐시 갱신 (2초 지연 제거로 실시간 반영)
+      queryClient.invalidateQueries({ 
+        queryKey: ['favorites', user?.id]
+      });
+      
+      // 통합된 캐시 키 사용으로 정확한 무효화
+      queryClient.invalidateQueries({
+        predicate: (query) => {
+          const key = query.queryKey;
+          return (key[0] === 'library' && key[1] === 'clips') ||
+                 (key[0] === 'canvas' && key[1] === 'history');
+        }
+      });
     },
   })
 
@@ -224,21 +232,44 @@ export function useFavorites(): FavoritesReturn {
     return new Set(favoritesQuery.data || [])
   }, [favoritesQuery.data])
 
-  // 즐겨찾기 토글
+  // 즐겨찾기 토글 (debounce 적용)
   const toggleFavorite = useCallback(async (videoId: string): Promise<void> => {
     if (!user) {
       throw new Error('로그인이 필요합니다.')
     }
 
-    const currentIsFavorite = favoriteIds.has(videoId)
-    const newFavoriteState = !currentIsFavorite
-
-    try {
-      await toggleMutation.mutateAsync({ videoId, isFavorite: newFavoriteState })
-    } catch (err) {
-      // 에러를 다시 throw하여 호출자가 처리할 수 있도록 함
-      throw err
+    // 이미 진행 중인 경우 중복 실행 방지
+    if (togglingItems.current.has(videoId)) {
+      return;
     }
+
+    // 기존 debounce 타이머 제거
+    const existingTimer = debounceTimers.current.get(videoId);
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+    }
+
+    // 진행 상태 추가
+    togglingItems.current.add(videoId);
+
+    const currentIsFavorite = favoriteIds.has(videoId);
+    const newFavoriteState = !currentIsFavorite;
+
+    // 300ms debounce 적용
+    const timer = setTimeout(async () => {
+      try {
+        await toggleMutation.mutateAsync({ videoId, isFavorite: newFavoriteState });
+      } catch (err) {
+        console.error('Toggle favorite error:', err);
+        throw err;
+      } finally {
+        // 진행 상태 제거
+        togglingItems.current.delete(videoId);
+        debounceTimers.current.delete(videoId);
+      }
+    }, 300);
+
+    debounceTimers.current.set(videoId, timer);
   }, [favoriteIds, toggleMutation, user])
 
   // 특정 비디오가 즐겨찾기인지 확인
@@ -247,6 +278,14 @@ export function useFavorites(): FavoritesReturn {
       return favoriteIds.has(videoId)
     },
     [favoriteIds]
+  )
+
+  // 특정 비디오가 토글 진행 중인지 확인
+  const isToggling = useCallback(
+    (videoId: string): boolean => {
+      return togglingItems.current.has(videoId)
+    },
+    []
   )
 
   // 즐겨찾기 새로고침
@@ -260,6 +299,7 @@ export function useFavorites(): FavoritesReturn {
     error: favoritesQuery.error?.message || toggleMutation.error?.message || null,
     toggleFavorite,
     isFavorite,
+    isToggling,
     refreshFavorites,
   }
 }
