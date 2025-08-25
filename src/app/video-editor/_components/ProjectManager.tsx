@@ -15,6 +15,8 @@ interface ProjectManagerProps {
   textClips: TextClip[];
   soundClips: SoundClip[];
   soundLanes?: number[];
+  textLanes?: number[];
+  videoLanes?: number[];
   calculateTotalFrames: number;
   saveStatus: SaveStatus;
   setSaveStatus: (status: SaveStatus) => void;
@@ -29,6 +31,8 @@ export default function ProjectManager({
   textClips,
   soundClips,
   soundLanes = [0],
+  textLanes = [0],
+  videoLanes = [0],
   calculateTotalFrames,
   setSaveStatus,
   setSaveError,
@@ -60,6 +64,8 @@ export default function ProjectManager({
     textClips,
     soundClips,
     soundLanes,
+    textLanes,
+    videoLanes,
     aspectRatio: '9:16', // TODO: Get from VideoPreview component
     durationInFrames: calculateTotalFrames,
     onSaveSuccess,

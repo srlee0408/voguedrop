@@ -6,6 +6,8 @@ import { useClips, usePlayback, useHistory, useProject } from '../_context/Provi
 interface TimelineSectionProps {
   PIXELS_PER_SECOND: number;
   soundLanes?: number[]; // 사운드 레인 배열
+  textLanes?: number[]; // 텍스트 레인 배열
+  videoLanes?: number[]; // 비디오 레인 배열
   onSplitVideoClip: (id: string) => void;
   onSplitTextClip: (id: string) => void;
   onSplitSoundClip: (id: string) => void;
@@ -15,11 +17,21 @@ interface TimelineSectionProps {
   onDeleteSoundLane?: (laneIndex: number) => void; // 사운드 레인 삭제
   onAddSoundToLane?: (laneIndex: number) => void; // 특정 레인에 사운드 추가
   onUpdateSoundClipLane?: (id: string, laneIndex: number) => void; // 사운드 클립 레인 변경
+  onAddTextLane?: () => void; // 텍스트 레인 추가
+  onDeleteTextLane?: (laneIndex: number) => void; // 텍스트 레인 삭제
+  onAddTextToLane?: (laneIndex: number) => void; // 특정 레인에 텍스트 추가
+  onUpdateTextClipLane?: (id: string, laneIndex: number) => void; // 텍스트 클립 레인 변경
+  onAddVideoLane?: () => void; // 비디오 레인 추가
+  onDeleteVideoLane?: (laneIndex: number) => void; // 비디오 레인 삭제
+  onAddVideoToLane?: (laneIndex: number) => void; // 특정 레인에 비디오 추가
+  onUpdateVideoClipLane?: (id: string, laneIndex: number) => void; // 비디오 클립 레인 변경
 }
 
 export default function TimelineSection({
   PIXELS_PER_SECOND,
   soundLanes,
+  textLanes,
+  videoLanes,
   onSplitVideoClip,
   onSplitTextClip,
   onSplitSoundClip,
@@ -29,6 +41,14 @@ export default function TimelineSection({
   onDeleteSoundLane,
   onAddSoundToLane,
   onUpdateSoundClipLane,
+  onAddTextLane,
+  onDeleteTextLane,
+  onAddTextToLane,
+  onUpdateTextClipLane,
+  onAddVideoLane,
+  onDeleteVideoLane,
+  onAddVideoToLane,
+  onUpdateVideoClipLane,
 }: TimelineSectionProps) {
   const { timelineHeight } = useProject();
   
@@ -89,12 +109,20 @@ export default function TimelineSection({
         textClips={textClips}
         soundClips={soundClips}
         soundLanes={soundLanes}
+        textLanes={textLanes}
+        videoLanes={videoLanes}
         onAddClip={handleAddClip}
         onAddText={onAddText}
         onAddSound={handleAddSound}
         onAddSoundLane={onAddSoundLane}
         onDeleteSoundLane={onDeleteSoundLane}
         onAddSoundToLane={onAddSoundToLane}
+        onAddTextLane={onAddTextLane}
+        onDeleteTextLane={onDeleteTextLane}
+        onAddTextToLane={onAddTextToLane}
+        onAddVideoLane={onAddVideoLane}
+        onDeleteVideoLane={onDeleteVideoLane}
+        onAddVideoToLane={onAddVideoToLane}
         onEditTextClip={handleEditTextClip}
         onEditSoundClip={onEditSoundClip}
         onDeleteTextClip={handleDeleteTextClip}
@@ -121,6 +149,8 @@ export default function TimelineSection({
         onUpdateSoundVolume={handleUpdateSoundVolume}
         onUpdateSoundFade={handleUpdateSoundFade}
         onUpdateSoundClipLane={onUpdateSoundClipLane}
+        onUpdateTextClipLane={onUpdateTextClipLane}
+        onUpdateVideoClipLane={onUpdateVideoClipLane}
         pixelsPerSecond={PIXELS_PER_SECOND}
         currentTime={currentTime}
         totalDuration={totalDuration}

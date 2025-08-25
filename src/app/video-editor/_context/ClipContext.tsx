@@ -4,10 +4,8 @@ import { createContext, useContext, useState, useCallback, useMemo, useEffect, R
 import { VideoClip, TextClip, SoundClip, LibraryVideo, LibraryProject, UserUploadedVideo, LibraryItem, ClipboardData } from '@/shared/types/video-editor';
 import { toast } from 'sonner';
 import {
-  duplicateVideoClip,
   duplicateTextClip,
   duplicateSoundClip,
-  splitVideoClip,
   splitTextClip,
   splitSoundClip,
   applyResizeTrim,
@@ -20,11 +18,21 @@ import {
   soundPositioning,
 } from '../_utils/timeline-utils';
 import { 
-  getUsedLanes,
+  getUsedLanesFromClips,
   canAddNewLane, 
   getNextAvailableLane,
   validateLaneIndex,
-  hasOverlapInLane 
+  hasOverlapInLane,
+  MAX_TEXT_LANES,
+  MAX_VIDEO_LANES,
+  canAddNewTextLane,
+  canAddNewVideoLane,
+  getNextAvailableTextLane,
+  getNextAvailableVideoLane,
+  isEmptyTextLane,
+  isEmptyVideoLane,
+  validateTextLaneIndex,
+  validateVideoLaneIndex
 } from '../_utils/lane-arrangement';
 
 /**
@@ -44,8 +52,12 @@ interface ClipContextType {
   textClips: TextClip[];
   /** 오디오 트랙에 배치된 사운드 클립 배열 (볼륨과 페이드 정보 포함) */
   soundClips: SoundClip[];
-  /** 활성화된 사운드 레인 인덱스 배열 (0부터 시작, 최대 5개) */
+  /** 활성화된 사운드 레인 인덱스 배열 (0부터 시작, 최대 3개) */
   soundLanes: number[];
+  /** 활성화된 텍스트 레인 인덱스 배열 (0부터 시작, 최대 3개) */
+  textLanes: number[];
+  /** 활성화된 비디오 레인 인덱스 배열 (0부터 시작, 최대 3개) */
+  videoLanes: number[];
   /** 현재 선택된 텍스트 클립의 ID (null이면 선택 없음) */
   selectedTextClip: string | null;
   /** 프로젝트에 저장되지 않은 변경사항이 있는지 여부 */
@@ -72,16 +84,16 @@ interface ClipContextType {
   
   // 비디오 클립 관련 함수
   handleAddToTimeline: (items: LibraryItem[]) => Promise<void>;
-  handleDeleteVideoClip: (id: string) => void;
-  handleDuplicateVideoClip: (id: string) => void;
-  handleSplitVideoClip: (id: string, currentTime: number, pixelsPerSecond: number) => void;
-  handleResizeVideoClip: (id: string, newDuration: number, handle?: 'left' | 'right', deltaPosition?: number) => void;
-  handleUpdateVideoClipPosition: (id: string, newPosition: number) => void;
-  handleUpdateAllVideoClips: (newClips: VideoClip[]) => void;
-  handleReorderVideoClips: (newClips: VideoClip[]) => void;
+  handleDeleteVideoClip: (id: string) => Promise<void>;
+  handleDuplicateVideoClip: (id: string) => Promise<void>;
+  handleSplitVideoClip: (id: string, currentTime: number, pixelsPerSecond: number) => Promise<void>;
+  handleResizeVideoClip: (id: string, newDuration: number, handle?: 'left' | 'right', deltaPosition?: number) => Promise<void>;
+  handleUpdateVideoClipPosition: (id: string, newPosition: number) => Promise<void>;
+  handleUpdateAllVideoClips: (newClips: VideoClip[]) => Promise<void>;
+  handleReorderVideoClips: (newClips: VideoClip[]) => Promise<void>;
   
   // 텍스트 클립 관련 함수
-  handleAddTextClip: (textData: Partial<TextClip>) => void;
+  handleAddTextClip: (textData: Partial<TextClip>) => Promise<void>;
   handleEditTextClip: (clip: TextClip) => void;
   handleDeleteTextClip: (id: string) => void;
   handleDuplicateTextClip: (id: string) => void;
@@ -111,6 +123,18 @@ interface ClipContextType {
   handleDeleteSoundLane: (laneIndex: number) => void;
   handleAddSoundToLane: (laneIndex: number) => void;
   handleUpdateSoundClipLane: (id: string, laneIndex: number) => void;
+  
+  // 텍스트 레인 관리 함수
+  handleAddTextLane: () => void;
+  handleDeleteTextLane: (laneIndex: number) => void;
+  handleAddTextToLane: (laneIndex: number) => void;
+  handleUpdateTextClipLane: (id: string, laneIndex: number) => void;
+  
+  // 비디오 레인 관리 함수
+  handleAddVideoLane: () => void;
+  handleDeleteVideoLane: (laneIndex: number) => void;
+  handleAddVideoToLane: (laneIndex: number) => void;
+  handleUpdateVideoClipLane: (id: string, laneIndex: number) => void;
   
   // 편집 상태
   editingTextClip?: TextClip;
@@ -193,6 +217,8 @@ export function ClipProvider({ children }: ClipProviderProps) {
   const [textClips, setTextClips] = useState<TextClip[]>([]);
   const [soundClips, setSoundClips] = useState<SoundClip[]>([]);
   const [soundLanes, setSoundLanes] = useState<number[]>([0]); // 기본적으로 레인 0 활성화
+  const [textLanes, setTextLanes] = useState<number[]>([0]); // 기본적으로 레인 0 활성화  
+  const [videoLanes, setVideoLanes] = useState<number[]>([0]); // 기본적으로 레인 0 활성화
   const [selectedTextClip, setSelectedTextClip] = useState<string | null>(null);
   const [editingTextClip, setEditingTextClip] = useState<TextClip | undefined>(undefined);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -203,6 +229,7 @@ export function ClipProvider({ children }: ClipProviderProps) {
   const [selectedClipType, setSelectedClipType] = useState<'video' | 'text' | 'sound' | null>(null);
   const [multiSelectedClips, setMultiSelectedClips] = useState<Array<{id: string, type: 'video' | 'text' | 'sound'}>>([]);
   const [clipboard, setClipboard] = useState<ClipboardData | null>(null);
+  
   
   // 사운드 레인 변경 시 ProjectContext에 이벤트 발송
   useEffect(() => {
@@ -240,14 +267,36 @@ export function ClipProvider({ children }: ClipProviderProps) {
       const restoredVideoClips = contentSnapshot.video_clips.map((clip: VideoClip) => ({
         ...clip,
         id: clip.id || `video-${Date.now()}-${Math.random()}`,
-        // 필요한 변환 작업
+        laneIndex: clip.laneIndex ?? 0, // 하위 호환성을 위해 기본값 0 설정
       }));
       setTimelineClips(restoredVideoClips);
+      
+      // 저장된 videoLanes 복원 (있는 경우)
+      if (contentSnapshot.video_lanes && Array.isArray(contentSnapshot.video_lanes)) {
+        setVideoLanes(contentSnapshot.video_lanes);
+      } else {
+        // 클립들로부터 사용된 레인 추출
+        const usedLanes = getUsedLanesFromClips(restoredVideoClips);
+        setVideoLanes(usedLanes.length > 0 ? usedLanes : [0]);
+      }
     }
     
     // 텍스트 클립 복원
     if (contentSnapshot.text_clips) {
-      setTextClips(contentSnapshot.text_clips);
+      const restoredTextClips = contentSnapshot.text_clips.map((clip: TextClip) => ({
+        ...clip,
+        laneIndex: clip.laneIndex ?? 0, // 하위 호환성을 위해 기본값 0 설정
+      }));
+      setTextClips(restoredTextClips);
+      
+      // 저장된 textLanes 복원 (있는 경우)
+      if (contentSnapshot.text_lanes && Array.isArray(contentSnapshot.text_lanes)) {
+        setTextLanes(contentSnapshot.text_lanes);
+      } else {
+        // 클립들로부터 사용된 레인 추출
+        const usedLanes = getUsedLanesFromClips(restoredTextClips);
+        setTextLanes(usedLanes.length > 0 ? usedLanes : [0]);
+      }
     }
     
     // 사운드 클립 복원
@@ -264,8 +313,8 @@ export function ClipProvider({ children }: ClipProviderProps) {
       if (contentSnapshot.sound_lanes && Array.isArray(contentSnapshot.sound_lanes)) {
         setSoundLanes(contentSnapshot.sound_lanes);
       } else {
-        // soundLanes가 저장되지 않은 경우 사용중인 레인 자동 감지
-        const usedLanes = getUsedLanes(restoredSoundClips);
+        // 클립들로부터 사용된 레인 추출
+        const usedLanes = getUsedLanesFromClips(restoredSoundClips);
         setSoundLanes(usedLanes.length > 0 ? usedLanes : [0]);
       }
       
@@ -379,12 +428,7 @@ export function ClipProvider({ children }: ClipProviderProps) {
   
   // 비디오 클립 추가 (LibraryItem 처리)
   const handleAddToTimeline = useCallback(async (items: LibraryItem[]) => {
-    const { getTimelineEnd } = await import('../_utils/timeline-utils');
-    
     const default_px = 240;
-    const startPosition = getTimelineEnd(timelineClips);
-    
-    let currentPosition = startPosition;
     const newClips: VideoClip[] = [];
     
     for (const [index, item] of items.entries()) {
@@ -433,6 +477,14 @@ export function ClipProvider({ children }: ClipProviderProps) {
         }
       }
       
+      const targetLane = 'laneIndex' in item ? (item as LibraryItem & { laneIndex: number }).laneIndex : 0;
+      
+      // 해당 레인의 기존 비디오 클립들 중 가장 뒤에 배치
+      const { getTimelineEnd } = await import('../_utils/timeline-utils');
+      // 해당 레인의 비디오 클립들만 필터링하여 끝 위치 계산
+      const sameLaneVideoClips = timelineClips.filter(c => (c.laneIndex ?? 0) === targetLane);
+      const currentPosition = getTimelineEnd(sameLaneVideoClips);
+      
       const newClip: VideoClip = {
         id: clipId,
         duration: default_px,
@@ -445,10 +497,10 @@ export function ClipProvider({ children }: ClipProviderProps) {
         maxDuration: default_px,
         startTime: 0,
         endTime: undefined,
+        laneIndex: targetLane, // laneIndex 추가
       };
       
       newClips.push(newClip);
-      currentPosition += default_px;
       
       // 백그라운드에서 실제 duration 계산
       getVideoDurationSeconds(url).then((duration_seconds) => {
@@ -479,73 +531,54 @@ export function ClipProvider({ children }: ClipProviderProps) {
   }, [timelineClips, extractTitleFromUrl, getVideoDurationSeconds, saveToHistory]);
   
   // 비디오 클립 삭제
-  const handleDeleteVideoClip = useCallback((id: string) => {
-    setTimelineClips(prev => prev.filter(c => c.id !== id));
-    saveToHistory();
-  }, [saveToHistory]);
+  const handleDeleteVideoClip = useCallback(async (id: string) => {
+    const { CommonClipManager } = await import('../_utils/common-clip-manager');
+    CommonClipManager.deleteClip(id, timelineClips, setTimelineClips, saveToHistory);
+  }, [timelineClips, saveToHistory]);
   
   // 비디오 클립 복제
-  const handleDuplicateVideoClip = useCallback((id: string) => {
-    const clip = timelineClips.find(c => c.id === id);
-    if (!clip) return;
-    
-    const duplicatedClip = duplicateVideoClip(clip, timelineClips);
-    setTimelineClips([...timelineClips, duplicatedClip]);
-    saveToHistory();
+  const handleDuplicateVideoClip = useCallback(async (id: string) => {
+    const { CommonClipManager } = await import('../_utils/common-clip-manager');
+    CommonClipManager.duplicateClip(id, timelineClips, setTimelineClips, saveToHistory);
   }, [timelineClips, saveToHistory]);
   
   // 비디오 클립 분할
-  const handleSplitVideoClip = useCallback((id: string, currentTime: number, pixelsPerSecond: number) => {
-    const clip = timelineClips.find(c => c.id === id);
-    if (!clip) return;
-    
-    const playheadPosition = currentTime * pixelsPerSecond;
-    const result = splitVideoClip(clip, playheadPosition, pixelsPerSecond);
-    
-    if (result) {
-      const { firstClip, secondClip } = result;
-      setTimelineClips(timelineClips.map(c => 
-        c.id === id ? firstClip : c
-      ).concat(secondClip));
-      saveToHistory();
-    }
+  const handleSplitVideoClip = useCallback(async (id: string, currentTime: number, pixelsPerSecond: number) => {
+    const { CommonClipManager } = await import('../_utils/common-clip-manager');
+    CommonClipManager.splitClip(id, currentTime, pixelsPerSecond, timelineClips, setTimelineClips, saveToHistory);
   }, [timelineClips, saveToHistory]);
   
   // 비디오 클립 리사이즈
-  const handleResizeVideoClip = useCallback((id: string, newDuration: number, handle?: 'left' | 'right', deltaPosition?: number) => {
+  const handleResizeVideoClip = useCallback(async (id: string, newDuration: number, handle?: 'left' | 'right', deltaPosition?: number) => {
     if (newDuration <= 0) {
       console.error('[ClipContext] Invalid newDuration:', newDuration, 'for clip:', id);
       return;
     }
     
-    setTimelineClips(prev => prev.map(clip => {
-      if (clip.id !== id) return clip;
-      const updates = applyResizeTrim(clip, newDuration, handle, deltaPosition, PIXELS_PER_SECOND);
-      return { ...clip, ...updates };
-    }));
-  }, []);
+    const { CommonClipManager } = await import('../_utils/common-clip-manager');
+    CommonClipManager.resizeClip(id, newDuration, timelineClips, setTimelineClips, handle, deltaPosition, saveToHistory);
+  }, [timelineClips, saveToHistory]);
   
   // 비디오 클립 위치 업데이트
-  const handleUpdateVideoClipPosition = useCallback((id: string, newPosition: number) => {
-    setTimelineClips(prev => prev.map(clip => 
-      clip.id === id ? { ...clip, position: newPosition } : clip
-    ));
-    saveToHistory();
-  }, [saveToHistory]);
+  const handleUpdateVideoClipPosition = useCallback(async (id: string, newPosition: number) => {
+    const { CommonClipManager } = await import('../_utils/common-clip-manager');
+    CommonClipManager.updateClipPosition(id, newPosition, timelineClips, setTimelineClips, saveToHistory);
+  }, [timelineClips, saveToHistory]);
   
   // 모든 비디오 클립 업데이트
-  const handleUpdateAllVideoClips = useCallback((newClips: VideoClip[]) => {
-    setTimelineClips(newClips);
-    saveToHistory();
+  const handleUpdateAllVideoClips = useCallback(async (newClips: VideoClip[]) => {
+    const { CommonClipManager } = await import('../_utils/common-clip-manager');
+    CommonClipManager.updateAllClips(newClips, setTimelineClips, saveToHistory);
   }, [saveToHistory]);
   
   // 비디오 클립 재정렬
-  const handleReorderVideoClips = useCallback((newClips: VideoClip[]) => {
-    setTimelineClips(newClips);
+  const handleReorderVideoClips = useCallback(async (newClips: VideoClip[]) => {
+    const { CommonClipManager } = await import('../_utils/common-clip-manager');
+    CommonClipManager.reorderClips(newClips, setTimelineClips);
   }, []);
   
   // 텍스트 클립 추가
-  const handleAddTextClip = useCallback((textData: Partial<TextClip>) => {
+  const handleAddTextClip = useCallback(async (textData: Partial<TextClip>) => {
     if (editingTextClip) {
       setTextClips(textClips.map(clip => 
         clip.id === editingTextClip.id 
@@ -557,32 +590,41 @@ export function ClipProvider({ children }: ClipProviderProps) {
               // position과 duration은 명시적으로 전달되지 않으면 기존 값 유지
               position: textData.position !== undefined ? textData.position : clip.position,
               duration: textData.duration !== undefined ? textData.duration : clip.duration,
+              laneIndex: textData.laneIndex !== undefined ? textData.laneIndex : clip.laneIndex, // laneIndex 업데이트
             } 
           : clip
       ));
       saveToHistory();
     } else {
-      import('../_utils/timeline-utils').then(({ getTimelineEnd }) => {
-        const duration = textData.duration || 200;
-        const position = getTimelineEnd(textClips);
-        
-        const newTextClip: TextClip = {
-          id: `text-${Date.now()}`,
-          content: textData.content || '',
-          duration: duration,
-          position: textData.position || position,
-          style: textData.style || {
-            fontSize: 24,
-            fontFamily: 'default',
-            color: '#FFFFFF',
-            alignment: 'center',
-          },
-          effect: textData.effect,
-        };
-        
-        setTextClips([...textClips, newTextClip]);
-        saveToHistory();
-      });
+      const duration = textData.duration || 200;
+      const targetLane = textData.laneIndex || 0;
+      
+      // 해당 레인의 기존 텍스트 클립들 중 가장 뒤에 배치
+      let position = textData.position;
+      if (position === undefined) {
+        const { getTimelineEnd } = await import('../_utils/timeline-utils');
+        // 해당 레인의 텍스트 클립들만 필터링하여 끝 위치 계산
+        const sameLaneTextClips = textClips.filter(c => (c.laneIndex ?? 0) === targetLane);
+        position = getTimelineEnd(sameLaneTextClips);
+      }
+      
+      const newTextClip: TextClip = {
+        id: `text-${Date.now()}`,
+        content: textData.content || '',
+        duration: duration,
+        position: position,
+        style: textData.style || {
+          fontSize: 24,
+          fontFamily: 'default',
+          color: '#FFFFFF',
+          alignment: 'center',
+        },
+        effect: textData.effect,
+        laneIndex: targetLane, // laneIndex 추가
+      };
+      
+      setTextClips([...textClips, newTextClip]);
+      saveToHistory();
     }
     setEditingTextClip(undefined);
   }, [editingTextClip, textClips, saveToHistory]);
@@ -934,6 +976,136 @@ export function ClipProvider({ children }: ClipProviderProps) {
     saveToHistory();
   }, [saveToHistory]);
   
+  // ===============================
+  // 텍스트 레인 관리 함수들
+  // ===============================
+  
+  // 텍스트 레인 추가
+  const handleAddTextLane = useCallback(() => {
+    if (canAddNewTextLane(textLanes)) {
+      const nextLane = getNextAvailableTextLane(textLanes);
+      if (nextLane !== null) {
+        setTextLanes(prev => [...prev, nextLane].sort((a, b) => a - b));
+        saveToHistory();
+        toast.success(`Text Lane ${nextLane + 1} added`);
+      }
+    } else {
+      toast.warning(`Maximum ${MAX_TEXT_LANES} text lanes allowed`);
+    }
+  }, [textLanes, saveToHistory]);
+  
+  // 텍스트 레인 삭제
+  const handleDeleteTextLane = useCallback((laneIndex: number) => {
+    // 첫 번째 레인은 삭제 불가
+    if (laneIndex === 0) {
+      toast.warning('Cannot delete the main text lane');
+      return;
+    }
+    
+    // 레인이 존재하는지 확인
+    if (!textLanes.includes(laneIndex)) {
+      toast.error(`Lane ${laneIndex + 1} does not exist`);
+      return;
+    }
+    
+    // 해당 레인에 있는 모든 클립 삭제
+    const laneClips = textClips.filter(clip => (clip.laneIndex ?? 0) === laneIndex);
+    if (laneClips.length > 0) {
+      setTextClips(prev => prev.filter(clip => (clip.laneIndex ?? 0) !== laneIndex));
+      toast.info(`Deleted ${laneClips.length} text clip(s) from lane ${laneIndex + 1}`);
+    }
+    
+    // 레인 삭제
+    setTextLanes(prev => prev.filter(lane => lane !== laneIndex));
+    saveToHistory();
+    toast.success(`Text Lane ${laneIndex + 1} deleted`);
+  }, [textLanes, textClips, saveToHistory]);
+  
+  // 특정 텍스트 레인에 텍스트 추가
+  const handleAddTextToLane = useCallback((laneIndex: number) => {
+    const validLaneIndex = validateTextLaneIndex(laneIndex);
+    
+    // TextLibraryModal을 열기 위한 이벤트 발생
+    // 이벤트를 통해 laneIndex 정보를 전달
+    const event = new CustomEvent('openTextLibrary', {
+      detail: { targetLaneIndex: validLaneIndex }
+    });
+    window.dispatchEvent(event);
+  }, []);
+  
+  // 텍스트 클립 레인 변경
+  const handleUpdateTextClipLane = useCallback((id: string, laneIndex: number) => {
+    setTextClips(prev => prev.map(clip => 
+      clip.id === id ? { ...clip, laneIndex } : clip
+    ));
+    saveToHistory();
+  }, [saveToHistory]);
+  
+  // ===============================
+  // 비디오 레인 관리 함수들
+  // ===============================
+  
+  // 비디오 레인 추가 (하위 레이어로 추가)
+  const handleAddVideoLane = useCallback(() => {
+    if (canAddNewVideoLane(videoLanes)) {
+      const nextLane = getNextAvailableVideoLane(videoLanes);
+      if (nextLane !== null) {
+        setVideoLanes(prev => [...prev, nextLane].sort((a, b) => a - b));
+        saveToHistory();
+        toast.success(`Video Lane ${nextLane + 1} added`);
+      }
+    } else {
+      toast.warning(`Maximum ${MAX_VIDEO_LANES} video lanes allowed`);
+    }
+  }, [videoLanes, saveToHistory]);
+  
+  // 비디오 레인 삭제
+  const handleDeleteVideoLane = useCallback((laneIndex: number) => {
+    // 첫 번째 레인은 삭제 불가
+    if (laneIndex === 0) {
+      toast.warning('Cannot delete the main video lane');
+      return;
+    }
+    
+    // 레인이 존재하는지 확인
+    if (!videoLanes.includes(laneIndex)) {
+      toast.error(`Lane ${laneIndex + 1} does not exist`);
+      return;
+    }
+    
+    // 해당 레인에 있는 모든 클립 삭제
+    const laneClips = timelineClips.filter(clip => (clip.laneIndex ?? 0) === laneIndex);
+    if (laneClips.length > 0) {
+      setTimelineClips(prev => prev.filter(clip => (clip.laneIndex ?? 0) !== laneIndex));
+      toast.info(`Deleted ${laneClips.length} video clip(s) from lane ${laneIndex + 1}`);
+    }
+    
+    // 레인 삭제
+    setVideoLanes(prev => prev.filter(lane => lane !== laneIndex));
+    saveToHistory();
+    toast.success(`Video Lane ${laneIndex + 1} deleted`);
+  }, [videoLanes, timelineClips, saveToHistory]);
+  
+  // 특정 비디오 레인에 비디오 추가
+  const handleAddVideoToLane = useCallback((laneIndex: number) => {
+    const validLaneIndex = validateVideoLaneIndex(laneIndex);
+    
+    // VideoLibraryModal을 열기 위한 이벤트 발생
+    // 이벤트를 통해 laneIndex 정보를 전달
+    const event = new CustomEvent('openVideoLibrary', {
+      detail: { targetLaneIndex: validLaneIndex }
+    });
+    window.dispatchEvent(event);
+  }, []);
+  
+  // 비디오 클립 레인 변경
+  const handleUpdateVideoClipLane = useCallback((id: string, laneIndex: number) => {
+    setTimelineClips(prev => prev.map(clip => 
+      clip.id === id ? { ...clip, laneIndex } : clip
+    ));
+    saveToHistory();
+  }, [saveToHistory]);
+  
   // 클립 선택 관리 함수들 (키보드 단축키용)
   
   /** 클립 선택 함수 - 단일 클립을 선택하고 다중 선택을 초기화 */
@@ -1138,6 +1310,8 @@ export function ClipProvider({ children }: ClipProviderProps) {
     textClips,
     soundClips,
     soundLanes,
+    textLanes,
+    videoLanes,
     selectedTextClip,
     editingTextClip,
     hasUnsavedChanges,
@@ -1199,6 +1373,18 @@ export function ClipProvider({ children }: ClipProviderProps) {
     handleAddSoundToLane,
     handleUpdateSoundClipLane,
     
+    // 텍스트 레인 관리 함수
+    handleAddTextLane,
+    handleDeleteTextLane,
+    handleAddTextToLane,
+    handleUpdateTextClipLane,
+    
+    // 비디오 레인 관리 함수
+    handleAddVideoLane,
+    handleDeleteVideoLane,
+    handleAddVideoToLane,
+    handleUpdateVideoClipLane,
+    
     // 클립 선택 관리 (키보드 단축키용)
     handleSelectClip,
     handleClearSelection,
@@ -1216,6 +1402,8 @@ export function ClipProvider({ children }: ClipProviderProps) {
     textClips,
     soundClips,
     soundLanes,
+    textLanes,
+    videoLanes,
     selectedTextClip,
     editingTextClip,
     hasUnsavedChanges,
@@ -1258,6 +1446,14 @@ export function ClipProvider({ children }: ClipProviderProps) {
     handleDeleteSoundLane,
     handleAddSoundToLane,
     handleUpdateSoundClipLane,
+    handleAddTextLane,
+    handleDeleteTextLane,
+    handleAddTextToLane,
+    handleUpdateTextClipLane,
+    handleAddVideoLane,
+    handleDeleteVideoLane,
+    handleAddVideoToLane,
+    handleUpdateVideoClipLane,
     handleSelectClip,
     handleClearSelection,
     handleSetMultiSelectedClips,

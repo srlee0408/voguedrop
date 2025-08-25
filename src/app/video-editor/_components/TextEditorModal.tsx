@@ -11,6 +11,7 @@ interface TextEditorModalProps {
   onClose: () => void;
   onAddText: (text: Partial<TextClip>) => void;
   editingClip?: TextClip;
+  targetLaneIndex?: number | null; // 레인 인덱스 추가
 }
 
 // constants/fonts의 FONT_FAMILIES 사용
@@ -66,6 +67,7 @@ export default function TextEditorModal({
   onClose,
   onAddText,
   editingClip,
+  targetLaneIndex, // 레인 인덱스 추가
 }: TextEditorModalProps) {
   const [content, setContent] = useState(editingClip?.content || '');
   const [style, setStyle] = useState<TextStyle>(
@@ -133,6 +135,10 @@ export default function TextEditorModal({
       if (!editingClip) {
         clipData.duration = 200;
         clipData.position = 0;
+        // 레인 인덱스 설정
+        if (targetLaneIndex !== null && targetLaneIndex !== undefined) {
+          clipData.laneIndex = targetLaneIndex;
+        }
       }
       
       onAddText(clipData);

@@ -23,6 +23,15 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
   const [isAdding, setIsAdding] = useState(false);
   const [downloadingVideos, setDownloadingVideos] = useState<Set<string>>(new Set());
   
+  // 모달이 열릴 때마다 선택 상태 초기화 (레인별 독립적 선택을 위해)
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedItems(new Map());
+      setIsAdding(false);
+      setDownloadingVideos(new Set());
+    }
+  }, [isOpen]);
+  
   const { 
     projectItems, 
     uploadItems, 

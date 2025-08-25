@@ -39,14 +39,16 @@ export default function ModalManager({
     handleAddSoundClips,
   } = useClips();
   
-  // 레인별 사운드 추가를 위한 상태
-  const [targetLaneIndex, setTargetLaneIndex] = useState<number | null>(null);
+  // 레인별 추가를 위한 상태
+  const [targetSoundLaneIndex, setTargetSoundLaneIndex] = useState<number | null>(null);
+  const [targetTextLaneIndex, setTargetTextLaneIndex] = useState<number | null>(null);
+  const [targetVideoLaneIndex, setTargetVideoLaneIndex] = useState<number | null>(null);
   
   // 'openSoundLibrary' 이벤트 리스너 추가
   useEffect(() => {
     const handleOpenSoundLibrary = (event: CustomEvent) => {
       const { targetLaneIndex: laneIndex } = event.detail;
-      setTargetLaneIndex(laneIndex);
+      setTargetSoundLaneIndex(laneIndex);
       setShowSoundLibrary(true);
     };
     
@@ -57,12 +59,60 @@ export default function ModalManager({
     };
   }, [setShowSoundLibrary]);
 
+  // 'openTextLibrary' 이벤트 리스너 추가
+  useEffect(() => {
+    const handleOpenTextLibrary = (event: CustomEvent) => {
+      const { targetLaneIndex: laneIndex } = event.detail;
+      setTargetTextLaneIndex(laneIndex);
+      setShowTextEditor(true);
+    };
+    
+    window.addEventListener('openTextLibrary', handleOpenTextLibrary as EventListener);
+    
+    return () => {
+      window.removeEventListener('openTextLibrary', handleOpenTextLibrary as EventListener);
+    };
+  }, [setShowTextEditor]);
+
+  // 'openVideoLibrary' 이벤트 리스너 추가
+  useEffect(() => {
+    const handleOpenVideoLibrary = (event: CustomEvent) => {
+      const { targetLaneIndex: laneIndex } = event.detail;
+      setTargetVideoLaneIndex(laneIndex);
+      setShowVideoLibrary(true);
+    };
+    
+    window.addEventListener('openVideoLibrary', handleOpenVideoLibrary as EventListener);
+    
+    return () => {
+      window.removeEventListener('openVideoLibrary', handleOpenVideoLibrary as EventListener);
+    };
+  }, [setShowVideoLibrary]);
+
   return (
     <>
       <VideoLibraryModal
         isOpen={showVideoLibrary}
-        onClose={() => setShowVideoLibrary(false)}
-        onAddToTimeline={handleAddToTimeline}
+        onClose={() => {
+          setShowVideoLibrary(false);
+          setTargetVideoLaneIndex(null); // 리셋
+        }}
+        onAddToTimeline={(items) => {
+          // 레인별 비디오 추가 지원
+          if (targetVideoLaneIndex !== null) {
+            // 특정 레인에 비디오 추가
+            const itemsWithLane = items.map(item => ({
+              ...item,
+              laneIndex: targetVideoLaneIndex
+            }));
+            handleAddToTimeline(itemsWithLane);
+          } else {
+            // 기본 레인에 비디오 추가
+            handleAddToTimeline(items);
+          }
+          setShowVideoLibrary(false);
+          setTargetVideoLaneIndex(null); // 리셋
+        }}
       />
 
       {showSoundLibrary && (
@@ -73,11 +123,11 @@ export default function ModalManager({
           }}
           onSelectSounds={async (sounds) => {
             // 레인별 사운드 추가 지원
-            if (targetLaneIndex !== null) {
+            if (targetSoundLaneIndex !== null) {
               // 특정 레인에 사운드 추가
               const soundsWithLane = sounds.map(sound => ({
                 ...sound,
-                laneIndex: targetLaneIndex
+                laneIndex: targetSoundLaneIndex
               }));
               await handleAddSoundClips(soundsWithLane);
             } else {
@@ -85,7 +135,7 @@ export default function ModalManager({
               await handleAddSoundClips(sounds);
             }
             setShowSoundLibrary(false);
-            setTargetLaneIndex(null); // 리셋
+            setTargetSoundLaneIndex(null); // 리셋
           }}
         />
       )}
@@ -96,9 +146,11 @@ export default function ModalManager({
           onClose={() => {
             setShowTextEditor(false);
             setEditingTextClip(undefined);
+            setTargetTextLaneIndex(null); // 리셋
           }}
           onAddText={handleAddTextClip}
           editingClip={editingTextClip}
+          targetLaneIndex={targetTextLaneIndex} // 레인 인덱스 전달
         />
       )}
       

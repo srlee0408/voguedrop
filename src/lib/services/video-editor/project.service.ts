@@ -39,6 +39,9 @@ export class ProjectService {
       videoClips,
       textClips,
       soundClips,
+      videoLanes,
+      textLanes,
+      soundLanes,
       aspectRatio,
       durationInFrames,
       renderId,
@@ -66,6 +69,9 @@ export class ProjectService {
       video_clips: videoClips,
       text_clips: textClips,
       sound_clips: soundClips,
+      video_lanes: videoLanes,
+      text_lanes: textLanes,
+      sound_lanes: soundLanes,
       content_hash: contentHash
     };
 
@@ -307,7 +313,8 @@ export class ProjectService {
           fadeInType: s.fadeInType || 'linear',
           fadeOutType: s.fadeOutType || 'linear',
           maxDuration: s.maxDuration,
-          waveformData: s.waveformData
+          waveformData: s.waveformData,
+          laneIndex: s.laneIndex ?? 0
         };
       }).sort((a, b) => (a.position as number) - (b.position as number))
     };

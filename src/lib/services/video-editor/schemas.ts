@@ -9,6 +9,8 @@ export const saveProjectRequestSchema = z.object({
   videoClips: z.array(z.unknown()).default([]),
   textClips: z.array(z.unknown()).default([]),
   soundClips: z.array(z.unknown()).default([]),
+  videoLanes: z.array(z.number()).default([0]), // 비디오 레인 배열 (기본값: [0])
+  textLanes: z.array(z.number()).default([0]), // 텍스트 레인 배열 (기본값: [0])
   soundLanes: z.array(z.number()).default([0]), // 사운드 레인 배열 (기본값: [0])
   aspectRatio: z.enum(['9:16', '1:1', '16:9']),
   durationInFrames: z.number().min(0, '영상 길이는 0 이상이어야 합니다.'),
@@ -33,6 +35,8 @@ export const renderRequestSchema = z.object({
   videoClips: z.array(z.unknown()).min(1, '최소 하나의 비디오 클립이 필요합니다.'),
   textClips: z.array(z.unknown()),
   soundClips: z.array(z.unknown()),
+  videoLanes: z.array(z.number()).default([0]), // 비디오 레인 배열 (기본값: [0])
+  textLanes: z.array(z.number()).default([0]), // 텍스트 레인 배열 (기본값: [0])
   soundLanes: z.array(z.number()).default([0]), // 사운드 레인 배열 (기본값: [0])
   aspectRatio: z.enum(['9:16', '1:1', '16:9'], {
     required_error: '화면 비율이 필요합니다.',
@@ -78,6 +82,8 @@ export const loadProjectResponseSchema = z.object({
       video_clips: z.array(z.unknown()),
       text_clips: z.array(z.unknown()),
       sound_clips: z.array(z.unknown()),
+      video_lanes: z.array(z.number()).optional(), // 비디오 레인 배열 (옵션 - 하위 호환성)
+      text_lanes: z.array(z.number()).optional(), // 텍스트 레인 배열 (옵션 - 하위 호환성)
       sound_lanes: z.array(z.number()).optional(), // 사운드 레인 배열 (옵션 - 하위 호환성)
       content_hash: z.string(),
     }),
@@ -121,6 +127,8 @@ export const contentSnapshotSchema = z.object({
   video_clips: z.array(z.unknown()),
   text_clips: z.array(z.unknown()),
   sound_clips: z.array(z.unknown()),
+  video_lanes: z.array(z.number()).optional(), // 비디오 레인 배열 (옵션 - 하위 호환성)
+  text_lanes: z.array(z.number()).optional(), // 텍스트 레인 배열 (옵션 - 하위 호환성)
   sound_lanes: z.array(z.number()).optional(), // 사운드 레인 배열 (옵션 - 하위 호환성)
   content_hash: z.string(),
 });

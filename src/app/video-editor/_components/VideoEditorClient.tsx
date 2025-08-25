@@ -33,6 +33,8 @@ export default function VideoEditorClient() {
     textClips,
     soundClips,
     soundLanes,
+    textLanes,
+    videoLanes,
     selectedTextClip,
     editingTextClip,
     setSelectedTextClip,
@@ -45,6 +47,16 @@ export default function VideoEditorClient() {
     handleDeleteSoundLane,
     handleAddSoundToLane,
     handleUpdateSoundClipLane,
+    // 텍스트 레인 관리 함수들
+    handleAddTextLane,
+    handleDeleteTextLane,
+    handleAddTextToLane,
+    handleUpdateTextClipLane,
+    // 비디오 레인 관리 함수들
+    handleAddVideoLane,
+    handleDeleteVideoLane,
+    handleAddVideoToLane,
+    handleUpdateVideoClipLane,
     // 키보드 단축키용 새로운 함수들
     handleDeleteSelectedClips,
     handleDuplicateSelectedClip,
@@ -331,6 +343,8 @@ export default function VideoEditorClient() {
           <TimelineSection
             PIXELS_PER_SECOND={PIXELS_PER_SECOND}
             soundLanes={soundLanes}
+            textLanes={textLanes}
+            videoLanes={videoLanes}
             onSplitVideoClip={handleSplitVideoClip}
             onSplitTextClip={handleSplitTextClip}
             onSplitSoundClip={handleSplitSoundClip}
@@ -340,6 +354,14 @@ export default function VideoEditorClient() {
             onDeleteSoundLane={handleDeleteSoundLane}
             onAddSoundToLane={handleAddSoundToLane}
             onUpdateSoundClipLane={handleUpdateSoundClipLane}
+            onAddTextLane={handleAddTextLane}
+            onDeleteTextLane={handleDeleteTextLane}
+            onAddTextToLane={handleAddTextToLane}
+            onUpdateTextClipLane={handleUpdateTextClipLane}
+            onAddVideoLane={handleAddVideoLane}
+            onDeleteVideoLane={handleDeleteVideoLane}
+            onAddVideoToLane={handleAddVideoToLane}
+            onUpdateVideoClipLane={handleUpdateVideoClipLane}
           />
         }
       />
@@ -357,6 +379,8 @@ export default function VideoEditorClient() {
         textClips={textClips}
         soundClips={soundClips}
         soundLanes={soundLanes}
+        textLanes={textLanes}
+        videoLanes={videoLanes}
         calculateTotalFrames={calculateTotalFrames}
         saveStatus={saveStatus}
         setSaveStatus={setSaveStatus}

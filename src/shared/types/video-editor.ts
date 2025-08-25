@@ -10,6 +10,7 @@ export interface VideoClip {
   startTime?: number; // Start time in seconds within the original video
   endTime?: number; // End time in seconds within the original video
   sourceType?: 'clip' | 'upload' | 'project'; // Source of the video (AI-generated clip, user upload, or project)
+  laneIndex?: number; // Video lane index (0-2, for multi-lane video tracks - lower index = higher layer)
 }
 
 export interface TextClip {
@@ -20,6 +21,7 @@ export interface TextClip {
   style: TextStyle;
   effect?: TextEffect;
   maxDuration?: number; // For consistency, though text clips may not have a max duration
+  laneIndex?: number; // Text lane index (0-2, for multi-lane text tracks)
 }
 
 export interface SoundClip {

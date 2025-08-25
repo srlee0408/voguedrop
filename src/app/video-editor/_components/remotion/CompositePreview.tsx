@@ -11,6 +11,7 @@ interface VideoClip {
   title?: string;
   startTime?: number;
   endTime?: number;
+  laneIndex?: number;  // 레인 인덱스 추가
 }
 
 interface CompositePreviewProps {
@@ -128,7 +129,7 @@ export const CompositePreview: React.FC<CompositePreviewProps> = ({
   const is9by16 = Math.abs(aspectRatio - 9/16) < 0.01;
   const is1by1 = Math.abs(aspectRatio - 1) < 0.01;
   
-  // 비디오 클립들을 position 기반으로 배치
+  // 비디오 클립들을 position 기반으로 배치 (레인별 독립적 처리)
   const videoSequences = videoClips
     .filter(clip => clip.url) // URL이 있는 클립만 처리
     .map(clip => {
@@ -142,7 +143,8 @@ export const CompositePreview: React.FC<CompositePreviewProps> = ({
         from: pxToFrames(clip.position || 0), // position 값을 사용하여 시작 위치 결정
         durationInFrames: pxToFrames(clip.duration),
         startFrom,
-        endAt: clip.endTime ? Math.round(clip.endTime * 30) : undefined
+        endAt: clip.endTime ? Math.round(clip.endTime * 30) : undefined,
+        laneIndex: clip.laneIndex ?? 0 // 레인 인덱스 추가
       };
     });
   
@@ -267,31 +269,36 @@ export const CompositePreview: React.FC<CompositePreviewProps> = ({
         </>
       )}
       
-      {/* 1. 비디오 레이어 - 순차 재생 */}
-      {videoSequences.map(video => (
-        <Sequence
-          key={video.id}
-          from={video.from}
-          durationInFrames={video.durationInFrames}
-          premountFor={Infinity} // 모든 비디오를 미리 마운트하여 끊김 없는 재생
-        >
-          <OffthreadVideo 
-            src={video.url}
-            startFrom={video.startFrom}
-            endAt={video.endAt}
-            pauseWhenBuffering={true} // 버퍼링 시 일시정지하여 끊김 방지
-            onError={(e) => {
-              console.error(`Video loading error for ${video.id}:`, e);
-            }}
-            // 첫 번째 비디오는 즉시 로드, 나머지는 순차적으로
-            style={{ 
-              width: '100%', 
-              height: '100%', 
-              objectFit: 'contain'
-            }}
-          />
-        </Sequence>
-      ))}
+      {/* 1. 비디오 레이어 - 레인별 독립적 재생 (video1=하위, video3=상위) */}
+      {videoSequences.map(video => {
+        // laneIndex 기반 z-index 계산: 높은 레인 = 높은 z-index (상위 레이어)
+        const zIndex = (video.laneIndex ?? 0) + 1; // 1, 2, 3 순서로 z-index 설정
+        
+        return (
+          <AbsoluteFill key={video.id} style={{ zIndex }}>
+            <Sequence
+              from={video.from}
+              durationInFrames={video.durationInFrames}
+              premountFor={Infinity} // 모든 비디오를 미리 마운트하여 끊김 없는 재생
+            >
+              <OffthreadVideo 
+                src={video.url}
+                startFrom={video.startFrom}
+                endAt={video.endAt}
+                pauseWhenBuffering={true} // 버퍼링 시 일시정지하여 끊김 방지
+                onError={(e) => {
+                  console.error(`Video loading error for ${video.id}:`, e);
+                }}
+                style={{ 
+                  width: '100%', 
+                  height: '100%', 
+                  objectFit: 'contain'
+                }}
+              />
+            </Sequence>
+          </AbsoluteFill>
+        );
+      })}
       
       {/* 2. 텍스트 오버레이 레이어 */}
       <AbsoluteFill style={{ pointerEvents: 'none', zIndex: 10 }}>

@@ -12,6 +12,7 @@ interface VideoClip {
   title?: string;
   startTime?: number;
   endTime?: number;
+  laneIndex?: number;  // 레인 인덱스 추가
 }
 
 export interface VideoCompositionProps {

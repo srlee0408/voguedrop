@@ -12,6 +12,8 @@ interface UseManualSaveParams {
   textClips: TextClip[];
   soundClips: SoundClip[];
   soundLanes?: number[];
+  textLanes?: number[];
+  videoLanes?: number[];
   aspectRatio: '9:16' | '1:1' | '16:9';
   durationInFrames: number;
   onSaveSuccess?: (savedProjectId: string) => void; // 저장 성공 콜백
@@ -31,6 +33,8 @@ export function useManualSave({
   textClips,
   soundClips,
   soundLanes = [0],
+  textLanes = [0],
+  videoLanes = [0],
   aspectRatio,
   durationInFrames,
   onSaveSuccess,
@@ -80,6 +84,8 @@ export function useManualSave({
         textClips,
         soundClips,
         soundLanes,
+        textLanes,
+        videoLanes,
         aspectRatio,
         durationInFrames,
       };
@@ -125,7 +131,7 @@ export function useManualSave({
     } finally {
       setIsSaving(false);
     }
-  }, [videoClips, textClips, soundClips, soundLanes, aspectRatio, durationInFrames, isSaving, onSaveSuccess]); // projectId, projectTitle은 ref로 관리하므로 제외
+  }, [videoClips, textClips, soundClips, soundLanes, textLanes, videoLanes, aspectRatio, durationInFrames, isSaving, onSaveSuccess]); // projectId, projectTitle은 ref로 관리하므로 제외
   
   // useCallback 의존성 변경 추적
   console.log('[useManualSave] useCallback 의존성:', { projectId, projectTitle });
