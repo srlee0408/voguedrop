@@ -40,7 +40,7 @@ export function ImageBrushModal({
       color: '#FF0000'  // 기본값 빨간색
     },
     prompt: '',
-    mode: 'i2i',
+    mode: 'flux', // 기본값을 flux로 변경
     progress: 0,
     error: null,
     referenceImage: null,
@@ -51,6 +51,15 @@ export function ImageBrushModal({
   const [isDrawing, setIsDrawing] = useState(false)
   const [lastPos, setLastPos] = useState<{ x: number; y: number } | null>(null)
   const referenceInputRef = useRef<HTMLInputElement>(null)
+
+  // 자동 모드 선택 로직
+  useEffect(() => {
+    // 참조 이미지가 있으면 I2I 모드, 없으면 FLUX 모드
+    const newMode = state.referenceImage ? 'i2i' : 'flux'
+    if (state.mode !== newMode) {
+      setState(prev => ({ ...prev, mode: newMode }))
+    }
+  }, [state.referenceImage, state.mode])
 
   // Load image and initialize canvas
   useEffect(() => {
@@ -379,9 +388,14 @@ export function ImageBrushModal({
 
   // AI processing request
   const handleGenerate = async () => {
-    // Validation
-    if (!state.referenceImage) {
-      setState(prev => ({ ...prev, error: 'Please upload a reference image.' }))
+    // Validation - 현재 모드에 따른 검증
+    if (state.mode === 'flux' && !state.prompt.trim()) {
+      setState(prev => ({ ...prev, error: 'Please enter a prompt for FLUX mode.' }))
+      return
+    }
+    
+    if (state.mode === 'i2i' && !state.referenceImage) {
+      setState(prev => ({ ...prev, error: 'Please upload a reference image for I2I mode.' }))
       return
     }
 
@@ -806,7 +820,7 @@ export function ImageBrushModal({
 
             {/* Reference Image Upload */}
             <div className="space-y-2">
-              <h3 className="text-sm font-medium text-gray-400">Reference Image</h3>
+              <h3 className="text-sm font-medium text-gray-400">Reference Image <span className="text-xs text-gray-500">(Optional)</span></h3>
               <div 
                 className="border-2 border-dashed border-gray-600 rounded-lg p-2 text-center cursor-pointer hover:border-gray-500 transition-colors"
                 onDragOver={handleDragOver}
@@ -885,7 +899,8 @@ export function ImageBrushModal({
                 onClick={handleGenerate}
                 disabled={
                   state.isProcessing || 
-                  !state.referenceImage
+                  (state.mode === 'flux' && !state.prompt.trim()) ||
+                  (state.mode === 'i2i' && !state.referenceImage)
                 }
               >
                 {state.isProcessing ? (
@@ -957,7 +972,7 @@ export function ImageBrushModal({
 
             {/* Instructions */}
             <div className="text-xs text-gray-500">
-              <p>• Draw mask → Upload style → Generate</p>
+              <p>• Draw mask → Enter prompt or upload style image → Generate</p>
             </div>
           </div>
         </div>

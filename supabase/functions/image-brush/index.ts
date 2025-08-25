@@ -774,7 +774,14 @@ serve(async (req) => {
 
     // Parse request body
     const body: ImageBrushRequest = await req.json();
-    const { image, mask, prompt, mode, referenceImage, styleStrength } = body;
+    let { image, mask, prompt, mode, referenceImage, styleStrength } = body;
+    
+    // 자동 모드 감지: 참조 이미지가 있으면 I2I, 없으면 FLUX
+    if (referenceImage) {
+      mode = 'i2i';
+    } else if (prompt && prompt.trim()) {
+      mode = 'flux';
+    }
 
     // Validate required fields
     if (!image || !mask) {
@@ -787,10 +794,10 @@ serve(async (req) => {
       );
     }
     
-    // Mode-specific validation
-    if (mode === 'flux' && !prompt) {
+    // 최종 검증: 프롬프트나 참조 이미지 중 하나는 있어야 함
+    if (!referenceImage && (!prompt || !prompt.trim())) {
       return new Response(
-        JSON.stringify({ error: 'Prompt is required for FLUX mode.' }),
+        JSON.stringify({ error: 'Please provide either a prompt or reference image.' }),
         { 
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -798,14 +805,9 @@ serve(async (req) => {
       );
     }
     
-    if (mode === 'i2i' && !referenceImage) {
-      return new Response(
-        JSON.stringify({ error: 'Reference image is required for I2I mode.' }),
-        { 
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
+    // 모드가 결정되지 않은 경우 기본값 설정
+    if (!mode) {
+      mode = referenceImage ? 'i2i' : 'flux';
     }
 
     console.log(`Processing ${mode} request for user ${user.id}`);
@@ -911,10 +913,15 @@ serve(async (req) => {
         console.log('Reference image URL:', referenceImageUrl);
       }
       
+      // I2I 모드에서는 참조 이미지가 필수
+      if (!referenceImage) {
+        throw new Error('Reference image is required for I2I mode');
+      }
+      
       // Call RunPod API
       console.log('Calling RunPod API for I2I processing...');
       const resultBase64 = await callRunPodAPI(
-        referenceImage!,    // Texture/clothing to be applied (input-1.png)
+        referenceImage,     // Texture/clothing to be applied (input-1.png)
         image,              // Reference image to be inpainted (input-2.png)
         mask,              // Mask for inpainting area
         prompt || '',      // Optional prompt for additional guidance
