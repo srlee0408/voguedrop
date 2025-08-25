@@ -18,6 +18,8 @@ interface CacheInvalidationStrategy {
   delayed?: readonly (readonly unknown[])[];
   /** 낙관적 업데이트를 수행할 캐시 키들 */
   optimistic?: readonly (readonly unknown[])[];
+  /** 쿼리 키 패턴 기반 무효화용 predicate들 */
+  predicates?: readonly ((query: { queryKey: readonly unknown[] }) => boolean)[];
 }
 
 /**
@@ -61,8 +63,10 @@ export function useSmartCacheManager() {
       ],
     },
     delete: {
-      immediate: [
-        LIBRARY_CACHE_KEYS.base, // 모든 library 캐시
+      immediate: [],
+      // 모든 library 관련 쿼리를 전부 무효화 (limit/세부 키 변형 포함)
+      predicates: [
+        (query) => query.queryKey[0] === 'library'
       ],
     },
     edit: {
@@ -113,6 +117,13 @@ export function useSmartCacheManager() {
         }, 2000);
       }
 
+      // 4. 패턴 기반 무효화 (base와 같이 가변 세부키 전체 무효화)
+      if (strategy.predicates && strategy.predicates.length > 0) {
+        strategy.predicates.forEach(predicate => {
+          queryClient.invalidateQueries({ predicate });
+        });
+      }
+
     } catch (error) {
       console.error(`Smart cache invalidation failed for action: ${action}`, error);
     }
@@ -144,11 +155,15 @@ export function useSmartCacheManager() {
 
     queryClient.getQueryCache().getAll().forEach(query => {
       cacheStats.totalQueries++;
-      
-      if (query.state.isStale) cacheStats.staleQueries++;
-      if (query.state.isFetching) cacheStats.fetchingQueries++;
-      if (query.state.isError) cacheStats.errorQueries++;
-      
+
+      // fetchStatus: 'idle' | 'fetching' | 'paused'
+      if (query.state.fetchStatus === 'fetching') cacheStats.fetchingQueries++;
+      // status: 'pending' | 'error' | 'success'
+      if (query.state.status === 'error') cacheStats.errorQueries++;
+      // 간단한 staleness 휴리스틱: 5분 이상 지난 데이터는 stale로 간주
+      const dataUpdatedAt = typeof query.state.dataUpdatedAt === 'number' ? query.state.dataUpdatedAt : 0;
+      if (Date.now() - dataUpdatedAt > 5 * 60 * 1000) cacheStats.staleQueries++;
+
       if (query.queryKey[0] === 'library') {
         cacheStats.libraryQueries++;
       }
@@ -221,19 +236,19 @@ export function useSmartCacheManager() {
     if ('pages' in data && Array.isArray(data.pages)) {
       for (const page of data.pages) {
         const foundClip = page.clips?.find(item => String(item.id) === String(itemId));
-        if (foundClip) return foundClip as T;
+        if (foundClip) return (foundClip as unknown) as T;
         
         const foundProject = page.projects?.find(item => String(item.id) === String(itemId));
-        if (foundProject) return foundProject as T;
+        if (foundProject) return (foundProject as unknown) as T;
         
         const foundUpload = page.uploads?.find(item => String(item.id) === String(itemId));
-        if (foundUpload) return foundUpload as T;
+        if (foundUpload) return (foundUpload as unknown) as T;
       }
     }
     
     // 일반 배열인 경우
     if (Array.isArray(data)) {
-      return data.find(item => String(item.id) === String(itemId)) as T || null;
+      return ((data.find(item => String(item.id) === String(itemId)) as unknown) as T) || null;
     }
 
     return null;
