@@ -1,0 +1,302 @@
+---
+globs: *.ts,*.tsx,*.js,*.jsx
+description: ESLint and TypeScript coding standards for VogueDrop project
+---
+
+# ESLint & TypeScript Standards
+
+이 규칙은 VogueDrop 프로젝트의 ESLint와 TypeScript 코딩 표준을 정의합니다. 모든 코드 작성 시 이 규칙을 준수하여 빌드 실패를 방지하고 코드 품질을 보장해야 합니다.
+
+## TypeScript 타입 안전성 규칙
+
+### 1. 금지된 `any` 타입 사용
+```typescript
+// ❌ 잘못된 예시
+const data: any = fetchData();
+
+// ✅ 올바른 예시
+const data: unknown = fetchData();
+// 또는 구체적인 타입 정의
+interface ApiResponse {
+  id: string;
+  name: string;
+}
+const data: ApiResponse = fetchData();
+```
+
+### 2. 함수 반환 타입 명시 (필수)
+```typescript
+// ❌ 잘못된 예시
+function processData(input: string) {
+  return input.toUpperCase();
+}
+
+// ✅ 올바른 예시
+function processData(input: string): string {
+  return input.toUpperCase();
+}
+
+// 비동기 함수의 경우
+async function fetchUser(id: string): Promise<User | null> {
+  // 구현
+}
+```
+
+### 3. 함수 매개변수 타입 정의 (필수)
+```typescript
+// ❌ 잘못된 예시
+function handleClick(event) {
+  // 구현
+}
+
+// ✅ 올바른 예시
+function handleClick(event: React.MouseEvent<HTMLButtonElement>): void {
+  // 구현
+}
+```
+
+### 4. Interface vs Type 사용 규칙
+```typescript
+// ✅ Props에는 interface 사용
+interface ButtonProps {
+  children: React.ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+}
+
+// ✅ Union/Intersection에는 type 사용
+type Status = 'loading' | 'success' | 'error';
+type UserWithPermissions = User & { permissions: Permission[] };
+```
+
+### 5. 외부 데이터 처리 (API 응답, DB 쿼리)
+```typescript
+// ✅ API 응답 처리
+async function fetchUserData(id: string): Promise<User | null> {
+  const response = await fetch(`/api/users/${id}`);
+  const data: unknown = await response.json();
+  
+  // 타입 가드 사용
+  if (isUser(data)) {
+    return data;
+  }
+  return null;
+}
+
+// 타입 가드 함수
+function isUser(data: unknown): data is User {
+  return typeof data === 'object' && 
+         data !== null && 
+         'id' in data && 
+         'name' in data;
+}
+```
+
+### 6. Null/Undefined 안전 처리
+```typescript
+// ✅ 옵셔널 체이닝 사용
+const userName = user?.profile?.name ?? 'Unknown';
+
+// ✅ Nullish coalescing 사용
+const config = userConfig ?? defaultConfig;
+
+// ✅ 타입 가드로 null 체크
+if (user && user.profile) {
+  // user.profile이 확실히 존재함
+}
+```
+
+## ESLint 준수 규칙
+
+### 1. 사용하지 않는 변수 제거
+```typescript
+// ❌ 잘못된 예시
+import { useState, useEffect } from 'react'; // useEffect 사용 안 함
+const [count, setCount] = useState(0); // count 사용 안 함
+
+// ✅ 올바른 예시
+import { useState } from 'react';
+const [count, setCount] = useState(0);
+// count와 setCount 모두 사용
+```
+
+### 2. React Hook 의존성 배열
+```typescript
+// ❌ 잘못된 예시
+useEffect(() => {
+  fetchData(userId);
+}, []); // userId 누락
+
+// ✅ 올바른 예시
+useEffect(() => {
+  fetchData(userId);
+}, [userId]);
+
+// useCallback과 useMemo도 동일
+const memoizedValue = useMemo(() => {
+  return computeExpensiveValue(a, b);
+}, [a, b]); // 모든 의존성 포함
+```
+
+### 3. Import 순서 규칙
+```typescript
+// ✅ 올바른 import 순서
+// 1. React 관련
+import React, { useState, useEffect } from 'react';
+import { NextPage } from 'next';
+
+// 2. 외부 라이브러리
+import { motion } from 'framer-motion';
+import { toast } from 'sonner';
+
+// 3. 내부 컴포넌트 (절대 경로)
+import { Button } from '@/shared/components/ui/button';
+import { useAuth } from '@/shared/lib/auth/AuthContext';
+
+// 4. 상대 경로 import
+import { CanvasControls } from './_components/CanvasControls';
+import { useCanvas } from './_hooks/useCanvas';
+
+// 5. 타입 import (마지막)
+import type { User } from '@/shared/types/auth';
+import type { CanvasState } from './_types';
+```
+
+### 4. Console 문 제거
+```typescript
+// ❌ 프로덕션 코드에서 금지
+console.log('Debug info');
+console.error('Error occurred');
+
+// ✅ 개발 중에만 사용하고 커밋 전 제거
+// 또는 적절한 로깅 라이브러리 사용
+import { logger } from '@/lib/logging/video-generation-logger';
+logger.info('Process completed');
+```
+
+### 5. 비동기 함수 에러 처리
+```typescript
+// ❌ 잘못된 예시
+async function saveData() {
+  await api.save(data);
+}
+
+// ✅ 올바른 예시
+async function saveData(): Promise<{ success: boolean; error?: string }> {
+  try {
+    await api.save(data);
+    return { success: true };
+  } catch (error) {
+    logger.error('Failed to save data', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    };
+  }
+}
+```
+
+## 프로젝트별 특수 규칙
+
+### 1. Client vs Server 컴포넌트
+```typescript
+// ✅ Client 컴포넌트 (상호작용이 필요한 경우)
+'use client';
+
+import { useState } from 'react';
+
+export function InteractiveButton() {
+  const [clicked, setClicked] = useState(false);
+  // ...
+}
+
+// ✅ Server 컴포넌트 (기본값, 'use client' 없음)
+import { getServerSession } from 'next-auth';
+
+export async function UserProfile() {
+  const session = await getServerSession();
+  // ...
+}
+```
+
+### 2. 환경 변수 사용
+```typescript
+// ✅ 클라이언트에서 사용할 환경 변수
+const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+
+// ✅ 서버에서만 사용할 환경 변수
+const secretKey = process.env.SECRET_KEY; // 서버 컴포넌트/API 라우트에서만
+```
+
+### 3. Supabase 보안 규칙
+```typescript
+// ❌ 클라이언트에서 직접 Supabase 접근 금지
+import { supabase } from '@/lib/supabase/client';
+const { data } = await supabase.from('sensitive_table').select('*');
+
+// ✅ API 라우트를 통한 안전한 접근
+// API 라우트에서
+import { createServerSupabaseClient } from '@/lib/supabase/server';
+const supabase = createServerSupabaseClient();
+const { data } = await supabase.from('sensitive_table').select('public_fields_only');
+```
+
+## 빌드 호환성 검증
+
+### 1. Import 경로 확인
+```typescript
+// ✅ 절대 경로 사용 (권장)
+import { Button } from '@/shared/components/ui/button';
+
+// ✅ 상대 경로 (같은 기능 내에서)
+import { useCanvas } from './_hooks/useCanvas';
+
+// ❌ 잘못된 경로
+import { Button } from '../../../shared/components/ui/button';
+```
+
+### 2. 타입 정의 위치
+```typescript
+// ✅ 공유 타입은 shared/types/에 정의
+// shared/types/canvas.ts
+export interface GeneratedVideo {
+  id: string;
+  url: string;
+  thumbnail: string;
+}
+
+// ✅ 기능별 타입은 해당 기능의 _types/에 정의
+// app/canvas/_types/index.ts
+export interface CanvasState {
+  slotContents: Array<SlotContent | null>;
+  isGenerating: boolean;
+}
+```
+
+## 검증 체크리스트
+
+커밋 전 다음 사항들을 확인하세요:
+
+- [ ] 모든 함수에 반환 타입이 명시되어 있는가?
+- [ ] `any` 타입 사용이 없는가?
+- [ ] 사용하지 않는 import/변수가 없는가?
+- [ ] React Hook 의존성 배열이 올바른가?
+- [ ] Console 문이 제거되었는가?
+- [ ] 비동기 함수에 적절한 에러 처리가 있는가?
+- [ ] 클라이언트 컴포넌트에 'use client' 지시어가 있는가?
+- [ ] 환경 변수가 올바르게 사용되고 있는가?
+
+## 자동 검증 명령어
+
+```bash
+# ESLint 검사
+npm run lint
+
+# TypeScript 컴파일 검사
+npm run build
+
+# 타입 체크만
+npx tsc --noEmit
+```
+
+이 규칙들을 준수하여 안정적이고 유지보수 가능한 코드를 작성하세요.
