@@ -352,8 +352,6 @@ export function handleClipDrag<T extends CommonClip>(
   const originalLane = currentClip.laneIndex ?? 0;
   const targetLaneInfo = dragTargetLane && dragTargetLane.laneType === clipType ? dragTargetLane : null;
   const targetLane = targetLaneInfo ? targetLaneInfo.laneIndex : originalLane;
-  
-  const updatedClip = { ...currentClip, position: newPosition } as T;
 
   // 모든 클립 타입에서 동일한 magneticPositioning 사용 - 연쇄 충돌 지원
   if (targetLane !== originalLane) {

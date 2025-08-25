@@ -76,7 +76,7 @@ export class CommonClipManager {
         updateFunction([ ...updatedClips, secondPart as T ]);
         onHistorySave?.();
       }
-    } catch (err) {
+    } catch {
       // 안전망: 문제가 생기면 제네릭 분할로 대체
       splitClip(clipId, currentTime, pixelsPerSecond, clips, updateFunction);
       onHistorySave?.();
