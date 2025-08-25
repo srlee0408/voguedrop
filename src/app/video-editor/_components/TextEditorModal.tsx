@@ -134,7 +134,6 @@ export default function TextEditorModal({
       // 새로 추가할 때만 duration과 position 설정
       if (!editingClip) {
         clipData.duration = 200;
-        clipData.position = 0;
         // 레인 인덱스 설정
         if (targetLaneIndex !== null && targetLaneIndex !== undefined) {
           clipData.laneIndex = targetLaneIndex;
