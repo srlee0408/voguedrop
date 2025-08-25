@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { UserUploadedVideo } from '@/shared/types/video-editor';
-import { libraryQueryKeys, type LibraryData } from './useLibraryQuery';
+import { type LibraryData } from './useLibraryQuery';
+import { LIBRARY_CACHE_KEYS } from '../constants/cache-keys';
 
 // 업로드 파라미터 타입
 interface UploadVideoParams {
@@ -83,7 +84,7 @@ export function useUploadVideo() {
     onSuccess: (newVideo, variables, context) => {
       // uploads 쿼리 업데이트 (Optimistic Update)
       queryClient.setQueryData(
-        libraryQueryKeys.uploads(),
+        LIBRARY_CACHE_KEYS.uploads.all(),
         (oldData: UserUploadedVideo[] | undefined) => {
           if (!oldData) return [newVideo];
           return [newVideo, ...oldData];
@@ -92,7 +93,7 @@ export function useUploadVideo() {
       
       // combined 쿼리 업데이트
       queryClient.setQueryData(
-        libraryQueryKeys.combined(),
+        LIBRARY_CACHE_KEYS.combined.all(),
         (oldData: LibraryData | undefined) => {
           if (!oldData) return undefined;
           return {
@@ -147,15 +148,15 @@ export function useDeleteUploadedVideo() {
     onMutate: async (videoId) => {
       // 삭제하기 전에 캐시 업데이트 (Optimistic Update)
       await queryClient.cancelQueries({ 
-        queryKey: libraryQueryKeys.uploads() 
+        queryKey: LIBRARY_CACHE_KEYS.uploads.all() 
       });
       
-      const previousUploads = queryClient.getQueryData(libraryQueryKeys.uploads());
-      const previousCombined = queryClient.getQueryData(libraryQueryKeys.combined());
+      const previousUploads = queryClient.getQueryData(LIBRARY_CACHE_KEYS.uploads.all());
+      const previousCombined = queryClient.getQueryData(LIBRARY_CACHE_KEYS.combined.all());
       
       // uploads 쿼리에서 삭제할 아이템 제거
       queryClient.setQueryData(
-        libraryQueryKeys.uploads(),
+        LIBRARY_CACHE_KEYS.uploads.all(),
         (oldData: UserUploadedVideo[] | undefined) => {
           if (!oldData) return [];
           return oldData.filter(video => video.id.toString() !== videoId);
@@ -164,7 +165,7 @@ export function useDeleteUploadedVideo() {
       
       // combined 쿼리에서 삭제할 아이템 제거
       queryClient.setQueryData(
-        libraryQueryKeys.combined(),
+        LIBRARY_CACHE_KEYS.combined.all(),
         (oldData: LibraryData | undefined) => {
           if (!oldData) return undefined;
           const filteredUploads = oldData.uploads.filter(video => video.id.toString() !== videoId);
@@ -185,14 +186,14 @@ export function useDeleteUploadedVideo() {
       // 에러 발생 시 이전 데이터로 롤백
       if (context?.previousUploads) {
         queryClient.setQueryData(
-          libraryQueryKeys.uploads(),
+          LIBRARY_CACHE_KEYS.uploads.all(),
           context.previousUploads
         );
       }
       
       if (context?.previousCombined) {
         queryClient.setQueryData(
-          libraryQueryKeys.combined(),
+          LIBRARY_CACHE_KEYS.combined.all(),
           context.previousCombined
         );
       }
@@ -202,7 +203,7 @@ export function useDeleteUploadedVideo() {
     onSettled: () => {
       // 성공/실패 관계없이 최종적으로 서버에서 최신 데이터 가져오기
       queryClient.invalidateQueries({ 
-        queryKey: libraryQueryKeys.all 
+        predicate: (q) => q.queryKey[0] === 'library' 
       });
     },
   });
