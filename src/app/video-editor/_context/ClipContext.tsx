@@ -14,6 +14,8 @@ import { analyzeAudioFile } from '../_utils/audio-analysis';
 import { calculateTimelineDuration } from '../_utils/timeline-helpers';
 import {
   magneticPositioning,
+} from '../_utils/common-clip-utils';
+import {
   freePositioning,
   soundPositioning,
 } from '../_utils/timeline-utils';
@@ -428,6 +430,8 @@ export function ClipProvider({ children }: ClipProviderProps) {
   const handleAddToTimeline = useCallback(async (items: LibraryItem[]) => {
     const default_px = 240;
     const newClips: VideoClip[] = [];
+    // 레인별 현재 끝 위치를 추적하여 다중 추가 시 겹치지 않도록 배치
+    const laneEndPositions = new Map<number, number>();
     
     for (const [index, item] of items.entries()) {
       let clipId: string;
@@ -477,11 +481,13 @@ export function ClipProvider({ children }: ClipProviderProps) {
       
       const targetLane = 'laneIndex' in item ? (item as LibraryItem & { laneIndex: number }).laneIndex : 0;
       
-      // 해당 레인의 기존 비디오 클립들 중 가장 뒤에 배치
-      const { getTimelineEnd } = await import('../_utils/timeline-utils');
-      // 해당 레인의 비디오 클립들만 필터링하여 끝 위치 계산
-      const sameLaneVideoClips = timelineClips.filter(c => (c.laneIndex ?? 0) === targetLane);
-      const currentPosition = getTimelineEnd(sameLaneVideoClips);
+      // 해당 레인의 끝 위치를 1회 계산 후 맵에 저장, 이후 연속 배치 시 이전 값 사용
+      const { getTimelineEnd } = await import('../_utils/common-clip-utils');
+      if (!laneEndPositions.has(targetLane)) {
+        const sameLaneVideoClips = timelineClips.filter(c => (c.laneIndex ?? 0) === targetLane);
+        laneEndPositions.set(targetLane, getTimelineEnd(sameLaneVideoClips));
+      }
+      const currentPosition = laneEndPositions.get(targetLane) ?? 0;
       
       const newClip: VideoClip = {
         id: clipId,
@@ -499,6 +505,8 @@ export function ClipProvider({ children }: ClipProviderProps) {
       };
       
       newClips.push(newClip);
+      // 다음 아이템이 같은 레인일 경우를 위해 끝 위치 갱신
+      laneEndPositions.set(targetLane, currentPosition + default_px);
       
       // 백그라운드에서 실제 duration 계산
       getVideoDurationSeconds(url).then((duration_seconds) => {
@@ -506,19 +514,22 @@ export function ClipProvider({ children }: ClipProviderProps) {
         const computed_px = Math.max(min_px, Math.round((duration_seconds || 0) * PIXELS_PER_SECOND));
         
         setTimelineClips(prev => {
-          const clipIndex = prev.findIndex(c => c.id === clipId);
-          if (clipIndex === -1) return prev;
-          
-          const oldDuration = prev[clipIndex].duration;
+          const target = prev.find(c => c.id === clipId);
+          if (!target) return prev;
+          const lane = target.laneIndex ?? 0;
+          const oldDuration = target.duration;
           const durationDiff = computed_px - oldDuration;
-          
-          return prev.map((clip, idx) => {
-            if (clip.id === clipId) {
-              return { ...clip, duration: computed_px, maxDuration: computed_px };
-            } else if (idx > clipIndex) {
-              return { ...clip, position: clip.position + durationDiff };
+          const targetRight = target.position + oldDuration;
+
+          return prev.map(c => {
+            if (c.id === clipId) {
+              return { ...c, duration: computed_px, maxDuration: computed_px };
             }
-            return clip;
+            // 같은 레인에서, 대상 클립의 기존 끝 이후에 오는 클립들만 밀어줌
+            if ((c.laneIndex ?? 0) === lane && c.position >= targetRight) {
+              return { ...c, position: c.position + durationDiff };
+            }
+            return c;
           });
         });
       });
@@ -600,7 +611,7 @@ export function ClipProvider({ children }: ClipProviderProps) {
       // 해당 레인의 기존 텍스트 클립들 중 가장 뒤에 배치
       let position = textData.position;
       if (position === undefined) {
-        const { getTimelineEnd } = await import('../_utils/timeline-utils');
+        const { getTimelineEnd } = await import('../_utils/common-clip-utils');
         // 해당 레인의 텍스트 클립들만 필터링하여 끝 위치 계산
         const sameLaneTextClips = textClips.filter(c => (c.laneIndex ?? 0) === targetLane);
         position = getTimelineEnd(sameLaneTextClips);
@@ -750,7 +761,7 @@ export function ClipProvider({ children }: ClipProviderProps) {
   
   // 여러 사운드 클립 추가 (SoundLibraryModal에서 사용)
   const handleAddSoundClips = useCallback(async (sounds: { name: string; url: string; duration: number; laneIndex?: number }[]) => {
-    const { getTimelineEnd } = await import('../_utils/timeline-utils');
+    const { getTimelineEnd } = await import('../_utils/common-clip-utils');
     
     // 레인별로 끝 위치를 별도로 계산하기 위한 Map
     const laneEndPositions = new Map<number, number>();
