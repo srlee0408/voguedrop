@@ -56,6 +56,10 @@ export async function GET(
           isFavorite: job.is_favorite || false
         } : null,
         error: job.error_message
+      }, {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate'
+        }
       });
     }
 
@@ -197,6 +201,10 @@ export async function GET(
       jobId: job.job_id,
       status: job.status,
       progress: job.status === 'processing' ? 40 : 10
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate'
+      }
     });
 
   } catch (error) {

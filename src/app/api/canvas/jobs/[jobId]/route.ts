@@ -55,7 +55,11 @@ export async function GET(
       error: data.status === 'failed' ? data.error_message : null
     };
 
-    return NextResponse.json(response);
+    return NextResponse.json(response, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate'
+      }
+    });
 
   } catch (error) {
     console.error('GET job status error:', error);

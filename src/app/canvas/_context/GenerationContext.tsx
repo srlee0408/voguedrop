@@ -177,6 +177,7 @@ export function GenerationProvider({ children }: GenerationProviderProps) {
       markSlotGenerating: slotManager.markSlotGenerating,
       placeVideoInSlot: slotManager.placeVideoInSlot,
       resetSlot: slotManager.resetSlot,
+      getSlotContents: () => slotManager.slotContents,
     },
     onVideoCompleted: (video: GeneratedVideo) => {
       if (!selectedVideoId) {

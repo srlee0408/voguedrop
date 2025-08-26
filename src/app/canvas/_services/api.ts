@@ -123,7 +123,9 @@ export class CanvasAPI {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
+        'Cache-Control': 'no-store',
       },
+      cache: 'no-store',
     })
 
     if (!response.ok) {
@@ -131,6 +133,28 @@ export class CanvasAPI {
     }
 
     return await response.json()
+  }
+
+  /**
+   * 활성 비디오 생성 작업 목록 조회
+   */
+  static async getActiveJobs(): Promise<Array<{ jobId: string; imageUrl: string; createdAt: string; modelType: string }>> {
+    const response = await fetch('/api/canvas/jobs/active', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-store',
+      },
+      cache: 'no-store',
+    })
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch active jobs: ${response.status} ${response.statusText}`)
+    }
+
+    const data = await response.json()
+    const jobs = (data?.jobs || []) as Array<{ jobId: string; imageUrl: string; createdAt: string; modelType: string }>
+    return jobs
   }
 
   /**

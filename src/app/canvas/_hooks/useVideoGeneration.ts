@@ -1,12 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { GeneratedVideo } from "@/shared/types/canvas";
+import type { SlotContent } from "../_types";
 import type { EffectTemplateWithMedia } from "@/shared/types/database";
 import { calculateVideoProgress, animateToComplete } from "@/lib/utils/generation-progress";
+import { upsert_active_job, update_active_job, remove_active_job, get_active_jobs } from '@/shared/lib/active-jobs';
 import { useErrorHandler } from "@/lib/generation/error-handler";
 
 // 통합 Progress 유틸리티 사용으로 기존 함수 제거됨
 
 // 완료 애니메이션도 통합 유틸리티 사용
+
+interface ActiveJobDTO {
+  jobId: string;
+  imageUrl?: string;
+  createdAt?: string;
+  modelType?: string;
+}
 
 type SlotManagerApi = {
   slotStates: Array<"empty" | "generating" | "completed">;
@@ -15,6 +24,8 @@ type SlotManagerApi = {
   markSlotGenerating: (slotIndex: number) => void;
   placeVideoInSlot: (slotIndex: number, video: GeneratedVideo) => void;
   resetSlot: (slotIndex: number) => void;
+  /** 현재 슬롯 콘텐츠 스냅샷 제공 (복원 시 매핑에 사용) */
+  getSlotContents?: () => Array<SlotContent>;
 };
 
 interface UseVideoGenerationArgs {
@@ -50,6 +61,286 @@ export function useVideoGeneration({
   useEffect(() => {
     progressRef.current = generatingProgress;
   }, [generatingProgress]);
+
+  // 마운트 시 활성 작업 복원 및 폴링 재개
+  useEffect(() => {
+    let is_mounted = true;
+    const restore = async () => {
+      try {
+        const { CanvasAPI } = await import('../_services/api');
+        // 서버 기준 진행중 작업 조회 (권위 있는 소스)
+        const server_jobs = await CanvasAPI.getActiveJobs();
+        // 생성 순서를 보장하기 위해 createdAt 오름차순으로 정렬 (먼저 생성한 것이 먼저 배치)
+        const ordered_jobs = [...server_jobs].sort((a: ActiveJobDTO, b: ActiveJobDTO) => {
+          const at = a?.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const bt = b?.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return at - bt;
+        });
+        if (!is_mounted) return;
+
+        // 클라이언트 저장된 작업
+        const local_jobs = get_active_jobs();
+
+        // 각 작업에 대해 슬롯 매핑을 확보하고 진행률 표시 및 폴링 재개
+        const usedSlots = new Set<number>();
+        for (const j of ordered_jobs) {
+          // jobId가 필수
+          // 슬롯 매핑: 저장된 정보가 있으면 사용, 없으면 첫 이미지 슬롯 또는 빈 슬롯에 할당
+          const saved = local_jobs[j.jobId];
+          let slot_index = saved?.slot_index ?? -1;
+
+          // 이미 다른 job과 충돌하는 경우 재배치 필요
+          if (slot_index !== -1 && usedSlots.has(slot_index)) {
+            slot_index = -1;
+          }
+
+          if (slot_index === -1) {
+            // 1) 같은 이미지 URL 매칭 (가능하면 원래 자리 보존)
+            const imageUrl = j.imageUrl;
+            if (imageUrl) {
+              const contents = slotManager.getSlotContents ? slotManager.getSlotContents() : [];
+              for (let i = 0; i < (contents?.length || 0); i++) {
+                const sc = contents[i];
+                if (sc?.type === 'image' && sc.data === imageUrl && !usedSlots.has(i)) { slot_index = i; break; }
+              }
+            }
+            // 2) 이미지 슬롯 선호 (URL 불일치여도, 기존 이미지 슬롯을 우선 배정)
+            if (slot_index === -1) {
+              const contents = slotManager.getSlotContents ? slotManager.getSlotContents() : [];
+              for (let i = 0; i < (contents?.length || 0); i++) {
+                const sc = contents[i];
+                if (sc?.type === 'image' && slotManager.slotStates[i] !== 'generating' && !usedSlots.has(i)) { slot_index = i; break; }
+              }
+            }
+            // 3) 빈 슬롯 배정
+            if (slot_index === -1) {
+              for (let i = 0; i < slotManager.slotStates.length; i++) {
+                if (slotManager.slotStates[i] === 'empty' && !usedSlots.has(i)) { slot_index = i; break; }
+              }
+            }
+            // 4) 모두 사용 중인 경우: 사용되지 않은 첫 슬롯 선택
+            if (slot_index === -1) {
+              for (let i = 0; i < slotManager.slotStates.length; i++) {
+                if (!usedSlots.has(i)) { slot_index = i; break; }
+              }
+              if (slot_index === -1) slot_index = 0;
+            }
+          }
+
+          // UI 상태 반영: 해당 슬롯을 generating으로 표시 (이미 비디오가 있으면 유지)
+          // 1) 이미지 썸네일을 보장 (복귀 시 검은 화면 방지)
+          try {
+            const imageUrl = j.imageUrl;
+            if (imageUrl) {
+              const contents = slotManager.getSlotContents ? slotManager.getSlotContents() : [];
+              const current = contents?.[slot_index];
+              // 현재 슬롯이 동일 이미지가 아니면 무조건 이미지로 세팅 (검은 화면 방지)
+              if (!(current && current.type === 'image' && current.data === imageUrl)) {
+                slotManager.setSlotToImage(slot_index, imageUrl);
+              }
+            }
+            // generating 상태 표시
+            slotManager.markSlotGenerating(slot_index);
+          } catch {
+            // 슬롯 매핑 실패는 무시 (UI 레벨에서 progress overlay로 커버)
+          }
+          
+          // 충돌 방지를 위해 사용 슬롯 기록
+          usedSlots.add(slot_index);
+
+          setGeneratingSlots(prev => new Set([...prev, slot_index]));
+          setIsGenerating(true);
+          // 시간 기반 초기 진행률 적용 (즉시 실제치 근사 표시)
+          const initial_started_at = (() => {
+            const t = j.createdAt ? new Date(j.createdAt).getTime() : undefined;
+            return t ?? (saved?.started_at ?? Date.now());
+          })();
+          const initial_elapsed = Math.max(1, Math.floor((Date.now() - initial_started_at) / 1000));
+          const initial_time_progress = Math.floor(calculateVideoProgress(initial_elapsed));
+          setGeneratingProgress(prev => {
+            const next = new Map(prev);
+            const initial = Math.max(1, saved?.last_progress ?? 1, initial_time_progress);
+            next.set(slot_index.toString(), initial);
+            return next;
+          });
+          setGeneratingJobIds(prev => {
+            const next = new Map(prev);
+            next.set(slot_index.toString(), j.jobId);
+            return next;
+          });
+
+          // active-jobs 동기화
+          upsert_active_job(j.jobId, {
+            slot_index,
+            // 서버 생성 시각을 우선 사용 (시간 기반 진행률 정확도 향상)
+            started_at: (() => {
+              const t = j.createdAt ? new Date(j.createdAt).getTime() : undefined;
+              return t ?? (saved?.started_at ?? Date.now());
+            })(),
+            last_progress: saved?.last_progress ?? 1,
+            image_url: j.imageUrl || ''
+          });
+
+          // 폴링 재개
+          const job_started_at = (() => {
+            const t = j.createdAt ? new Date(j.createdAt).getTime() : undefined;
+            return t ?? (saved?.started_at ?? Date.now());
+          })();
+          const pollOnce = async () => {
+            try {
+              const statusResponse = await fetch(`/api/canvas/jobs/${j.jobId}`, { cache: 'no-store' });
+              if (!statusResponse.ok) return;
+              const data = await statusResponse.json();
+              if (!is_mounted) return;
+
+              if (data.status === 'processing' || data.status === 'pending') {
+                // 시간 기반 진행률로 50% 고정 방지
+                const baseline = progressRef.current.get(slot_index.toString()) || 1;
+                const elapsedSeconds = Math.max(1, Math.floor((Date.now() - job_started_at) / 1000));
+                const timeProgress = Math.floor(calculateVideoProgress(elapsedSeconds));
+                const serverRaw = typeof data.progress === 'number' ? data.progress : undefined;
+                const serverProgress = (serverRaw !== undefined && serverRaw !== 50)
+                  ? serverRaw
+                  : (data.status === 'pending' ? 10 : Math.max(baseline, timeProgress));
+                const newProgress = Math.max(baseline, serverProgress, timeProgress);
+                setGeneratingProgress(prev => {
+                  const next = new Map(prev);
+                  next.set(slot_index.toString(), newProgress);
+                  return next;
+                });
+                update_active_job(j.jobId, { last_progress: newProgress });
+                // 5분 경과 시 fallback endpoint로 강제 확인
+                const elapsedMs = Date.now() - job_started_at;
+                if (elapsedMs >= 5 * 60 * 1000) {
+                  try {
+                    const fallbackResp = await fetch(`/api/canvas/jobs/${j.jobId}/poll`, { cache: 'no-store' });
+                    if (fallbackResp.ok) {
+                      const fb = await fallbackResp.json();
+                      if (!is_mounted) return;
+                      if (fb.status === 'completed') {
+                        const currentProgressValue = progressRef.current.get(slot_index.toString()) || 0;
+                        animateToComplete(currentProgressValue, (progress) => {
+                          setGeneratingProgress(prev => {
+                            const next = new Map(prev);
+                            next.set(slot_index.toString(), progress);
+                            return next;
+                          });
+                        });
+                        if (fb.result?.videoUrl) {
+                          const video = {
+                            id: fb.id,
+                            url: fb.result.videoUrl,
+                            thumbnail: fb.result.thumbnailUrl,
+                            createdAt: new Date(fb.createdAt || Date.now()),
+                            modelType: (fb.modelType || 'hailo') as 'seedance' | 'hailo',
+                            isFavorite: fb.result.isFavorite || false,
+                          } as GeneratedVideo;
+                          slotManager.placeVideoInSlot(slot_index, video);
+                          onVideoCompleted?.(video, slot_index);
+                        }
+                        // cleanup
+                        setGeneratingSlots(prev => {
+                          const next = new Set(prev);
+                          next.delete(slot_index);
+                          if (next.size === 0) setIsGenerating(false);
+                          return next;
+                        });
+                        setGeneratingProgress(prev => {
+                          const next = new Map(prev);
+                          next.delete(slot_index.toString());
+                          return next;
+                        });
+                        setGeneratingJobIds(prev => {
+                          const next = new Map(prev);
+                          next.delete(slot_index.toString());
+                          return next;
+                        });
+                        remove_active_job(j.jobId);
+                        return; // 종료
+                      }
+                    }
+                  } catch {
+                    // fallback 실패 시 다음 루프에서 재시도
+                  }
+                }
+                setTimeout(pollOnce, 3000);
+              } else if (data.status === 'completed') {
+                const currentProgressValue = progressRef.current.get(slot_index.toString()) || 0;
+                animateToComplete(currentProgressValue, (progress) => {
+                  setGeneratingProgress(prev => {
+                    const next = new Map(prev);
+                    next.set(slot_index.toString(), progress);
+                    return next;
+                  });
+                });
+                // 결과 비디오 슬롯 배치
+                if (data.result?.videoUrl) {
+                  const video = {
+                    id: data.id,
+                    url: data.result.videoUrl,
+                    thumbnail: data.result.thumbnailUrl,
+                    createdAt: new Date(data.createdAt),
+                    modelType: (data.modelType || 'hailo') as 'seedance' | 'hailo',
+                    isFavorite: data.result.isFavorite || false,
+                  } as GeneratedVideo;
+                  slotManager.placeVideoInSlot(slot_index, video);
+                  onVideoCompleted?.(video, slot_index);
+                }
+                // cleanup
+                setGeneratingSlots(prev => {
+                  const next = new Set(prev);
+                  next.delete(slot_index);
+                  if (next.size === 0) setIsGenerating(false);
+                  return next;
+                });
+                setGeneratingProgress(prev => {
+                  const next = new Map(prev);
+                  next.delete(slot_index.toString());
+                  return next;
+                });
+                setGeneratingJobIds(prev => {
+                  const next = new Map(prev);
+                  next.delete(slot_index.toString());
+                  return next;
+                });
+                remove_active_job(j.jobId);
+              } else if (data.status === 'failed') {
+                setGenerationError('비디오 생성이 실패했습니다. 다시 시도해주세요.');
+                setGeneratingSlots(prev => {
+                  const next = new Set(prev);
+                  next.delete(slot_index);
+                  if (next.size === 0) setIsGenerating(false);
+                  return next;
+                });
+                setGeneratingProgress(prev => {
+                  const next = new Map(prev);
+                  next.delete(slot_index.toString());
+                  return next;
+                });
+                setGeneratingJobIds(prev => {
+                  const next = new Map(prev);
+                  next.delete(slot_index.toString());
+                  return next;
+                });
+                slotManager.resetSlot(slot_index);
+                remove_active_job(j.jobId);
+              }
+            } catch {
+              // 네트워크 에러는 주기적으로 재시도
+              if (!is_mounted) return;
+              setTimeout(pollOnce, 3000);
+            }
+          };
+          pollOnce();
+        }
+      } catch {
+        // 복원 실패는 무시
+      }
+    };
+    restore();
+    return () => { is_mounted = false; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // 에러 자동 제거
   useEffect(() => {
@@ -104,7 +395,7 @@ export function useVideoGeneration({
     setIsGenerating(true);
     setGenerationError(null);
 
-    // 진행률 초기화 - 즉시 5% 표시
+    // 진행률 초기화 - 즉시 1% 표시
     setGeneratingProgress(prev => {
       const next = new Map(prev);
       next.set(availableSlot.toString(), 1);
@@ -149,6 +440,13 @@ export function useVideoGeneration({
           next.set(availableSlot.toString(), firstJob.jobId);
           return next;
         });
+        // 활성 작업 저장 (복원용)
+        upsert_active_job(firstJob.jobId, {
+          slot_index: availableSlot,
+          started_at: Date.now(),
+          last_progress: 1,
+          image_url: imageUrl,
+        });
         jobStartTimes.set(firstJob.jobId, Date.now());
         jobCompletedMap.set(firstJob.jobId, false);
       }
@@ -189,6 +487,9 @@ export function useVideoGeneration({
                 next.set(targetSlot.toString(), Math.floor(Math.max(current, target)));
                 return next;
               });
+              const updated = Math.floor(Math.max(progressRef.current.get(targetSlot.toString()) || 0, target));
+              const jobId = generatingJobIds.get(targetSlot.toString());
+              if (jobId) update_active_job(jobId, { last_progress: updated });
             }
           } else if (statusData.status === "completed") {
             if (!jobCompletedMap.get(job.jobId)) {
@@ -315,6 +616,8 @@ export function useVideoGeneration({
             next.delete(targetSlot.toString());
             return next;
           });
+          const finishedJobId = generatingJobIds.get(targetSlot.toString());
+          if (finishedJobId) remove_active_job(finishedJobId);
 
           const failedJobs = jobStatuses.filter((j: unknown) => {
             const job = j as { status: string };
