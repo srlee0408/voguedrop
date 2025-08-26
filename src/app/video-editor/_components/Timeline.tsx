@@ -10,7 +10,7 @@ import TimelineGrid from './TimelineGrid';
 import { useDragAndDrop } from '../_hooks/useDragAndDrop';
 import { useSelectionState } from '../_hooks/useSelectionState';
 import { useClips } from '../_context/Providers';
-import { calculateTimelineDuration, generateTimeMarkers, magneticPositioning } from '../_utils/common-clip-utils';
+import { calculateTimelineDuration, generateTimeMarkers, magneticPositioning, getMaxOverlapRatio, OVERLAP_REPLACE_THRESHOLD, getMaxOverlapTarget } from '../_utils/common-clip-utils';
 import { getClipsForLane, canAddNewLane, getTextClipsForLane, canAddNewTextLane, getVideoClipsForLane, canAddNewVideoLane } from '../_utils/lane-arrangement';
 
 interface TimelineProps {
@@ -442,7 +442,19 @@ export default function Timeline({
       laneClips = getClipsForLane(soundClips, laneIndex) as Array<{ id: string; position: number; duration: number }>;
     }
 
-    // 드롭 시와 동일한 자석 배치 로직으로 프리뷰 위치 계산
+    // 겹침 비율 확인 (threshold 이상이면 교체 모드 프리뷰)
+    const { maxRatio } = getMaxOverlapRatio(
+      laneClips,
+      activeClip,
+      requestedPosition,
+      currentDuration
+    );
+
+    if (maxRatio >= OVERLAP_REPLACE_THRESHOLD) {
+      return { left: requestedPosition, width: currentDuration };
+    }
+
+    // 겹침이 없으면 자석 배치 프리뷰
     const { targetPosition } = magneticPositioning(
       laneClips,
       activeClip,
@@ -451,6 +463,101 @@ export default function Timeline({
     );
 
     return { left: targetPosition, width: currentDuration };
+  };
+
+  // 드래그 프리뷰가 교체 동작인지 여부
+  const isGhostReplacingForLane = (
+    laneType: 'video' | 'text' | 'sound',
+    laneIndex: number
+  ): boolean => {
+    if (!isDragging || !activeClip || !activeClipType) return false;
+    if (activeClipType !== laneType) return false;
+    if (!dragTargetLane || dragTargetLane.laneType !== laneType || dragTargetLane.laneIndex !== laneIndex) return false;
+
+    const deltaScreenPx = (lastMouseX ?? dragStartX) - dragStartX;
+    const zoomRatio = pixelsPerSecond / 40;
+    const deltaBasePx = deltaScreenPx / zoomRatio;
+
+    let currentPosition = 0;
+    let currentDuration = 120;
+    if (activeClipType === 'video') {
+      const clip = clips.find(c => c.id === activeClip);
+      currentPosition = clip?.position ?? 0;
+      currentDuration = clip?.duration ?? 120;
+    } else if (activeClipType === 'text') {
+      const clip = textClips.find(c => c.id === activeClip);
+      currentPosition = clip?.position ?? 0;
+      currentDuration = clip?.duration ?? 120;
+    } else if (activeClipType === 'sound') {
+      const clip = soundClips.find(c => c.id === activeClip);
+      currentPosition = clip?.position ?? 0;
+      currentDuration = clip?.duration ?? 120;
+    }
+
+    const requestedPosition = Math.max(0, currentPosition + deltaBasePx);
+
+    let laneClips: Array<{ id: string; position: number; duration: number }> = [];
+    if (laneType === 'video') {
+      laneClips = getVideoClipsForLane(clips, laneIndex) as Array<{ id: string; position: number; duration: number }>;
+    } else if (laneType === 'text') {
+      laneClips = getTextClipsForLane(textClips, laneIndex) as Array<{ id: string; position: number; duration: number }>;
+    } else if (laneType === 'sound') {
+      laneClips = getClipsForLane(soundClips, laneIndex) as Array<{ id: string; position: number; duration: number }>;
+    }
+
+    const { maxRatio } = getMaxOverlapRatio(
+      laneClips,
+      activeClip,
+      requestedPosition,
+      currentDuration
+    );
+
+    return maxRatio >= OVERLAP_REPLACE_THRESHOLD;
+  };
+
+  // 고스트 프리뷰용: 대체될 대상 클립의 ID (있으면 하이라이트)
+  const getGhostReplaceTargetIdForLane = (
+    laneType: 'video' | 'text' | 'sound',
+    laneIndex: number
+  ): string | null => {
+    if (!isDragging || !activeClip || !activeClipType) return null;
+    if (activeClipType !== laneType) return null;
+    if (!dragTargetLane || dragTargetLane.laneType !== laneType || dragTargetLane.laneIndex !== laneIndex) return null;
+
+    const deltaScreenPx = (lastMouseX ?? dragStartX) - dragStartX;
+    const zoomRatio = pixelsPerSecond / 40;
+    const deltaBasePx = deltaScreenPx / zoomRatio;
+
+    let currentPosition = 0;
+    let currentDuration = 120;
+    if (activeClipType === 'video') {
+      const clip = clips.find(c => c.id === activeClip);
+      currentPosition = clip?.position ?? 0;
+      currentDuration = clip?.duration ?? 120;
+    } else if (activeClipType === 'text') {
+      const clip = textClips.find(c => c.id === activeClip);
+      currentPosition = clip?.position ?? 0;
+      currentDuration = clip?.duration ?? 120;
+    } else if (activeClipType === 'sound') {
+      const clip = soundClips.find(c => c.id === activeClip);
+      currentPosition = clip?.position ?? 0;
+      currentDuration = clip?.duration ?? 120;
+    }
+
+    const requestedPosition = Math.max(0, currentPosition + deltaBasePx);
+
+    let laneClips: Array<{ id: string; position: number; duration: number }> = [];
+    if (laneType === 'video') {
+      laneClips = getVideoClipsForLane(clips, laneIndex) as Array<{ id: string; position: number; duration: number }>;
+    } else if (laneType === 'text') {
+      laneClips = getTextClipsForLane(textClips, laneIndex) as Array<{ id: string; position: number; duration: number }>;
+    } else if (laneType === 'sound') {
+      laneClips = getClipsForLane(soundClips, laneIndex) as Array<{ id: string; position: number; duration: number }>;
+    }
+
+    const { target, ratio } = getMaxOverlapTarget(laneClips, activeClip, requestedPosition, currentDuration);
+    if (target && ratio >= OVERLAP_REPLACE_THRESHOLD) return target.id;
+    return null;
   };
 
   // Update rect selected clips based on selection area
@@ -904,6 +1011,48 @@ export default function Timeline({
           
           if (hasMulti) {
             import('../_utils/common-clip-utils').then(({ handleClipDrag }) => {
+              // 겹침 임계치 충족 여부 사전 계산 (선택된 모든 클립 기준)
+              const anyNeedsReplacement = (() => {
+                // 비디오 선택 클립 검사
+                const videoIds = rectSelectedClips.filter(c => c.type === 'video').map(c => c.id);
+                for (const id of videoIds) {
+                  const clip = clips.find(c => c.id === id);
+                  if (!clip) continue;
+                  const targetLaneIndex = (finalResolvedLane && finalResolvedLane.laneType === 'video') ? finalResolvedLane.laneIndex : (clip.laneIndex ?? 0);
+                  const laneClips = getVideoClipsForLane(clips, targetLaneIndex) as Array<{ id: string; position: number; duration: number }>;
+                  const requestedPosition = Math.max(0, clip.position + delta);
+                  const { maxRatio } = getMaxOverlapRatio(laneClips, id, requestedPosition, clip.duration);
+                  if (maxRatio >= OVERLAP_REPLACE_THRESHOLD) return true;
+                }
+                // 텍스트 선택 클립 검사
+                const textIds = rectSelectedClips.filter(c => c.type === 'text').map(c => c.id);
+                for (const id of textIds) {
+                  const clip = textClips.find(c => c.id === id);
+                  if (!clip) continue;
+                  const targetLaneIndex = (finalResolvedLane && finalResolvedLane.laneType === 'text') ? finalResolvedLane.laneIndex : (clip.laneIndex ?? 0);
+                  const laneClips = getTextClipsForLane(textClips, targetLaneIndex) as Array<{ id: string; position: number; duration: number }>;
+                  const requestedPosition = Math.max(0, clip.position + delta);
+                  const { maxRatio } = getMaxOverlapRatio(laneClips, id, requestedPosition, clip.duration);
+                  if (maxRatio >= OVERLAP_REPLACE_THRESHOLD) return true;
+                }
+                // 사운드 선택 클립 검사
+                const soundIds = rectSelectedClips.filter(c => c.type === 'sound').map(c => c.id);
+                for (const id of soundIds) {
+                  const clip = soundClips.find(c => c.id === id);
+                  if (!clip) continue;
+                  const targetLaneIndex = (finalResolvedLane && finalResolvedLane.laneType === 'sound') ? finalResolvedLane.laneIndex : (clip.laneIndex ?? 0);
+                  const laneClips = getClipsForLane(soundClips, targetLaneIndex) as Array<{ id: string; position: number; duration: number }>;
+                  const requestedPosition = Math.max(0, clip.position + delta);
+                  const { maxRatio } = getMaxOverlapRatio(laneClips, id, requestedPosition, clip.duration);
+                  if (maxRatio >= OVERLAP_REPLACE_THRESHOLD) return true;
+                }
+                return false;
+              })();
+
+              const replaceOnOverlap = anyNeedsReplacement
+                ? (typeof window !== 'undefined' ? window.confirm('Replace overlapping clip(s) with the moved clip?') : true)
+                : false;
+
               // 비디오
               if (onUpdateAllVideoClips) {
                 const videoIds = rectSelectedClips.filter(c => c.type === 'video').map(c => c.id);
@@ -911,7 +1060,7 @@ export default function Timeline({
                 videoIds.forEach(id => {
                   handleClipDrag(id, 'video', working, delta, finalResolvedLane ?? null, (newClips) => {
                     working = newClips;
-                  });
+                  }, { replaceOnOverlap, timelineWidth: timelineLengthInSeconds * basePixelsPerSecond });
                 });
                 onUpdateAllVideoClips(working);
 
@@ -921,7 +1070,7 @@ export default function Timeline({
                 videoIds.forEach(id => {
                   handleClipDrag(id, 'video', working, delta, finalResolvedLane ?? null, (newClips) => {
                     working = newClips;
-                  });
+                  }, { replaceOnOverlap, timelineWidth: timelineLengthInSeconds * basePixelsPerSecond });
                 });
                 onReorderVideoClips(working);
 
@@ -933,7 +1082,7 @@ export default function Timeline({
                 textIds.forEach(id => {
                   handleClipDrag(id, 'text', workingText, delta, finalResolvedLane ?? null, (newClips) => {
                     workingText = newClips;
-                  });
+                  }, { replaceOnOverlap, timelineWidth: timelineLengthInSeconds * basePixelsPerSecond });
                 });
                 onUpdateAllTextClips(workingText);
 
@@ -943,7 +1092,7 @@ export default function Timeline({
                 textIds.forEach(id => {
                   handleClipDrag(id, 'text', workingText, delta, finalResolvedLane ?? null, (newClips) => {
                     workingText = newClips;
-                  });
+                  }, { replaceOnOverlap, timelineWidth: timelineLengthInSeconds * basePixelsPerSecond });
                 });
                 onReorderTextClips(workingText);
 
@@ -955,7 +1104,7 @@ export default function Timeline({
                 soundIds.forEach(id => {
                   handleClipDrag(id, 'sound', workingSound, delta, finalResolvedLane ?? null, (newClips) => {
                     workingSound = newClips;
-                  });
+                  }, { replaceOnOverlap, timelineWidth: timelineLengthInSeconds * basePixelsPerSecond });
                 });
                 onUpdateAllSoundClips(workingSound);
 
@@ -965,7 +1114,7 @@ export default function Timeline({
                 soundIds.forEach(id => {
                   handleClipDrag(id, 'sound', workingSound, delta, finalResolvedLane ?? null, (newClips) => {
                     workingSound = newClips;
-                  });
+                  }, { replaceOnOverlap, timelineWidth: timelineLengthInSeconds * basePixelsPerSecond });
                 });
                 onReorderSoundClips(workingSound);
 
@@ -975,27 +1124,61 @@ export default function Timeline({
             // 단일 이동 (기존 동작)
             import('../_utils/common-clip-utils').then(({ handleClipDrag }) => {
               if (activeClipType === 'video') {
+                // 교체 임계치 확인
+                const clip = clips.find(c => c.id === activeClip);
+                let replaceOnOverlap = false;
+                if (clip) {
+                  const targetLaneIndex = (finalResolvedLane && finalResolvedLane.laneType === 'video') ? finalResolvedLane.laneIndex : (clip.laneIndex ?? 0);
+                  const laneClips = getVideoClipsForLane(clips, targetLaneIndex) as Array<{ id: string; position: number; duration: number }>;
+                  const requestedPosition = Math.max(0, (clip?.position ?? 0) + delta);
+                  const { maxRatio } = getMaxOverlapRatio(laneClips, activeClip, requestedPosition, clip?.duration ?? 0);
+                  if (maxRatio >= OVERLAP_REPLACE_THRESHOLD) {
+                    replaceOnOverlap = typeof window !== 'undefined' ? window.confirm('Replace overlapping clip with this clip?') : true;
+                  }
+                }
                 if (onUpdateAllVideoClips) {
-                  handleClipDrag(activeClip, 'video', clips, delta, finalResolvedLane ?? null, onUpdateAllVideoClips);
+                  handleClipDrag(activeClip, 'video', clips, delta, finalResolvedLane ?? null, onUpdateAllVideoClips, { replaceOnOverlap, timelineWidth: timelineLengthInSeconds * basePixelsPerSecond });
 
                 } else if (onReorderVideoClips) {
-                  handleClipDrag(activeClip, 'video', clips, delta, finalResolvedLane ?? null, onReorderVideoClips);
+                  handleClipDrag(activeClip, 'video', clips, delta, finalResolvedLane ?? null, onReorderVideoClips, { replaceOnOverlap, timelineWidth: timelineLengthInSeconds * basePixelsPerSecond });
 
                 }
               } else if (activeClipType === 'text') {
+                const clip = textClips.find(c => c.id === activeClip);
+                let replaceOnOverlap = false;
+                if (clip) {
+                  const targetLaneIndex = (finalResolvedLane && finalResolvedLane.laneType === 'text') ? finalResolvedLane.laneIndex : (clip.laneIndex ?? 0);
+                  const laneClips = getTextClipsForLane(textClips, targetLaneIndex) as Array<{ id: string; position: number; duration: number }>;
+                  const requestedPosition = Math.max(0, (clip?.position ?? 0) + delta);
+                  const { maxRatio } = getMaxOverlapRatio(laneClips, activeClip, requestedPosition, clip?.duration ?? 0);
+                  if (maxRatio >= OVERLAP_REPLACE_THRESHOLD) {
+                    replaceOnOverlap = typeof window !== 'undefined' ? window.confirm('Replace overlapping clip with this clip?') : true;
+                  }
+                }
                 if (onUpdateAllTextClips) {
-                  handleClipDrag(activeClip, 'text', textClips, delta, finalResolvedLane ?? null, onUpdateAllTextClips);
+                  handleClipDrag(activeClip, 'text', textClips, delta, finalResolvedLane ?? null, onUpdateAllTextClips, { replaceOnOverlap, timelineWidth: timelineLengthInSeconds * basePixelsPerSecond });
 
                 } else if (onReorderTextClips) {
-                  handleClipDrag(activeClip, 'text', textClips, delta, finalResolvedLane ?? null, onReorderTextClips);
+                  handleClipDrag(activeClip, 'text', textClips, delta, finalResolvedLane ?? null, onReorderTextClips, { replaceOnOverlap, timelineWidth: timelineLengthInSeconds * basePixelsPerSecond });
 
                 }
               } else if (activeClipType === 'sound') {
+                const clip = soundClips.find(c => c.id === activeClip);
+                let replaceOnOverlap = false;
+                if (clip) {
+                  const targetLaneIndex = (finalResolvedLane && finalResolvedLane.laneType === 'sound') ? finalResolvedLane.laneIndex : (clip.laneIndex ?? 0);
+                  const laneClips = getClipsForLane(soundClips, targetLaneIndex) as Array<{ id: string; position: number; duration: number }>;
+                  const requestedPosition = Math.max(0, (clip?.position ?? 0) + delta);
+                  const { maxRatio } = getMaxOverlapRatio(laneClips, activeClip, requestedPosition, clip?.duration ?? 0);
+                  if (maxRatio >= OVERLAP_REPLACE_THRESHOLD) {
+                    replaceOnOverlap = typeof window !== 'undefined' ? window.confirm('Replace overlapping clip with this clip?') : true;
+                  }
+                }
                 if (onUpdateAllSoundClips) {
-                  handleClipDrag(activeClip, 'sound', soundClips, delta, finalResolvedLane ?? null, onUpdateAllSoundClips);
+                  handleClipDrag(activeClip, 'sound', soundClips, delta, finalResolvedLane ?? null, onUpdateAllSoundClips, { replaceOnOverlap, timelineWidth: timelineLengthInSeconds * basePixelsPerSecond });
 
                 } else if (onReorderSoundClips) {
-                  handleClipDrag(activeClip, 'sound', soundClips, delta, finalResolvedLane ?? null, onReorderSoundClips);
+                  handleClipDrag(activeClip, 'sound', soundClips, delta, finalResolvedLane ?? null, onReorderSoundClips, { replaceOnOverlap, timelineWidth: timelineLengthInSeconds * basePixelsPerSecond });
 
                 }
               }
@@ -1539,6 +1722,8 @@ export default function Timeline({
                 onTrackClick={handleTrackClick}
                 isDragTarget={dragTargetLane?.laneType === 'video' && dragTargetLane?.laneIndex === laneIndex}
                 ghostPreview={getGhostPreviewForLane('video', laneIndex)}
+                ghostIsReplacing={isGhostReplacingForLane('video', laneIndex)}
+                ghostReplaceTargetId={getGhostReplaceTargetIdForLane('video', laneIndex)}
               />
             ))}
 
@@ -1573,6 +1758,8 @@ export default function Timeline({
                 onTrackClick={handleTrackClick}
                 isDragTarget={dragTargetLane?.laneType === 'text' && dragTargetLane?.laneIndex === laneIndex}
                 ghostPreview={getGhostPreviewForLane('text', laneIndex)}
+                ghostIsReplacing={isGhostReplacingForLane('text', laneIndex)}
+                ghostReplaceTargetId={getGhostReplaceTargetIdForLane('text', laneIndex)}
               />
             ))}
 
@@ -1609,6 +1796,8 @@ export default function Timeline({
                 onTrackClick={handleTrackClick}
                 isDragTarget={dragTargetLane?.laneType === 'sound' && dragTargetLane?.laneIndex === laneIndex}
                 ghostPreview={getGhostPreviewForLane('sound', laneIndex)}
+                ghostIsReplacing={isGhostReplacingForLane('sound', laneIndex)}
+                ghostReplaceTargetId={getGhostReplaceTargetIdForLane('sound', laneIndex)}
               />
             ))}
 

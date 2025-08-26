@@ -25,6 +25,10 @@ interface TimelineTrackProps {
   // 드래그 타겟 레인 하이라이트 및 고스트 프리뷰 표시용
   isDragTarget?: boolean;
   ghostPreview?: { left: number; width: number } | null;
+  // 고스트 프리뷰가 겹침으로 인해 교체될 때 안내 문구 표시 여부
+  ghostIsReplacing?: boolean;
+  // 교체 대상이 될 클립 ID (고스트 하이라이트)
+  ghostReplaceTargetId?: string | null;
 }
 
 /**
@@ -50,6 +54,8 @@ export default function TimelineTrack({
   onTrackClick,
   isDragTarget = false,
   ghostPreview = null,
+  ghostIsReplacing = false,
+  ghostReplaceTargetId = null,
 }: TimelineTrackProps) {
   // 줌 비율 계산 (기준: 40px/초)
   const zoomRatio = pixelsPerSecond / 40;
@@ -60,13 +66,14 @@ export default function TimelineTrack({
     const isSelected = selectedClips.includes(clip.id);
     const clipWidth = clip.duration * zoomRatio;
     const isActive = activeClip === clip.id;
+    const isGhostReplaceTarget = ghostReplaceTargetId === clip.id;
 
     return (
       <div 
         key={clip.id}
         data-clip-id={clip.id}
         data-clip-type="video"
-        className="group absolute top-0 timeline-clip"
+        className={`group absolute top-0 timeline-clip ${isGhostReplaceTarget ? 'ring-2 ring-red-400 rounded' : ''}`}
         style={{ 
           width: `${clipWidth}px`,
           left: `${clip.position * zoomRatio}px`
@@ -96,6 +103,7 @@ export default function TimelineTrack({
     const isRectSelected = rectSelectedClips.some(c => c.id === clip.id && c.type === 'text');
     const isSelected = selectedClips.includes(clip.id);
     const clipWidth = clip.duration * zoomRatio;
+    const isGhostReplaceTarget = ghostReplaceTargetId === clip.id;
 
     
     return (
@@ -108,7 +116,9 @@ export default function TimelineTrack({
             ? 'ring-2 ring-red-400 rounded'
             : isSelected
               ? 'ring-2 ring-[#38f47cf9] rounded'
-              : ''
+              : isGhostReplaceTarget
+                ? 'ring-2 ring-red-400 rounded'
+                : ''
         }`}
         style={{ 
           width: `${clipWidth}px`,
@@ -138,6 +148,7 @@ export default function TimelineTrack({
     const isRectSelected = rectSelectedClips.some(c => c.id === clip.id && c.type === 'sound');
     const isSelected = selectedClips.includes(clip.id);
     const clipWidth = clip.duration * zoomRatio;
+    const isGhostReplaceTarget = ghostReplaceTargetId === clip.id;
 
     
     return (
@@ -150,7 +161,9 @@ export default function TimelineTrack({
             ? 'ring-2 ring-red-400 rounded'
             : isSelected
               ? 'ring-2 ring-[#38f47cf9] rounded'
-              : ''
+              : isGhostReplaceTarget
+                ? 'ring-2 ring-red-400 rounded'
+                : ''
         }`}
         style={{ 
           width: `${clipWidth}px`,
@@ -224,6 +237,19 @@ export default function TimelineTrack({
               width: `${ghostPreview.width * zoomRatio}px`,
             }}
           />
+        )}
+        {ghostPreview && ghostIsReplacing && (
+          <div
+            className="absolute top-0 h-full flex items-center justify-center pointer-events-none z-[6]"
+            style={{
+              left: `${ghostPreview.left * zoomRatio}px`,
+              width: `${ghostPreview.width * zoomRatio}px`,
+            }}
+          >
+            <span className="px-2 py-0.5 text-[10px] rounded bg-red-900/70 text-red-100 border border-red-500/60">
+              Drop to replace
+            </span>
+          </div>
         )}
         
         {clips.map((clip) => {

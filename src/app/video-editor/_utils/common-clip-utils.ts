@@ -74,6 +74,84 @@ export const checkClipOverlap = <T extends BaseClip>(
 };
 
 /**
+ * 주어진 위치에서 겹치는 클립들 반환
+ * @param clips 확인할 클립 배열 (대상 레인의 클립들 권장)
+ * @param excludeClipId 제외할 클립 ID (보통 드래그 중인 클립)
+ * @param newPosition 새 위치
+ * @param duration 클립 길이
+ */
+export const getOverlappedClips = <T extends BaseClip>(
+  clips: T[],
+  excludeClipId: string | null,
+  newPosition: number,
+  duration: number
+): T[] => {
+  const start = Math.max(0, newPosition);
+  const end = start + duration;
+  return clips.filter(clip => {
+    if (excludeClipId && clip.id === excludeClipId) return false;
+    const clipStart = clip.position;
+    const clipEnd = clip.position + clip.duration;
+    return start < clipEnd && end > clipStart;
+  });
+};
+
+/**
+ * 겹침 비율의 최대값 계산 (드래그된 클립 길이 기준)
+ * @returns { maxRatio, overlappedClips }
+ */
+export const getMaxOverlapRatio = <T extends BaseClip>(
+  clips: T[],
+  excludeClipId: string | null,
+  newPosition: number,
+  duration: number
+): { maxRatio: number; overlappedClips: T[] } => {
+  const overlappedClips = getOverlappedClips(clips, excludeClipId, newPosition, duration);
+  const start = Math.max(0, newPosition);
+  const end = start + duration;
+  let maxRatio = 0;
+  for (const clip of overlappedClips) {
+    const clipStart = clip.position;
+    const clipEnd = clip.position + clip.duration;
+    const overlap = Math.min(end, clipEnd) - Math.max(start, clipStart);
+    const ratio = overlap > 0 ? overlap / duration : 0;
+    if (ratio > maxRatio) maxRatio = ratio;
+  }
+  return { maxRatio, overlappedClips };
+};
+
+/**
+ * 겹침으로 교체 트리거 임계값 (40%)
+ */
+export const OVERLAP_REPLACE_THRESHOLD = 0.4;
+
+/**
+ * 최대 겹침 대상 클립과 비율 계산
+ * 두 클립 이상과 겹칠 때 더 많이 겹치는 하나를 선택
+ */
+export const getMaxOverlapTarget = <T extends BaseClip>(
+  clips: T[],
+  excludeClipId: string | null,
+  newPosition: number,
+  duration: number
+): { target: T | null; ratio: number } => {
+  const start = Math.max(0, newPosition);
+  const end = start + duration;
+  let best: { target: T | null; ratio: number } = { target: null, ratio: 0 };
+  for (const clip of clips) {
+    if (excludeClipId && clip.id === excludeClipId) continue;
+    const clipStart = clip.position;
+    const clipEnd = clip.position + clip.duration;
+    if (start < clipEnd && end > clipStart) {
+      const overlap = Math.min(end, clipEnd) - Math.max(start, clipStart);
+      const ratio = overlap > 0 ? overlap / duration : 0;
+      if (ratio > best.ratio) best = { target: clip, ratio };
+    }
+  }
+  return best;
+};
+
+/**
  * 클립 길이 검증
  * @param duration 현재 길이
  * @param maxDuration 최대 허용 길이
@@ -215,32 +293,25 @@ export const magneticPositioning = <T extends BaseClip>(
           adjustedClips: otherClips
         };
       } else {
-        // 공간이 부족하면 연쇄 충돌 해결 (ripple effect)
-        const insertPosition = leftEnd;
-        const draggedEnd = insertPosition + duration;
+        // 공간이 부족하면 중심 기준으로 좌/우 배치 (밀림 없이)
+        const leftClip = sortedClips[i];
+        const rightClip = sortedClips[i + 1];
+        const gapCenter = (leftClip.position + leftClip.duration + rightClip.position) / 2;
         
-        // 연쇄 충돌 해결
-        const adjustedClips = [...sortedClips];
-        let currentPushPosition = draggedEnd;
-        
-        for (let j = 0; j < adjustedClips.length; j++) {
-          const clip = adjustedClips[j];
-          const clipEnd = clip.position + clip.duration;
-          
-          // 현재 밀려나는 위치와 겹치는지 확인
-          if (clip.position < currentPushPosition && clipEnd > insertPosition) {
-            // 겹치는 클립을 현재 밀려나는 위치로 이동
-            adjustedClips[j] = { ...clip, position: currentPushPosition } as T;
-            
-            // 다음 클립이 밀려날 위치 업데이트
-            currentPushPosition = currentPushPosition + clip.duration;
-          }
+        if (draggedCenter > gapCenter) {
+          // 오른쪽 클립 우측에 배치
+          return {
+            targetPosition: rightClip.position + rightClip.duration,
+            adjustedClips: otherClips
+          };
+        } else {
+          // 왼쪽 클립 좌측에 배치
+          const leftPos = leftClip.position - duration;
+          return {
+            targetPosition: Math.max(0, leftPos),
+            adjustedClips: otherClips
+          };
         }
-        
-        return {
-          targetPosition: insertPosition,
-          adjustedClips
-        };
       }
     }
   }
@@ -253,22 +324,28 @@ export const magneticPositioning = <T extends BaseClip>(
     };
   }
   
-  // 3. 맨 앞 클립과 겹치는 경우 - 모든 클립 밀기
+  // 3. 맨 앞 클립과 겹치는 경우 - 중심 기준으로 좌/우 배치 (밀림 없이)
   if (requestedPosition < sortedClips[0].position && draggedEnd > sortedClips[0].position) {
-    const pushAmount = draggedEnd - sortedClips[0].position;
+    const firstClip = sortedClips[0];
+    const firstClipCenter = firstClip.position + (firstClip.duration / 2);
     
-    const adjustedClips = sortedClips.map(clip => ({
-      ...clip,
-      position: clip.position + pushAmount
-    } as T));
-    
-    return {
-      targetPosition: Math.max(0, requestedPosition),
-      adjustedClips
-    };
+    if (draggedCenter > firstClipCenter) {
+      // 오른쪽에 배치
+      return {
+        targetPosition: firstClip.position + firstClip.duration,
+        adjustedClips: otherClips
+      };
+    } else {
+      // 왼쪽에 배치 (0 이상으로 제한)
+      const leftPos = firstClip.position - duration;
+      return {
+        targetPosition: Math.max(0, leftPos),
+        adjustedClips: otherClips
+      };
+    }
   }
   
-  // 4. 단일 클립 위에 있는 경우 - 중심 기준 좌/우 배치
+  // 4. 단일 클립 위에 있는 경우 - 중심 기준 좌/우 배치 (밀림 현상 없이)
   const overlappingClip = sortedClips.find(clip =>
     requestedPosition < clip.position + clip.duration &&
     draggedEnd > clip.position
@@ -278,46 +355,20 @@ export const magneticPositioning = <T extends BaseClip>(
     const clipCenter = overlappingClip.position + (overlappingClip.duration / 2);
     
     if (draggedCenter > clipCenter) {
-      // 오른쪽에 배치
+      // 오른쪽에 배치 - 겹침 없이 바로 우측에 붙임
       return {
         targetPosition: overlappingClip.position + overlappingClip.duration,
         adjustedClips: otherClips
       };
     } else {
-      // 왼쪽에 배치
+      // 왼쪽에 배치 - 겹침 없이 바로 좌측에 붙임
       const leftPos = overlappingClip.position - duration;
       
-      if (leftPos < 0) {
-        // 맨 앞 공간 부족 - 연쇄 충돌 해결
-        const targetPosition = 0;
-        const draggedEnd = targetPosition + duration;
-        
-        // 연쇄 충돌 해결
-        const adjustedClips = [...sortedClips];
-        let currentPushPosition = draggedEnd;
-        
-        for (let j = 0; j < adjustedClips.length; j++) {
-          const clip = adjustedClips[j];
-          const clipEnd = clip.position + clip.duration;
-          
-          // 현재 밀려나는 위치와 겹치는지 확인
-          if (clip.position < currentPushPosition && clipEnd > targetPosition) {
-            // 겹치는 클립을 현재 밀려나는 위치로 이동
-            adjustedClips[j] = { ...clip, position: currentPushPosition } as T;
-            
-            // 다음 클립이 밀려날 위치 업데이트
-            currentPushPosition = currentPushPosition + clip.duration;
-          }
-        }
-        
-        return {
-          targetPosition: 0,
-          adjustedClips
-        };
-      }
+      // 0보다 작으면 0으로 제한 (밀림 현상 없이)
+      const finalLeftPos = Math.max(0, leftPos);
       
       return {
-        targetPosition: leftPos,
+        targetPosition: finalLeftPos,
         adjustedClips: otherClips
       };
     }
@@ -341,7 +392,8 @@ export function handleClipDrag<T extends CommonClip>(
   currentClips: T[],
   delta: number,
   dragTargetLane: DragTargetLane | null,
-  updateFunction: (clips: T[]) => void
+  updateFunction: (clips: T[]) => void,
+  options?: { replaceOnOverlap?: boolean; timelineWidth?: number }
 ): void {
   const currentClip = currentClips.find(c => c.id === activeClipId);
   if (!currentClip) return;
@@ -353,40 +405,62 @@ export function handleClipDrag<T extends CommonClip>(
   const originalLane = currentClip.laneIndex ?? 0;
   const targetLane = dragTargetLane ? dragTargetLane.laneIndex : originalLane;
   
+  const timelineWidth = options?.timelineWidth;
+  const validatedPosition = validateClipPosition(newPosition, currentClip.duration, timelineWidth);
 
-  // 모든 클립 타입에서 동일한 magneticPositioning 사용 - 연쇄 충돌 지원
+  // 대상 레인의 (active 제외) 클립들
+  const laneClips = currentClips.filter(c => c.id !== activeClipId && (c.laneIndex ?? 0) === targetLane);
+
+  // 겹침 교체 옵션 처리 (가장 많이 겹치는 단일 대상만 교체)
+  if (options?.replaceOnOverlap) {
+    const { target } = getMaxOverlapTarget(laneClips, activeClipId, validatedPosition, currentClip.duration);
+    if (target) {
+      const withoutTarget = currentClips.filter(c => c.id !== target.id);
+      const replaced = withoutTarget.map(c => {
+        if (c.id === activeClipId) {
+          return { ...c, laneIndex: targetLane, position: validatedPosition } as T;
+        }
+        return c;
+      });
+      updateFunction(replaced.sort((a, b) => a.position - b.position));
+      return;
+    }
+  }
+
+  // 겹침이 없거나 교체 모드가 아닐 때: 자석 배치로 겹침 회피
   if (targetLane !== originalLane) {
-    // 레인 변경 시
-    const targetLaneClips = currentClips.filter(c => (c.laneIndex ?? 0) === targetLane);
-    const { targetPosition, adjustedClips } = magneticPositioning(
-      targetLaneClips,
+    const { targetPosition } = magneticPositioning(
+      laneClips,
       activeClipId,
-      newPosition,
+      validatedPosition,
       currentClip.duration
     );
-    const withoutActive = currentClips.filter(c => c.id !== activeClipId);
-    const merged = withoutActive.map(c => {
-      if ((c.laneIndex ?? 0) === targetLane) {
-        const repl = (adjustedClips as Array<{ id: string; position: number; duration: number }>).find(ac => ac.id === c.id);
-        return repl ? ({ ...c, position: repl.position, duration: repl.duration } as T) : c;
+
+    const updatedClips = currentClips.map(c => {
+      if (c.id === activeClipId) {
+        return { ...c, laneIndex: targetLane, position: targetPosition } as T;
       }
       return c;
     });
-    const moved = { ...(currentClip as T), laneIndex: targetLane, position: targetPosition } as T;
-    updateFunction([...merged, moved].sort((a, b) => a.position - b.position));
+
+    updateFunction(updatedClips.sort((a, b) => a.position - b.position));
   } else {
-    // 같은 레인 내 이동
-    const sameLaneClips = currentClips.filter(c => (c.laneIndex ?? 0) === originalLane);
-    const { targetPosition, adjustedClips } = magneticPositioning(
+    const sameLaneClips = laneClips; // 동일 레인
+    const { targetPosition } = magneticPositioning(
       sameLaneClips,
       activeClipId,
-      newPosition,
+      validatedPosition,
       currentClip.duration
     );
-    const otherLaneClips = currentClips.filter(c => (c.laneIndex ?? 0) !== originalLane);
-    const mergedSameLane = adjustedClips as T[]; // dragged 제외된 상태
-    const moved = { ...(currentClip as T), position: targetPosition } as T;
-    updateFunction([...otherLaneClips as T[], ...mergedSameLane, moved].sort((a, b) => a.position - b.position));
+
+    const updatedClips = currentClips.map(c => {
+      if (c.id === activeClipId) {
+        return { ...c, position: targetPosition } as T;
+      }
+      return c;
+    });
+
+    updateFunction(updatedClips.sort((a, b) => a.position - b.position));
   }
 }
 
