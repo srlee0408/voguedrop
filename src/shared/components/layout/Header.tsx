@@ -1,7 +1,8 @@
-import { Bell, Edit2, Check, Loader2, AlertCircle } from "lucide-react"
+import { Bell, Edit2, Check, Loader2, AlertCircle, User } from "lucide-react"
 import Link from "next/link"
 import { useState, useEffect, useRef } from "react"
 import { useLibraryInfinitePrefetch } from "@/shared/components/modals/library/hooks/useLibraryInfinitePrefetch"
+import { SettingsModal } from '@/shared/components/modals/SettingsModal'
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 
@@ -27,6 +28,7 @@ export function Header({
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onSaveProject: _ = () => {}
 }: HeaderProps) {
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isEditingTitle, setIsEditingTitle] = useState(false)
   const [tempTitle, setTempTitle] = useState(projectTitle || '')
   const [showSaveStatus, setShowSaveStatus] = useState(false)
@@ -115,7 +117,7 @@ export function Header({
     }
   }
   return (
-    <header className="bg-background/95 backdrop-blur-sm py-4 px-6 flex justify-between items-center border-b border-border">
+    <header className="bg-background/95 backdrop-blur-sm py-4 px-6 flex justify-between items-center border-b border-border z-[9999]">
       <div className="flex items-center gap-6">
         <Link href="/" className="text-2xl font-bold text-primary tracking-tight">
           vogue drop
@@ -209,13 +211,22 @@ export function Header({
           Library
         </button>
       </div>
-      <div className="flex items-center space-x-4">
+      <div className="flex items-center space-x-4 relative">
         <div className="w-8 h-8 flex items-center justify-center text-text-tertiary hover:text-text-primary transition-colors cursor-pointer">
           <Bell className="w-5 h-5" />
         </div>
-        <div className="w-10 h-10 bg-surface-secondary rounded-full flex items-center justify-center">
-          <span className="text-xs text-text-primary">Matt</span>
-        </div>
+        <button
+          className="w-10 h-10 rounded-full overflow-hidden ring-1 ring-gray-600 hover:ring-gray-400 transition focus:outline-none focus:ring-gray-400 bg-surface-secondary flex items-center justify-center"
+          title="Open profile menu"
+          onClick={() => setIsSettingsOpen(prev => !prev)}
+        >
+          <User className="w-5 h-5 text-text-primary" />
+        </button>
+        {isSettingsOpen && (
+          <div className="absolute right-0 top-full z-[10000]">
+            <SettingsModal isOpen={isSettingsOpen} onCloseAction={() => setIsSettingsOpen(false)} />
+          </div>
+        )}
       </div>
     </header>
   )

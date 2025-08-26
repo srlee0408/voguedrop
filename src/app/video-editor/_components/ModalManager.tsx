@@ -1,7 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { LibraryModal } from '@/shared/components/modals/LibraryModal';
+import { OverlapReplaceConfirmModal } from '@/shared/components/modals/OverlapReplaceConfirmModal';
+import { useUserPreferences } from '@/shared/hooks/useUserPreferences';
 import VideoLibraryModal from './VideoLibraryModal';
 import SoundLibraryModal from './SoundLibraryModal';
 import TextEditorModal from './TextEditorModal';
@@ -38,6 +40,7 @@ export default function ModalManager({
     handleAddTextClip,
     handleAddSoundClips,
   } = useClips();
+  const { update_overlap_preference } = useUserPreferences();
   
   // 레인별 추가를 위한 상태
   const [targetSoundLaneIndex, setTargetSoundLaneIndex] = useState<number | null>(null);
@@ -88,6 +91,22 @@ export default function ModalManager({
       window.removeEventListener('openVideoLibrary', handleOpenVideoLibrary as EventListener);
     };
   }, [setShowVideoLibrary]);
+
+  // Overlap replace confirmation modal state and bridge via CustomEvent
+  const [showOverlapConfirm, setShowOverlapConfirm] = useState(false);
+  const pendingResolveRef = useRef<((result: { replace: boolean }) => void) | null>(null);
+
+  useEffect(() => {
+    const handler = (event: CustomEvent) => {
+      // event.detail must have a resolver
+      pendingResolveRef.current = event.detail?.resolver ?? null;
+      setShowOverlapConfirm(true);
+    };
+    window.addEventListener('openOverlapReplaceConfirm', handler as EventListener);
+    return () => {
+      window.removeEventListener('openOverlapReplaceConfirm', handler as EventListener);
+    };
+  }, []);
 
   return (
     <>
@@ -161,6 +180,24 @@ export default function ModalManager({
         onToggleFavorite={onToggleFavorite}
         onProjectSwitch={onProjectSwitch}
         currentProjectName={projectTitle}
+      />
+
+      <OverlapReplaceConfirmModal
+        isOpen={showOverlapConfirm}
+        onClose={() => {
+          setShowOverlapConfirm(false);
+          const resolve = pendingResolveRef.current; pendingResolveRef.current = null;
+          resolve?.({ replace: false });
+        }}
+        onConfirm={async (always) => {
+          setShowOverlapConfirm(false);
+          const resolve = pendingResolveRef.current; pendingResolveRef.current = null;
+          // If always checked, persist preference
+          if (always) {
+            try { await update_overlap_preference('always_replace'); } catch { /* silent */ }
+          }
+          resolve?.({ replace: true });
+        }}
       />
     </>
   );
