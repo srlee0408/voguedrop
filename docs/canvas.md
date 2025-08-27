@@ -1,4 +1,6 @@
-# Canvas 시스템 아키텍처 문서
+# Canvas 시스템 상세 가이드
+
+> **참고**: 전체 아키텍처 개요는 [architecture-guide.md](./architecture-guide.md)를 참조하세요.
 
 VogueDrop Canvas는 AI 기반 영상 생성을 위한 핵심 페이지로, 사용자가 이미지를 업로드하고 효과를 선택하여 AI 영상을 생성할 수 있습니다.
 

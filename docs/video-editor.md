@@ -1,4 +1,6 @@
-# Video Editor Context 아키텍처
+# Video Editor 상세 가이드
+
+> **참고**: 전체 아키텍처 개요는 [architecture-guide.md](./architecture-guide.md)를 참조하세요.
 
 이 문서는 VogueDrop Video Editor의 Context 기반 상태 관리 아키텍처를 설명합니다. 커밋 6757c12에서 단일 파일(400줄)을 여러 전문화된 Context로 분리한 대규모 리팩토링 결과를 다룹니다.
 
