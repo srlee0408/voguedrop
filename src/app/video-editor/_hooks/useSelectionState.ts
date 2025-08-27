@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 /**
  * Selection box state management hook
@@ -117,6 +117,48 @@ export function useSelectionState() {
     setSelectionResizeHandle(null);
     endSelection();
   };
+
+  /**
+   * 전역 종료 핸들러 등록
+   * - 마우스가 밖으로 나가거나 창이 블러/숨김 상태가 되면 selection을 안전하게 종료
+   * - 드물게 mouseup 이벤트가 누락되는 경우를 대비
+   */
+  useEffect(() => {
+    const handleGlobalMouseUp = () => {
+      if (isSelectingRange || isAdjustingSelection || isMovingSelection) {
+        endSelection();
+      }
+    };
+    const handleWindowBlur = () => {
+      if (isSelectingRange || isAdjustingSelection || isMovingSelection) {
+        resetSelection();
+      }
+    };
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        resetSelection();
+      }
+    };
+    const handlePointerCancel = () => {
+      if (isSelectingRange || isAdjustingSelection || isMovingSelection) {
+        resetSelection();
+      }
+    };
+
+    window.addEventListener('mouseup', handleGlobalMouseUp, true);
+    window.addEventListener('blur', handleWindowBlur);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pointercancel', handlePointerCancel);
+    window.addEventListener('mouseleave', handleWindowBlur);
+
+    return () => {
+      window.removeEventListener('mouseup', handleGlobalMouseUp, true);
+      window.removeEventListener('blur', handleWindowBlur);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pointercancel', handlePointerCancel);
+      window.removeEventListener('mouseleave', handleWindowBlur);
+    };
+  }, [isSelectingRange, isAdjustingSelection, isMovingSelection]);
 
   // Calculate selection bounds
   const getSelectionBounds = () => {
