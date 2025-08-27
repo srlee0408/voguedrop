@@ -1,6 +1,6 @@
 import { useCallback, useState, useRef, useEffect } from "react";
 import type { GeneratedVideo } from "@/shared/types/canvas";
-import type { SlotContent } from "../_types";
+import type { SlotContent } from "@/features/canvas-generation/_types";
 
 interface InitialSlotState {
   slotContents?: Array<SlotContent>;

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import type { ModalName, ModalState, ModalManagerReturn } from '../_types'
+import type { ModalName, ModalState, ModalManagerReturn } from '@/features/canvas-generation/_types'
 
 const initialModalState: ModalState = {
   library: false,

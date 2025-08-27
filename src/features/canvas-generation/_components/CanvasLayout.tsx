@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { Header } from '@/shared/components/layout/Header'
-import { LeftPanel } from './LeftPanel'
+import { LeftPanel } from '@/app/canvas/_components/LeftPanel'
 import { Canvas } from './slots/Canvas'
-import { CanvasModals } from './CanvasModals'
+import { CanvasModals } from '@/app/canvas/_components/CanvasModals'
 import {
   useSlot,
   useSettings,
@@ -12,8 +12,8 @@ import {
   useFavorites,
   useEffects,
   useGeneration
-} from '../_context/CanvasProviders'
-import { useBeforeUnload } from '../_hooks/useBeforeUnload'
+} from '@/app/canvas/_context/CanvasProviders'
+import { useBeforeUnload } from '@/features/canvas-generation/_hooks/useBeforeUnload'
 import { ProjectSelectorModal } from '@/shared/components/modals/ProjectSelectorModal'
 import { useLibraryInfinitePrefetch } from '@/features/media-library/_components/hooks/useLibraryInfinitePrefetch'
 import type { GeneratedVideo } from '@/shared/types/canvas'

@@ -3,15 +3,15 @@
 import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
 import { Player, PlayerRef } from '@remotion/player';
-import { useClips } from '../_context/ClipContext';
-import { CompositePreview } from './remotion/CompositePreview';
+import { useClips } from '@/app/video-editor/_context/ClipContext';
+import { CompositePreview } from '@/app/video-editor/_components/remotion/CompositePreview';
 import { TextClip as TextClipType, SoundClip as SoundClipType } from '@/shared/types/video-editor';
-import TextOverlayEditor from './TextOverlayEditor';
-import FullscreenPreviewModal from './FullscreenPreviewModal';
-import RenderingModal from './RenderingModal';
-import { BufferingSpinner } from './BufferingSpinner';
-import { ASPECT_RATIOS, CAROUSEL_CONFIG, STYLES, AspectRatioValue } from '../_constants';
-import { useMediaCache } from '../_hooks/useMediaCache';
+import TextOverlayEditor from '@/app/video-editor/_components/TextOverlayEditor';
+import FullscreenPreviewModal from '@/app/video-editor/_components/FullscreenPreviewModal';
+import RenderingModal from '@/app/video-editor/_components/RenderingModal';
+import { BufferingSpinner } from '@/app/video-editor/_components/BufferingSpinner';
+import { ASPECT_RATIOS, CAROUSEL_CONFIG, STYLES, AspectRatioValue } from '@/app/video-editor/_constants';
+import { useMediaCache } from '@/features/video-editing/_hooks/useMediaCache';
 
 interface PreviewClip {
   id: string;

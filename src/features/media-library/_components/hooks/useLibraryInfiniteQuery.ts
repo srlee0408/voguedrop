@@ -1,9 +1,9 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { LibraryVideo, LibraryProject, UserUploadedVideo } from '@/shared/types/video-editor';
 import { LibraryCounts } from '@/shared/types/library-modal';
-import { LIBRARY_CACHE_KEYS } from '../constants/cache-keys';
-import { LIBRARY_CACHE_POLICY } from '../constants/cache-policy';
-import { fetchLibraryPage } from '../_services/api';
+import { LIBRARY_CACHE_KEYS } from '@/features/media-library/_components/constants/cache-keys';
+import { LIBRARY_CACHE_POLICY } from '@/features/media-library/_components/constants/cache-policy';
+import { fetchLibraryPage } from '@/features/media-library/_components/_services/api';
 
 // 페이지네이션된 라이브러리 데이터 타입
 export interface LibraryPage {

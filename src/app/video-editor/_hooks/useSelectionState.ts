@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 
 /**
  * Selection box state management hook
@@ -62,7 +62,7 @@ export function useSelectionState() {
   };
 
   // End selection
-  const endSelection = () => {
+  const endSelection = useCallback(() => {
     setIsSelectingRange(false);
     setSelectionStartX(null);
     setSelectionCurrentX(null);
@@ -73,7 +73,7 @@ export function useSelectionState() {
     setSelectionRangeEndX(null);
     setSelectionRangeStartY(null);
     setSelectionRangeEndY(null);
-  };
+  }, []);
 
   // Start adjusting selection box
   const startAdjustSelection = (
@@ -110,13 +110,13 @@ export function useSelectionState() {
   };
 
   // Reset all selection states
-  const resetSelection = () => {
+  const resetSelection = useCallback(() => {
     setIsSelectingRange(false);
     setIsAdjustingSelection(false);
     setIsMovingSelection(false);
     setSelectionResizeHandle(null);
     endSelection();
-  };
+  }, [endSelection]);
 
   /**
    * 전역 종료 핸들러 등록
@@ -158,7 +158,7 @@ export function useSelectionState() {
       window.removeEventListener('pointercancel', handlePointerCancel);
       window.removeEventListener('mouseleave', handleWindowBlur);
     };
-  }, [isSelectingRange, isAdjustingSelection, isMovingSelection]);
+  }, [isSelectingRange, isAdjustingSelection, isMovingSelection, resetSelection, endSelection]);
 
   // Calculate selection bounds
   const getSelectionBounds = () => {

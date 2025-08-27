@@ -662,7 +662,7 @@ export function useVideoGeneration({
         return next;
       });
     }
-  }, [getCurrentImage, selectedEffects, promptText, selectedDuration, slotManager, onVideoCompleted, handleError, createErrorMessage]);
+  }, [getCurrentImage, selectedEffects, promptText, selectedDuration, slotManager, onVideoCompleted, handleError, createErrorMessage, generatingJobIds]);
 
   return {
     isGenerating,

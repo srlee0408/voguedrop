@@ -1,8 +1,8 @@
 import { Pin, X } from "lucide-react";
 import Image from "next/image";
-import { CanvasControls } from "./CanvasControls";
-import { CanvasHistoryPanel } from "./CanvasHistoryPanel";
-import { VideoGenerationProgress } from "./VideoGenerationProgress";
+import { CanvasControls } from "../CanvasControls";
+import { CanvasHistoryPanel } from "../history/CanvasHistoryPanel";
+import { VideoGenerationProgress } from "../progress/VideoGenerationProgress";
 import type { GeneratedVideo } from "@/shared/types/canvas";
 
 interface CanvasProps {

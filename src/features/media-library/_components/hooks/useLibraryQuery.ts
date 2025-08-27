@@ -1,10 +1,10 @@
 import { useQuery, useMutation, useQueryClient, InfiniteData } from '@tanstack/react-query';
 import { LibraryVideo, LibraryProject, UserUploadedVideo } from '@/shared/types/video-editor';
 import { LibraryCounts } from '@/shared/types/library-modal';
-import { LIBRARY_CACHE_KEYS } from '../constants/cache-keys';
+import { LIBRARY_CACHE_KEYS } from '@/features/media-library/_components/constants/cache-keys';
 import { LibraryPage } from './useLibraryInfiniteQuery';
-import { LIBRARY_CACHE_POLICY } from '../constants/cache-policy';
-import { fetchLibraryPage } from '../_services/api';
+import { LIBRARY_CACHE_POLICY } from '@/features/media-library/_components/constants/cache-policy';
+import { fetchLibraryPage } from '@/features/media-library/_components/_services/api';
 
 // 통합 라이브러리 데이터 타입
 export interface LibraryData {

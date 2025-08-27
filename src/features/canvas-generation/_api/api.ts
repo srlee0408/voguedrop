@@ -2,7 +2,7 @@ import type {
   FavoritesApiResponse, 
   ToggleFavoriteRequest, 
   ToggleFavoriteResponse 
-} from '../_types'
+} from '@/features/canvas-generation/_types'
 import type { GeneratedVideo } from '@/shared/types/canvas'
 
 /**

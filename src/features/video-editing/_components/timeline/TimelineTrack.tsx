@@ -1,9 +1,9 @@
 'use client';
 
 import { VideoClip as VideoClipType, TextClip as TextClipType, SoundClip as SoundClipType } from '@/shared/types/video-editor';
-import VideoClip from './VideoClip';
-import TextClip from './TextClip';
-import SoundClip from './SoundClip';
+import VideoClip from '../clips/VideoClip';
+import TextClip from '../clips/TextClip';
+import SoundClip from '../clips/SoundClip';
 
 interface TimelineTrackProps {
   type: 'video' | 'text' | 'sound';

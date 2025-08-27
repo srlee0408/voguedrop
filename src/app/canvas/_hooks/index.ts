@@ -2,6 +2,6 @@
 export { useModalManager } from './useModalManager'
 export { useEffectsManager } from './useEffectsManager'
 export { useSlotManager } from './useSlotManager'
-export { useVideoGeneration } from './useVideoGeneration'
+export { useVideoGeneration } from '@/features/canvas-generation/_hooks/useVideoGeneration'
 export { useBeforeUnload } from './useBeforeUnload'
 export { useEffectsData, EffectsDataProvider } from './useEffectsData'

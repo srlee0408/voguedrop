@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { TIMELINE_CONFIG } from '../_constants';
+import { TIMELINE_CONFIG } from '@/app/video-editor/_constants';
 
 interface UseTimelineResizeOptions {
   defaultHeight?: number;

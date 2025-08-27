@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import type { EffectTemplateWithMedia } from '@/shared/types/database'
-import type { EffectsManagerReturn } from '../_types'
+import type { EffectsManagerReturn } from '@/features/canvas-generation/_types'
 
 const MAX_EFFECTS = 2
 

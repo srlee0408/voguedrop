@@ -1,8 +1,8 @@
 import { useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { LIBRARY_CACHE_KEYS } from '../constants/cache-keys';
+import { LIBRARY_CACHE_KEYS } from '@/features/media-library/_components/constants/cache-keys';
 import { useAuth } from '@/features/user-auth/_context/AuthContext';
-import { fetchLibraryCounts } from '../_services/api';
+import { fetchLibraryCounts } from '@/features/media-library/_components/_services/api';
 
 // 프리페칭 상태 추적을 위한 플래그
 interface PrefetchFlags {

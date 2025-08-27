@@ -1,7 +1,7 @@
 'use client';
 
 import VideoPreview from './VideoPreview';
-import { useClips, usePlayback } from '../_context/Providers';
+import { useClips, usePlayback } from '@/app/video-editor/_context/Providers';
 
 interface PreviewSectionProps {
   projectTitle: string;
