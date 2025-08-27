@@ -154,7 +154,7 @@ export function FixedTopLeftLoader({
   if (!isLoading) return null;
 
   return (
-    <div className={`fixed top-4 left-4 z-50 bg-gray-800/90 backdrop-blur-sm rounded-lg px-3 py-2 flex items-center gap-2 shadow-lg pointer-events-none ${className}`}>
+    <div className={`fixed top-4 left-4 z-[9998] bg-gray-800/90 backdrop-blur-sm rounded-lg px-3 py-2 flex items-center gap-2 shadow-lg pointer-events-none ${className}`}>
       <Loader2 className="w-4 h-4 animate-spin text-primary" />
       <span className="text-sm text-gray-300">{message}</span>
     </div>

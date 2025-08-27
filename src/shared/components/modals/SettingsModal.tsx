@@ -91,7 +91,7 @@ export function SettingsModal({ isOpen, onCloseAction }: SettingsModalProps) {
     return (
       <div
         ref={menuRef}
-        className="absolute right-0 mt-2 w-80 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-50"
+        className="absolute right-0 mt-2 w-80 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-[9999]"
         role="menu"
         aria-label="User Settings"
       >
@@ -106,7 +106,7 @@ export function SettingsModal({ isOpen, onCloseAction }: SettingsModalProps) {
   return !isOpen ? null : (
     <div
       ref={menuRef}
-      className="absolute right-0 mt-2 w-80 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-50"
+      className="absolute right-0 mt-2 w-80 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-[9999]"
       role="menu"
       aria-label="User Settings"
     >
