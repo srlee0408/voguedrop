@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useAuth } from '@/shared/lib/auth/AuthContext'
+import { useAuth } from '@/features/user-auth/_context/AuthContext'
 import { LIBRARY_CACHE_KEYS } from '@/shared/components/modals/library/constants/cache-keys'
 
 interface FavoritesApiResponse {

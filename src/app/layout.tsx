@@ -9,7 +9,7 @@ import "../styles/fonts.css"; // Google Fonts 직접 import
 
 import { StagewiseToolbar } from "@stagewise/toolbar-next";
 import ReactPlugin from "@stagewise-plugins/react";
-import { AuthProvider } from "@/shared/lib/auth/AuthContext";
+import { AuthProvider } from "@/features/user-auth/_context/AuthContext";
 import { QueryProvider } from "@/lib/providers/QueryProvider";
 import { Toaster } from "sonner";
 

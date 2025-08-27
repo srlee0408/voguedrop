@@ -151,7 +151,7 @@ import { toast } from 'sonner';
 
 // 3. 내부 컴포넌트 (절대 경로)
 import { Button } from '@/shared/components/ui/button';
-import { useAuth } from '@/shared/lib/auth/AuthContext';
+import { useAuth } from '@/features/user-auth/_context/AuthContext';
 
 // 4. 상대 경로 import
 import { CanvasControls } from './_components/CanvasControls';

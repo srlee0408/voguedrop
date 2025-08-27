@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/shared/components/ui/button";
-import { useAuth } from "@/shared/lib/auth/AuthContext";
+import { useAuth } from "@/features/user-auth/_context/AuthContext";
 
 interface HomeHeaderProps {
   texts?: {

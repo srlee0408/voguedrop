@@ -538,10 +538,11 @@ export function ClipProvider({ children }: ClipProviderProps) {
   }, [timelineClips, extractTitleFromUrl, getVideoDurationSeconds, saveToHistory]);
   
   // 비디오 클립 삭제
-  const handleDeleteVideoClip = useCallback(async (id: string) => {
-    const { CommonClipManager } = await import('../_utils/common-clip-manager');
-    CommonClipManager.deleteClip(id, timelineClips, setTimelineClips, saveToHistory);
-  }, [timelineClips, saveToHistory]);
+  const handleDeleteVideoClip = useCallback(async (id: string): Promise<void> => {
+    // 함수형 업데이트로 다중 삭제 시에도 안전하게 동작하도록 수정
+    setTimelineClips(prev => prev.filter(c => c.id !== id));
+    saveToHistory();
+  }, [saveToHistory]);
   
   // 비디오 클립 복제
   const handleDuplicateVideoClip = useCallback(async (id: string) => {

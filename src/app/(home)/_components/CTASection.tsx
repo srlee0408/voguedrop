@@ -3,7 +3,7 @@
 import { Button } from "@/shared/components/ui/button"
 import { Zap } from "lucide-react"
 import Link from "next/link"
-import { useAuth } from "@/shared/lib/auth/AuthContext"
+import { useAuth } from "@/features/user-auth/_context/AuthContext"
 
 interface CTASectionProps {
   texts: {

@@ -67,7 +67,7 @@ export function useVideoGeneration({
     let is_mounted = true;
     const restore = async () => {
       try {
-        const { CanvasAPI } = await import('../_services/api');
+        const { CanvasAPI } = await import('../_api/api');
         // 서버 기준 진행중 작업 조회 (권위 있는 소스)
         const server_jobs = await CanvasAPI.getActiveJobs();
         // 생성 순서를 보장하기 위해 createdAt 오름차순으로 정렬 (먼저 생성한 것이 먼저 배치)

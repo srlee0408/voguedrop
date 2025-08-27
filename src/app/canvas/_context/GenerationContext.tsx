@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, ReactNode, useState } from 'react';
-import { useVideoGeneration } from '../_hooks/useVideoGeneration';
+import { useVideoGeneration } from '@/features/canvas-generation/_hooks/useVideoGeneration';
 import { useSlot } from './SlotContext';
 import { useSettings } from './SettingsContext';
 import { useEffects } from './EffectsContext';

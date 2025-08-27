@@ -6,7 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { HomeHeader } from "./HomeHeader";
 import { BackgroundEffects } from "./BackgroundEffects";
-import { useAuth } from "@/shared/lib/auth/AuthContext";
+import { useAuth } from "@/features/user-auth/_context/AuthContext";
 
 interface HeroSectionProps {
   texts: {

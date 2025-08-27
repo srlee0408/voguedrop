@@ -2,7 +2,7 @@
 
 import { Play } from "lucide-react"
 import Image from "next/image"
-import { getPublicUrl } from "@/shared/lib/supabase"
+import { getPublicUrl } from "@/infrastructure/supabase/storage"
 import type { EffectTemplateWithMedia } from "@/shared/types/database"
 
 interface GalleryItemsProps {
