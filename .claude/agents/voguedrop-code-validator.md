@@ -71,7 +71,7 @@ Provide a structured validation report:
 🔍 CODE VALIDATION REPORT
 ========================
 
-✅ PASSED CHECKS:
+PASSED CHECKS:
 - [List what's correctly implemented]
 
 ❌ CRITICAL ISSUES (Will break build):

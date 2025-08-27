@@ -1,3 +1,24 @@
+/**
+ * useLibrarySmartPreload - Virtual List 기반 지능형 비디오 프리로딩 훅
+ * 
+ * 주요 역할:
+ * 1. Virtual List 환경에서 스크롤 방향 예측 기반 비디오 프리로딩
+ * 2. 가시 영역과 예측 영역을 조합한 스마트 로딩 전략
+ * 3. Intersection Observer 기반 개별 카드 진입 시점 프리로딩
+ * 4. Midjourney 스타일의 끊김 없는 스크롤 경험 구현
+ * 
+ * 핵심 특징:
+ * - 상위 N개 아이템 우선 프리로딩으로 초기 경험 최적화
+ * - 스크롤 방향 감지하여 다음/이전 영역 예측 로딩
+ * - Virtual Item 기반 효율적인 메모리 사용
+ * - 개별 카드별 Intersection Observer 지원
+ * - 3가지 라이브러리 아이템 타입 (clip, project, upload) 통합 처리
+ * 
+ * 주의사항:
+ * - VirtualItem 의존성으로 react-virtual과 긴밀 연동 필요
+ * - 스크롤 방향 감지를 위해 10px 이상 움직임 필요
+ * - 예측 로딩은 네트워크 대역폭을 고려하여 제한적 사용 권장
+ */
 'use client';
 
 import { useMemo, useCallback, useRef, useEffect } from 'react';

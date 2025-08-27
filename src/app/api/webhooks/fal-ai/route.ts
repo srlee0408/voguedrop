@@ -1,3 +1,24 @@
+/**
+ * fal.ai Webhook Handler - AI 작업 완료 알림 처리 엔드포인트
+ * 
+ * 주요 역할:
+ * 1. fal.ai API에서 전송하는 작업 완료 Webhook 수신
+ * 2. HMAC 서명 검증으로 요청 무결성 확인
+ * 3. 완료된 영상/오디오 URL을 데이터베이스에 저장
+ * 4. Job 상태를 'completed' 또는 'failed'로 업데이트
+ * 
+ * 핵심 특징:
+ * - HMAC-SHA256 서명 검증으로 보안 강화
+ * - 영상 및 오디오 생성 모두 지원 (type 파라미터로 구분)
+ * - 에러 상황에서도 적절한 로깅 및 상태 업데이트
+ * - Supabase Storage에 결과 파일 저장 후 URL 반환
+ * 
+ * 주의사항:
+ * - Webhook Secret은 환경 변수로 안전하게 관리
+ * - 중복 Webhook 수신에 대한 멱등성 처리
+ * - fal.ai 서버에서만 접근 가능하도록 IP 제한 고려
+ * - 페이로드 크기 제한 및 타임아웃 설정
+ */
 import { NextRequest, NextResponse } from 'next/server';
 // import { createClient } from '@/shared/lib/supabase/server';
 import { verifyWebhookSignature, extractWebhookHeaders } from '@/lib/fal-webhook';

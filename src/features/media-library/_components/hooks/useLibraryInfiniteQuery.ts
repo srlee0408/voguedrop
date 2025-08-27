@@ -92,19 +92,22 @@ export function useLibraryFavoritesInfinite(
   enabled = true, 
   limit = 20, 
   prefetch = false,
-  options?: LibraryQueryOptions
+  options?: LibraryQueryOptions,
+  sessionKey?: number | string
 ) {
+  const baseKey = libraryInfiniteQueryKeys.clips('favorites', limit);
+  const queryKey = sessionKey !== undefined ? ([...baseKey, 'session', sessionKey] as const) : baseKey;
   return useInfiniteQuery({
-    queryKey: libraryInfiniteQueryKeys.clips('favorites', limit),
+    queryKey,
     queryFn: ({ pageParam }) => fetchLibraryPage({ type: 'favorites', limit, cursor: pageParam, prefetch }),
     enabled,
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.hasNextPage ? lastPage.nextCursor : undefined,
     // 커스텀 옵션 우선, 없으면 기본값 사용
-    staleTime: options?.staleTime ?? LIBRARY_CACHE_POLICY.favorites.staleTime,
-    gcTime: options?.gcTime ?? LIBRARY_CACHE_POLICY.favorites.gcTime,
+    staleTime: options?.staleTime ?? 0,
+    gcTime: options?.gcTime ?? 0,
     refetchOnWindowFocus: options?.refetchOnWindowFocus ?? false,
-    refetchOnMount: options?.refetchOnMount ?? false,
+    refetchOnMount: options?.refetchOnMount ?? 'always',
     retry: (failureCount, error) => {
       if (error instanceof Error && error.message.includes('401')) {
         return false;

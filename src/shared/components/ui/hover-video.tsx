@@ -1,3 +1,25 @@
+/**
+ * HoverVideo - 호버 시 영상 재생 UI 컴포넌트
+ * 
+ * 주요 역할:
+ * 1. 마우스 호버 시 자동으로 영상 재생 시작
+ * 2. 썸네일과 영상 간의 부드러운 전환 효과
+ * 3. 다양한 재생 모드와 표시 방식 지원
+ * 4. 영상 로딩 상태 관리 및 버퍼링 표시
+ * 
+ * 핵심 특징:
+ * - video-first/thumbnail-first 표시 모드 선택
+ * - pause/stop 호버 해제 동작 선택
+ * - 썸네일 object-fit 스타일 제어 (cover/contain)
+ * - 영상 프리로딩 지원으로 빠른 재생 시작
+ * - 로딩 인디케이터 및 폴백 콘텐츠 지원
+ * 
+ * 주의사항:
+ * - 영상 파일 크기가 클 경우 초기 로딩 지연 가능
+ * - 모바일에서는 autoplay 정책에 따라 재생 제한
+ * - 다수의 HoverVideo가 동시에 재생되면 성능 저하
+ * - 외부 호버 상태(isParentHovering)로 제어 가능
+ */
 "use client"
 
 import { useRef, useEffect, useState } from 'react'

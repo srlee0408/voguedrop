@@ -50,7 +50,7 @@ curl -L "https://github.com/google/fonts/raw/main/ofl/oswald/static/Oswald-Bold.
 echo "📥 Downloading Korean fonts (this may take longer)..."
 curl -L "https://github.com/google/fonts/raw/main/ofl/notosanskr/NotoSansKR%5Bwght%5D.ttf" -o public/fonts/NotoSansKR-Regular.ttf
 
-echo "✅ All fonts downloaded successfully!"
+echo "All fonts downloaded successfully!"
 echo "📁 Font files are in public/fonts/"
 echo ""
 echo "📊 Downloaded fonts summary:"

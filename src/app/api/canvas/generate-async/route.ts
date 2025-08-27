@@ -1,3 +1,24 @@
+/**
+ * Canvas Generate Async API - 비동기 AI 영상 생성 엔드포인트
+ * 
+ * 주요 역할:
+ * 1. 업로드된 이미지와 선택된 효과로 AI 영상 생성 Job 생성
+ * 2. fal.ai API를 통한 비동기 영상 처리 요청
+ * 3. Job ID 기반 상태 추적 시스템 구축
+ * 4. Webhook URL을 통한 완료 알림 설정
+ * 
+ * 핵심 특징:
+ * - Job 기반 비동기 처리로 긴 처리 시간 대응
+ * - Sentry 모니터링으로 에러 추적 및 성능 분석
+ * - Zod 스키마 검증으로 요청 데이터 안전성 보장
+ * - 사용자 인증 필수로 보안 강화
+ * 
+ * 주의사항:
+ * - 최대 2개 효과만 선택 가능 (AI 모델 제약)
+ * - 이미지 URL과 효과 ID 유효성 검사 필수
+ * - Job 생성 실패 시 적절한 에러 처리
+ * - Webhook 서명 검증을 위한 시크릿 관리
+ */
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api/auth';
 import { VideoGenerationService } from '@/lib/services/canvas/generation.service';

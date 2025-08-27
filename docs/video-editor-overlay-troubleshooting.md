@@ -19,7 +19,7 @@
   <TextOverlayEditor />
 </div>
 
-// ✅ 해결된 코드
+// 해결된 코드
 <div style={{ 
   zIndex: 50,
   pointerEvents: 'none'  // 컨테이너는 이벤트를 받지 않음
@@ -38,7 +38,7 @@ const getScale = () => {
   // 비율 변경 직후 이전 크기로 계산됨
 }
 
-// ✅ 해결: DOM 업데이트 대기 후 계산
+// 해결: DOM 업데이트 대기 후 계산
 useEffect(() => {
   requestAnimationFrame(() => {
     setForceUpdate(prev => prev + 1);  // 강제 리렌더링
@@ -52,7 +52,7 @@ useEffect(() => {
 <Player />  // z-index 없음
 <TextOverlay className="z-40" />  // Tailwind 클래스 사용
 
-// ✅ 해결: 명시적인 z-index 계층 구조
+// 해결: 명시적인 z-index 계층 구조
 <Player style={{ zIndex: 0 }} />
 <TextOverlay style={{ 
   zIndex: 50,  // 컨테이너

@@ -87,7 +87,7 @@ vercel env add RUNPOD_ENDPOINT_ID
 vercel --prod
 ```
 
-## ✅ 배포 후 테스트
+## 배포 후 테스트
 
 ### 1. FLUX 모드 테스트
 ```javascript

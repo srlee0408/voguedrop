@@ -1,3 +1,23 @@
+/**
+ * EffectsGallery - AI 효과 갤러리 컴포넌트
+ * 
+ * 주요 역할:
+ * 1. 카테고리별 대표 효과들을 원형 썸네일로 표시
+ * 2. 효과 선택 시 상세 효과 모달로 전환하는 진입점
+ * 3. 로딩 및 에러 상태에 대한 적절한 UI 피드백
+ * 4. 호버 시 효과 미리보기 영상 재생
+ * 
+ * 핵심 특징:
+ * - 3열 그리드 레이아웃으로 효과 카테고리 표시
+ * - 각 효과는 원형 썸네일과 호버 비디오 지원
+ * - 로딩 중에는 스켈레톤 UI 표시
+ * - 에러 발생 시 사용자 친화적인 에러 메시지
+ * 
+ * 주의사항:
+ * - useEffectsData 훅에서 대표 효과 데이터 가져오기
+ * - 효과 클릭 시 상위 컴포넌트의 모달 상태 변경
+ * - 비동기 데이터 로딩 상태 관리 중요
+ */
 import { useEffectsData } from "@/app/canvas/_hooks/useEffectsData";
 import { HoverVideo } from "@/shared/components/ui/hover-video";
 

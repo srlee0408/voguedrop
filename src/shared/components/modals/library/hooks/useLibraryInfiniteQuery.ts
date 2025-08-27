@@ -1,3 +1,24 @@
+/**
+ * useLibraryInfiniteQuery - 무한 스크롤 라이브러리 데이터 쿼리 훅
+ * 
+ * 주요 역할:
+ * 1. 무한 스크롤 기반 라이브러리 데이터 페이지네이션 관리
+ * 2. 클립, 프로젝트, 업로드별 독립적인 무한 쿼리 제공
+ * 3. 즐겨찾기/일반 클립의 세분화된 쿼리 관리
+ * 4. 페이지 데이터 플래튼화 및 유틸리티 함수 제공
+ * 
+ * 핵심 특징:
+ * - useInfiniteQuery 기반 cursor 페이지네이션
+ * - 각 데이터 타입별 전용 훅 (Clips, Projects, Uploads)
+ * - 즐겨찾기 전용 세션 키 지원으로 캐시 분리
+ * - 플래튼 데이터 추출 유틸리티 함수들 포함
+ * - 로딩 상태별 세분화된 상태 관리
+ * 
+ * 주의사항:
+ * - cursor 기반 페이지네이션으로 nextCursor 관리 중요
+ * - 즐겨찾기는 변경 빈도가 높아 캐시 정책 별도 관리
+ * - 인증 실패(401) 시 재시도 중단 처리
+ */
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { LibraryVideo, LibraryProject, UserUploadedVideo } from '@/shared/types/video-editor';
 import { LibraryCounts } from '@/shared/types/library-modal';
@@ -92,19 +113,24 @@ export function useLibraryFavoritesInfinite(
   enabled = true, 
   limit = 20, 
   prefetch = false,
-  options?: LibraryQueryOptions
+  options?: LibraryQueryOptions,
+  sessionKey?: number | string
 ) {
+  const baseKey = libraryInfiniteQueryKeys.clips('favorites', limit);
+  const queryKey = sessionKey !== undefined ? ([...baseKey, 'session', sessionKey] as const) : baseKey;
   return useInfiniteQuery({
-    queryKey: libraryInfiniteQueryKeys.clips('favorites', limit),
+    queryKey,
     queryFn: ({ pageParam }) => fetchLibraryPage({ type: 'favorites', limit, cursor: pageParam, prefetch }),
     enabled,
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.hasNextPage ? lastPage.nextCursor : undefined,
     // 커스텀 옵션 우선, 없으면 기본값 사용
-    staleTime: options?.staleTime ?? LIBRARY_CACHE_POLICY.favorites.staleTime,
-    gcTime: options?.gcTime ?? LIBRARY_CACHE_POLICY.favorites.gcTime,
+    // 즐겨찾기는 변경 가능성이 높아, 모달 오픈 시 항상 최신화를 보장
+    staleTime: options?.staleTime ?? 0,
+    // 모달을 닫으면 캐시를 즉시 비워, 다음 오픈 시 0에서 시작하도록 함
+    gcTime: options?.gcTime ?? 0,
     refetchOnWindowFocus: options?.refetchOnWindowFocus ?? false,
-    refetchOnMount: options?.refetchOnMount ?? false,
+    refetchOnMount: options?.refetchOnMount ?? 'always',
     retry: (failureCount, error) => {
       if (error instanceof Error && error.message.includes('401')) {
         return false;

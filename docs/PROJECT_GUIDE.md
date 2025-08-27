@@ -218,7 +218,7 @@ src/infrastructure/ai-services/
 
 ### 4.3. 개발 시 주의사항
 
-#### ✅ **Feature 모듈 개발 원칙**
+#### **Feature 모듈 개발 원칙**
 1. **단일 책임**: 각 feature는 하나의 도메인만 담당
 2. **독립성**: 다른 feature에 직접 의존하지 않음
 3. **Colocation**: 관련 파일들을 가까이 배치

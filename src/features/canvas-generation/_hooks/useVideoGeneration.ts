@@ -1,3 +1,25 @@
+/**
+ * useVideoGeneration - AI 영상 생성 관리 훅
+ * 
+ * 주요 역할:
+ * 1. AI 영상 생성 프로세스의 전체 생명주기 관리
+ * 2. 진행률 추적 및 실시간 상태 업데이트
+ * 3. 슬롯 매니저와 연동하여 생성 결과 배치
+ * 4. 활성 작업(Active Job) 관리 및 복원 기능
+ * 
+ * 핵심 특징:
+ * - 비동기 영상 생성 API와 폴링 시스템 통합
+ * - 슬롯별 생성 진행률 독립 관리
+ * - 페이지 새로고침 시 활성 작업 복원 기능
+ * - 에러 처리 및 재시도 로직 내장
+ * - 생성 완료 시 부드러운 애니메이션 효과
+ * 
+ * 주의사항:
+ * - SlotManager API와 강한 결합으로 인한 의존성
+ * - 활성 작업 로컬 스토리지 관리로 인한 데이터 일관성 고려
+ * - 폴링 인터벌 관리로 서버 부하 방지 필요
+ * - 메모리 누수 방지를 위한 적절한 클린업 처리
+ */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { GeneratedVideo } from "@/shared/types/canvas";
 import type { SlotContent } from "../_types";

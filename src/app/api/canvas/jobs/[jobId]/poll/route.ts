@@ -1,3 +1,24 @@
+/**
+ * Canvas Job Polling API - 비동기 영상 생성 Job 상태 확인 엔드포인트
+ * 
+ * 주요 역할:
+ * 1. 클라이언트의 3초 간격 폴링 요청 처리
+ * 2. 데이터베이스에서 Job 상태 조회 및 반환
+ * 3. Webhook 실패 시 fal.ai API 직접 폴링 백업
+ * 4. Job 완료 시 최종 결과 URL 제공
+ * 
+ * 핵심 특징:
+ * - 실시간 진행률 업데이트로 사용자 경험 향상
+ * - Webhook 실패 대응을 위한 fallback 메커니즘
+ * - Job 상태별 적절한 HTTP 상태 코드 반환
+ * - 5분 이상 대기 시 자동 fal.ai 직접 조회
+ * 
+ * 주의사항:
+ * - 폴링 간격이 너무 짧으면 서버 부하 증가
+ * - fal.ai API 호출 시 요금 발생 고려
+ * - Job ID 검증으로 무단 접근 방지
+ * - 완료된 Job은 캐싱하여 중복 조회 방지
+ */
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/shared/lib/supabase/server';
 

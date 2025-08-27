@@ -1,3 +1,24 @@
+/**
+ * useUploadMutation - 비디오 업로드 Mutation 관리 훅
+ * 
+ * 주요 역할:
+ * 1. 비디오 파일 업로드 및 삭제 Mutation 처리
+ * 2. Optimistic Update를 통한 즉각적인 UI 반응성 제공
+ * 3. 업로드 진행률 추적 및 에러 처리 시스템
+ * 4. 다중 파일 일괄 업로드 지원
+ * 
+ * 핵심 특징:
+ * - React Query Mutation 기반 서버 상태 변경
+ * - 업로드 전/후 캐시 낙관적 업데이트 및 롤백
+ * - 진행률 추적용 별도 쿼리 키 관리
+ * - 순차적 다중 업로드로 서버 부하 방지
+ * - FormData 기반 멀티파트 파일 업로드
+ * 
+ * 주의사항:
+ * - 업로드 실패 시 이전 캐시 상태로 롤백 필요
+ * - 진행률 데이터는 3초 후 자동 정리됨
+ * - 다중 업로드 시 일부 실패해도 나머지는 계속 진행
+ */
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { UserUploadedVideo } from '@/shared/types/video-editor';
 import { type LibraryData } from './useLibraryQuery';

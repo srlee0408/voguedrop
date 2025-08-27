@@ -158,7 +158,7 @@ openProject: {
 
 ### 수정 후 해결
 ```typescript
-// ✅ handleProjectSwitch 구현 및 전달
+// handleProjectSwitch 구현 및 전달
 const handleProjectSwitch = (projectId: string) => {
   const shortId = getShortId(projectId)
   router.push(`/video-editor?project=${encodeURIComponent(shortId)}`)
@@ -168,8 +168,8 @@ const handleProjectSwitch = (projectId: string) => {
   onProjectSwitch={handleProjectSwitch}  // 전달
 />
 
-// ✅ 결과: openProject.enabled = true
-// ✅ 결과: 버튼 정상 렌더링 및 동작
+// 결과: openProject.enabled = true
+// 결과: 버튼 정상 렌더링 및 동작
 ```
 
 ## 7. 성능 및 보안 고려사항

@@ -36,6 +36,9 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
     if (!lastUserAction) return false;
     return Date.now() - lastUserAction.timestamp < 5000; // 5초
   }, [lastUserAction]);
+
+  // 모달 세션 동안 고정되는 키 (쿼리키 변동으로 인한 재요청 루프 방지)
+  const favoritesSessionKey = useMemo(() => (isOpen ? Date.now() : undefined), [isOpen]);
   
   // 사용자 액션 타이머 자동 정리
   useEffect(() => {
@@ -72,13 +75,14 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
   const favoritesQuery = useLibraryFavoritesInfinite(
     isOpen,
     20,
-    false, // prefetch 비활성화로 불필요한 로딩 방지
+    false,
     {
-      staleTime: 2 * 60 * 1000,    // 2분간 fresh - 즐겨찾기는 자주 변경됨
-      gcTime: 10 * 60 * 1000,      // 10분간 메모리 유지
-      refetchOnWindowFocus: false, // 윈도우 포커스 시 리페치 방지
-      refetchOnMount: false,       // 마운트 시 리페치 방지
-    }
+      staleTime: 0,
+      gcTime: 0,
+      refetchOnWindowFocus: false,
+      refetchOnMount: 'always',
+    },
+    favoritesSessionKey
   );
 
   // 일반 클립 데이터 (동적 캐싱 전략 적용)
@@ -401,12 +405,8 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
 
   // 필터링된 카운트 계산 (즐겨찾기는 실제 is_favorite 상태를 반영)
   const filteredCounts = useMemo(() => {
-    // 즐겨찾기 카운트는 모든 클립에서 is_favorite=true인 개수를 직접 계산
-    const allClips = [...filteredItems.favorites, ...filteredItems.regular];
-    const uniqueClips = allClips.filter((clip, index, arr) => 
-      arr.findIndex(c => c.id === clip.id) === index
-    );
-    const favoritesCount = uniqueClips.filter(clip => clip.is_favorite).length;
+    // 사이드바 Favorite 카운트는 실제 Favorites 섹션 카드 수와 일치시키기
+    const favoritesCount = filteredItems.favorites.length;
     
     return {
       favorites: favoritesCount,

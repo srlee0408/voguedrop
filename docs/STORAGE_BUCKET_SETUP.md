@@ -10,7 +10,7 @@
 1. **New bucket** 버튼 클릭
 2. 다음 정보 입력:
    - **Name**: `media-asset`
-   - **Public bucket**: ✅ ON (반드시 체크)
+   - **Public bucket**: ON (반드시 체크)
    - **Allowed MIME types**: `image/*,video/*` (선택사항)
    - **File size limit**: 50MB (또는 원하는 크기)
 

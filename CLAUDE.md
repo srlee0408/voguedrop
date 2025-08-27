@@ -225,7 +225,7 @@ function getData(id) {  // 매개변수와 반환 타입 없음
   return result.data;  // null 체크 없음
 }
 
-// ✅ 올바른 예시
+// 올바른 예시
 function getData(id: string): Promise<DataType | null> {
   const result: unknown = await fetchData(id);
   if (isDataType(result)) {  // 타입 가드
@@ -246,7 +246,7 @@ useEffect(() => {
   };
 }, [textClips]);
 
-// ✅ 해결: 로컬 변수에 복사
+// 해결: 로컬 변수에 복사
 useEffect(() => {
   const handles = fontLoadHandles.current;
   return () => {
@@ -262,7 +262,7 @@ useEffect(async () => {
   await fetchData();
 }, []);
 
-// ✅ 내부 async 함수 정의
+// 내부 async 함수 정의
 useEffect(() => {
   const loadData = async () => {
     await fetchData();
@@ -430,12 +430,12 @@ POST /api/webhooks/fal-ai
 ## 현재 개발 상태 (MVP)
 
 ### 완료된 기능
-- ✅ **Epic 1**: 사용자 인증 시스템 (완료)
+- **Epic 1**: 사용자 인증 시스템 (완료)
   - 이메일/비밀번호 회원가입 및 로그인
   - Supabase Auth 통합
   - 세션 관리 및 보호된 라우트
 
-- ✅ **Epic 2**: Canvas AI Studio (완료)
+- **Epic 2**: Canvas AI Studio (완료)
   - 이미지 업로드 (드래그앤드롭 지원)
   - 효과 선택 UI (최대 2개 효과 선택)
   - AI 영상 생성 (fal.ai Hailo 모델)
@@ -444,18 +444,18 @@ POST /api/webhooks/fal-ai
   - 슬롯 기반 컨텐츠 관리 (4 슬롯)
   - 영상 다운로드 기능
 
-- ✅ **Epic 3**: 갤러리 시스템 (완료)
+- **Epic 3**: 갤러리 시스템 (완료)
   - 영상 목록 및 필터링
   - 반응형 그리드 레이아웃
   - 카테고리별 브라우징
 
-- 🚧 **Epic 4**: Video Editor (진행 중)
-  - ✅ Remotion 통합 및 프리뷰
-  - ✅ 타임라인 UI 및 클립 관리
-  - ✅ 텍스트/사운드 클립 추가
-  - ✅ 클립 복제/분할/트림 기능
-  - ✅ 실행 취소/다시 실행
-  - 🚧 서버 사이드 렌더링 (AWS Lambda)
+- **Epic 4**: Video Editor (진행 중)
+  - Remotion 통합 및 프리뷰
+  - 타임라인 UI 및 클립 관리
+  - 텍스트/사운드 클립 추가
+  - 클립 복제/분할/트림 기능
+  - 실행 취소/다시 실행
+  - 서버 사이드 렌더링 (AWS Lambda)
 
 ### 기술적 구현 사항
 - **Job 기반 비동기 처리**: 영상 생성 요청을 job으로 관리

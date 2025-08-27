@@ -4,8 +4,8 @@
 RunPod API와 ComfyUI workflow를 활용하여 참조 이미지의 스타일을 타겟 이미지에 적용하는 I2I (Image-to-Image) 변환 기능을 구현합니다. 이 기능은 패션 산업에서 텍스처와 패턴을 의류에 적용하는 데 활용됩니다.
 
 ## 현재 상태
-- ✅ Image Brush 기본 기능 구현 완료 (FLUX Fill API)
-- ✅ 마스크 기반 인페인팅 UI 구현
+-  Image Brush 기본 기능 구현 완료 (FLUX Fill API)
+-  마스크 기반 인페인팅 UI 구현
 - ❌ I2I 모드 비활성화 상태
 - ❌ RunPod API 미통합
 

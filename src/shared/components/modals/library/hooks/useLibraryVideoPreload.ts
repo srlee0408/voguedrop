@@ -1,3 +1,24 @@
+/**
+ * useLibraryVideoPreload - 라이브러리 비디오 프리로딩 관리 훅
+ * 
+ * 주요 역할:
+ * 1. 라이브러리 비디오들의 선택적 프리로딩으로 사용자 경험 향상
+ * 2. 네트워크 상태 감지하여 느린 연결에서 프리로딩 비활성화
+ * 3. 상위 N개 아이템만 우선 프리로드하여 대역폭 효율성 확보
+ * 4. 비디오 URL 유효성 검사 및 보안 호스트 검증
+ * 
+ * 핵심 특징:
+ * - Navigator Connection API 기반 네트워크 상태 감지
+ * - HTTPS 및 허용된 호스트만 프리로드 처리
+ * - 기존 useVideoPreloader 훅 활용한 라이브러리 특화
+ * - 프리로드 진행률 및 통계 정보 제공
+ * - 메모리 효율적인 Set 기반 URL 추적
+ * 
+ * 주의사항:
+ * - 2G/Slow-2G 연결에서는 프리로딩 자동 비활성화
+ * - 허용된 비디오 호스트만 프리로드 (보안상 이유)
+ * - 상위 N개 아이템만 프리로드하여 네트워크 부하 최소화
+ */
 import { useEffect, useState, useCallback } from 'react';
 import { LibraryVideo } from '@/shared/types/video-editor';
 import { useVideoPreloader } from '@/app/video-editor/_hooks/useVideoPreloader';

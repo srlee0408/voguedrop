@@ -28,25 +28,25 @@ CanvasModals.tsx:  useSlotManager() → 인스턴스 C (ImageBrush에서 업데�
 ## 3. 영향도 분석
 
 ### 영향받는 기능들
-1. **이미지 업로드/제거** ✅ 영향 없음
+1. **이미지 업로드/제거** 영향 없음
    - handleImageUpload, handleImageRemove 그대로 동작
 
-2. **비디오 생성** ✅ 영향 없음
+2. **비디오 생성** 영향 없음
    - findAvailableSlotForGeneration
    - setSlotToImage, markSlotGenerating
    - placeVideoInSlot, resetSlot
 
-3. **슬롯 선택/관리** ✅ 영향 없음
+3. **슬롯 선택/관리** 영향 없음
    - handleSlotSelect
    - selectedSlotIndex 추적
 
-4. **히스토리 비디오 토글** ✅ 영향 없음
+4. **히스토리 비디오 토글** 영향 없음
    - handleVideoToggle
 
-5. **즐겨찾기** ✅ 영향 없음
+5. **즐겨찾기** 영향 없음
    - updateVideoFavoriteFlag
 
-6. **ImageBrush** ✅ 개선됨
+6. **ImageBrush** 개선됨
    - 이제 정상적으로 슬롯 업데이트
 
 ### 영향받는 파일

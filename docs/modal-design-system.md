@@ -374,7 +374,7 @@ export function [ModalName]({ isOpen, onClose, ...props }: [ModalName]Props) {
 <h2 className="text-black"> // 잘못됨
 ```
 
-### ✅ 올바른 예시
+### 올바른 예시
 ```tsx
 // 1. 다크 배경 사용
 <div className="bg-gray-800"> // 올바름

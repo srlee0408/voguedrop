@@ -1,3 +1,24 @@
+/**
+ * useLibraryQuery - 라이브러리 데이터 쿼리 관리 훅
+ * 
+ * 주요 역할:
+ * 1. 클립, 프로젝트, 업로드 데이터의 개별 및 통합 쿼리 관리
+ * 2. React Query 기반 서버 상태 관리 및 캐싱 최적화
+ * 3. Optimistic Update를 통한 즉각적인 UI 업데이트
+ * 4. 인증 실패 시 자동 재시도 중단 및 에러 처리
+ * 
+ * 핵심 특징:
+ * - 3가지 데이터 타입별 독립적인 쿼리 훅 제공
+ * - useCombinedLibraryData로 통합 데이터 관리
+ * - useUpdateUploadItems/useUpdateCounts로 낙관적 업데이트
+ * - 캐시 정책 기반 데이터 신선도 관리
+ * - 무한 스크롤 쿼리와 캐시 동기화
+ * 
+ * 주의사항:
+ * - 401 인증 에러 시 재시도하지 않음
+ * - Optimistic Update는 실제 API 호출 없이 캐시만 업데이트
+ * - combined 쿼리는 개별 쿼리들과 캐시 동기화 필요
+ */
 import { useQuery, useMutation, useQueryClient, InfiniteData } from '@tanstack/react-query';
 import { LibraryVideo, LibraryProject, UserUploadedVideo } from '@/shared/types/video-editor';
 import { LibraryCounts } from '@/shared/types/library-modal';

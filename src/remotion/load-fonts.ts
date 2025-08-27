@@ -92,7 +92,7 @@ export async function loadCoreFonts(): Promise<void> {
   
   console.log(`[Font Loader] ========================================`);
   console.log(`[Font Loader] Starting font loading process...`);
-  console.log(`[Font Loader] Environment: ${isLambda ? '🔴 Lambda/Rendering' : '🟢 Studio/Player'}`);
+  console.log(`[Font Loader] Environment: ${isLambda ? 'Lambda/Rendering' : 'Studio/Player'}`);
   console.log(`[Font Loader] ========================================`);
 
   // 렌더링 환경에서만 지연 처리
@@ -117,7 +117,7 @@ export async function loadCoreFonts(): Promise<void> {
         
         // 이미 실패한 폰트는 건너뛰기
         if (failedFonts.has(fontIdentifier)) {
-          console.log(`[Font Loader] ⏭️  Skipping: ${fontIdentifier}`);
+          console.log(`[Font Loader] Skipping: ${fontIdentifier}`);
           continue;
         }
         
@@ -136,11 +136,11 @@ export async function loadCoreFonts(): Promise<void> {
             
             await fontFace.load();
             document.fonts.add(fontFace);
-            console.log(`[Font Loader] ✅ Loaded: ${fontIdentifier}`);
+            console.log(`[Font Loader] Loaded: ${fontIdentifier}`);
             loadedFonts.push(fontIdentifier);
             resolve();
           } catch {
-            console.warn(`[Font Loader] ⚠️  Failed: ${fontIdentifier}`);
+            console.warn(`[Font Loader] Failed: ${fontIdentifier}`);
             failedFonts.add(fontIdentifier);
             // 개별 폰트 로드 실패해도 전체 프로세스는 계속
             resolve();
@@ -155,8 +155,8 @@ export async function loadCoreFonts(): Promise<void> {
       
       console.log(`[Font Loader] ========================================`);
       console.log(`[Font Loader] Summary:`);
-      console.log(`[Font Loader] ✅ Loaded: ${loadedFonts.length} fonts`);
-      console.log(`[Font Loader] ⚠️  Failed: ${failedFonts.size} fonts`);
+      console.log(`[Font Loader] Loaded: ${loadedFonts.length} fonts`);
+      console.log(`[Font Loader] Failed: ${failedFonts.size} fonts`);
       console.log(`[Font Loader] ========================================`);
     }
     

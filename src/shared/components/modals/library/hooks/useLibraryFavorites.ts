@@ -2,7 +2,6 @@ import { useInfiniteQuery, InfiniteData } from '@tanstack/react-query';
 import { LibraryResponse } from '@/shared/types/library-modal';
 import { LibraryVideo } from '@/shared/types/video-editor';
 // cache keys는 이 훅에서 직접 사용하지 않음
-import { LIBRARY_CACHE_POLICY } from '../constants/cache-policy';
 import { fetchFavoritesPage } from '../_services/api';
 
 /**
@@ -50,18 +49,21 @@ export function useLibraryFavorites({
     LibraryResponse,
     Error,
     InfiniteData<LibraryResponse>,
-    [string, string, number],
+    [string, string, string, string, number],
     string | undefined
   >({
-    queryKey: ['library', 'favorites', limit],
+    // 캐시 키를 통합 키 규칙과 맞춤 (clips/favorites)
+    queryKey: ['library', 'clips', 'favorites', 'infinite', limit],
     queryFn: ({ pageParam }) => fetchFavoritesPage({ limit, cursor: pageParam }),
     initialPageParam: undefined,
     getNextPageParam: (lastPage) => 
       lastPage.pagination?.hasNextPage ? lastPage.pagination.nextCursor : undefined,
     enabled,
-    staleTime: LIBRARY_CACHE_POLICY.favorites.staleTime,
-    gcTime: LIBRARY_CACHE_POLICY.favorites.gcTime,
-    refetchOnMount: false,
+    // 모달을 열 때마다 실제 값을 보장하기 위해 즉시 stale 처리
+    staleTime: 0,
+    // 모달 첫 진입 시 0에서 점진 로딩되도록 캐시를 짧게 유지
+    gcTime: 0,
+    refetchOnMount: 'always',
     refetchOnReconnect: false,
   });
 

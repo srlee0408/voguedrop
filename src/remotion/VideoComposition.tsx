@@ -1,3 +1,25 @@
+/**
+ * VideoComposition - Remotion 비디오 컴포지션 정의
+ * 
+ * 주요 역할:
+ * 1. Remotion 프레임워크를 위한 비디오 컴포지션 등록
+ * 2. 비디오 편집기에서 생성된 클립들의 렌더링 구조 정의
+ * 3. 영상, 텍스트, 사운드 클립들의 조합 및 배치 관리
+ * 4. 최종 영상 출력을 위한 렌더링 설정 제공
+ * 
+ * 핵심 특징:
+ * - 멀티 트랙 지원으로 복잡한 영상 구성 가능
+ * - 동적 컴포지션 속성(해상도, FPS, 길이) 설정
+ * - 레인 인덱스 기반 다중 트랙 레이아웃
+ * - CSS 폰트 주입 시스템과 연동
+ * - CompositePreview 컴포넌트를 통한 실제 렌더링
+ * 
+ * 주의사항:
+ * - Remotion Studio와 서버 렌더링 환경 모두 지원
+ * - 폰트 로딩은 inject-fonts.ts에서 별도 처리
+ * - 컴포지션 길이는 모든 클립을 고려하여 동적 계산
+ * - 클립 겹침 및 레이어 순서 관리 중요
+ */
 import React from 'react';
 import { Composition } from 'remotion';
 import { CompositePreview } from '../app/video-editor/_components/remotion/CompositePreview';

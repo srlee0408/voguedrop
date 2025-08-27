@@ -171,7 +171,7 @@ Supabase 대시보드에서 확인:
 
 ## 트러블슈팅 (실제 발생한 문제들)
 
-### 🔴 문제 1: npm global 설치 실패
+### 문제 1: npm global 설치 실패
 ```bash
 npm install -g supabase
 # 에러: Installing Supabase CLI as a global module is not supported
@@ -184,7 +184,7 @@ npx supabase@latest --version  # NPX 사용 (권장)
 brew install supabase/tap/supabase  # macOS
 ```
 
-### 🔴 문제 2: "로그인이 필요합니다" 에러
+### 문제 2: "로그인이 필요합니다" 에러
 Edge Function이 작동하지만 인증이 실패하는 경우
 
 **원인**: Edge Function에서 잘못된 방식으로 Supabase 클라이언트 생성
@@ -196,7 +196,7 @@ const supabaseAuth = createClient(supabaseUrl, token);  // JWT를 키로 사용
 
 **해결책**: anon key 사용 + Authorization 헤더
 ```typescript
-// ✅ 올바른 코드
+// 올바른 코드
 const supabaseAnon = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
 const supabaseAuth = createClient(supabaseUrl, supabaseAnon, {
   global: {
@@ -207,7 +207,7 @@ const supabaseAuth = createClient(supabaseUrl, supabaseAnon, {
 });
 ```
 
-### 🔴 문제 3: 504 Gateway Timeout
+### 문제 3: 504 Gateway Timeout
 대용량 파일 업로드 시 타임아웃 발생
 
 **원인**: 
@@ -224,7 +224,7 @@ const timeoutId = setTimeout(() => controller.abort(), 120000); // 2분
 ```
 3. 장기적으로는 Presigned URL 방식 고려
 
-### 🔴 문제 4: 터미널에서 로그인 실패
+### 문제 4: 터미널에서 로그인 실패
 ```bash
 npx supabase@latest login
 # 에러: Cannot use automatic login flow inside non-TTY environments
@@ -234,7 +234,7 @@ npx supabase@latest login
 1. https://app.supabase.com/account/tokens 에서 토큰 생성
 2. 환경 변수 설정: `export SUPABASE_ACCESS_TOKEN="your-token"`
 
-### 🔴 문제 5: CORS 에러
+### 문제 5: CORS 에러
 - `supabase/functions/_shared/cors.ts` 파일 확인
 - OPTIONS 요청 처리 확인
 ```typescript

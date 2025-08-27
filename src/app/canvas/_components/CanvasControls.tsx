@@ -1,3 +1,23 @@
+/**
+ * CanvasControls - 캔버스 제어 패널 컴포넌트
+ * 
+ * 주요 역할:
+ * 1. AI 영상 생성 프로세스 시작을 위한 Generate 버튼
+ * 2. 영상 지속시간 선택 드롭다운 (3초/6초 옵션)
+ * 3. 생성된 영상 다운로드 기능
+ * 4. Image Brush 편집 도구 진입점
+ * 
+ * 핵심 특징:
+ * - 조건부 버튼 활성화 (이미지 업로드 및 효과 선택 시)
+ * - 다운로드 중 로딩 상태 표시
+ * - 선택된 영상이 있을 때만 다운로드 버튼 활성화
+ * - Image Brush는 업로드된 이미지가 있을 때만 표시
+ * 
+ * 주의사항:
+ * - canGenerate 상태는 상위 컴포넌트에서 계산된 값 사용
+ * - 영상 지속시간은 AI 모델의 제약사항에 따라 제한
+ * - 다운로드 진행 중에는 중복 클릭 방지
+ */
 import { Wand2, Download, ChevronDown, Loader2, Brush } from "lucide-react"
 import { Button } from "@/shared/components/ui/button"
 import type { GeneratedVideo } from "@/shared/types/canvas"

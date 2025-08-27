@@ -1,3 +1,41 @@
+/**
+ * Timeline - 비디오 편집 타임라인 메인 컴포넌트 🎬
+ * 
+ * 📌 주요 기능:
+ * 1. 다중 레인 지원 (비디오/텍스트/사운드 각각 독립적)
+ * 2. 클립 드래그 앤 드롭 및 리사이즈 기능
+ * 3. 클립 선택/다중 선택 및 컨텍스트 메뉴
+ * 4. 재생헤드 제어 및 시간 탐색
+ * 5. 줌 인/아웃 및 그리드 표시
+ * 6. 실행 취소/다시 실행 기능
+ * 
+ * 🎯 핵심 특징:
+ * - 레인별 독립적인 클립 관리 (비디오 3개, 텍스트 무제한, 사운드 무제한)
+ * - 실시간 오버레이 감지 및 자동 교체/배치 로직
+ * - 마그네틱 스냅 기능으로 정확한 클립 정렬
+ * - 사용자 선호도 기반 겹침 처리 (항상 교체/묻기/절대 교체 안함)
+ * 
+ * 🚧 현재 상태:
+ * - 구 Timeline 컴포넌트 (1957라인) - 추후 분해된 TimelineContainer로 교체 예정
+ * - 모든 기능이 하나의 파일에 집중되어 있어 유지보수 어려움
+ * - God Component 패턴으로 SRP 위반
+ * 
+ * 💡 사용법:
+ * ```tsx
+ * <Timeline
+ *   clips={videoClips}
+ *   textClips={textClips}
+ *   soundClips={soundClips}
+ *   videoLanes={[0, 1, 2]}
+ *   textLanes={[0, 1]}
+ *   soundLanes={[0]}
+ *   currentTime={30}
+ *   pixelsPerSecond={40}
+ *   onSeek={(time) => seekTo(time)}
+ *   // ... 기타 이벤트 핸들러들
+ * />
+ * ```
+ */
 'use client';
 
 import { useEffect, useRef, useCallback, useState } from 'react';
@@ -14,62 +52,176 @@ import { calculateTimelineDuration, generateTimeMarkers, magneticPositioning, ge
 import { useUserPreferences } from '@/shared/hooks/useUserPreferences';
 import { getClipsForLane, canAddNewLane, getTextClipsForLane, canAddNewTextLane, getVideoClipsForLane, canAddNewVideoLane } from '@/features/video-editing/_utils/lane-arrangement';
 
+/**
+ * Timeline 컴포넌트 Props 인터페이스 🎛️
+ * 
+ * 📋 Props 그룹별 설명:
+ * 
+ * 📦 **클립 데이터 (기본)**:
+ * - clips, textClips, soundClips: 각 레인 타입별 클립 배열
+ * - videoLanes, textLanes, soundLanes: 활성화된 레인 인덱스 배열
+ * 
+ * ➕ **클립 생성 액션**:
+ * - onAddClip, onAddText, onAddSound: 새 클립 생성
+ * - onAddVideoLane, onAddTextLane, onAddSoundLane: 새 레인 추가
+ * - onAddVideoToLane, onAddTextToLane, onAddSoundToLane: 특정 레인에 클립 추가
+ * 
+ * 🗑️ **삭제 액션**:
+ * - onDeleteVideoClip, onDeleteTextClip, onDeleteSoundClip: 클립 삭제
+ * - onDeleteVideoLane, onDeleteTextLane, onDeleteSoundLane: 레인 삭제
+ * 
+ * ✂️ **편집 액션**:
+ * - onDuplicate*, onSplit*, onResize*: 복제/분할/크기 조정
+ * - onUpdate*Position, onUpdate*Lane: 위치/레인 변경
+ * - onReorder*Clips: 클립 순서 변경
+ * 
+ * 🎮 **재생 제어**:
+ * - currentTime, totalDuration: 시간 정보
+ * - isPlaying, onSeek, onPlayPause: 재생 상태
+ * 
+ * 🔧 **기타 제어**:
+ * - pixelsPerSecond: 줌 레벨
+ * - onUndo, onRedo, canUndo, canRedo: 실행 취소/다시 실행
+ */
 interface TimelineProps {
+  /** 📹 비디오 클립 배열 - 메인 비디오 레인들 */
   clips: VideoClipType[];
+  /** 📝 텍스트 클립 배열 - 자막/타이틀 레인들 */
   textClips?: TextClipType[];
+  /** 🔊 사운드 클립 배열 - 오디오 레인들 */
   soundClips?: SoundClipType[];
-  soundLanes?: number[]; // Active sound lane indices
-  textLanes?: number[]; // Active text lane indices
-  videoLanes?: number[]; // Active video lane indices
+  /** 🔊 활성 사운드 레인 인덱스들 - 예: [0, 1, 2] */
+  soundLanes?: number[];
+  /** 📝 활성 텍스트 레인 인덱스들 - 예: [0, 1] */
+  textLanes?: number[];
+  /** 📹 활성 비디오 레인 인덱스들 - 예: [0, 1, 2] (최대 3개) */
+  videoLanes?: number[];
+
+  // ➕ 클립 생성 관련 핸들러들
+  /** ➕ 새 비디오 클립 추가 */
   onAddClip: () => void;
+  /** ➕ 새 텍스트 클립 추가 */
   onAddText?: () => void;
+  /** ➕ 새 사운드 클립 추가 */
   onAddSound?: () => void;
-  onAddSoundLane?: () => void; // Add new sound lane
-  onDeleteSoundLane?: (laneIndex: number) => void; // Delete sound lane
-  onAddSoundToLane?: (laneIndex: number) => void; // Add sound to specific lane
-  onAddTextLane?: () => void; // Add new text lane
-  onDeleteTextLane?: (laneIndex: number) => void; // Delete text lane
-  onAddTextToLane?: (laneIndex: number) => void; // Add text to specific lane
-  onAddVideoLane?: () => void; // Add new video lane
-  onDeleteVideoLane?: (laneIndex: number) => void; // Delete video lane
-  onAddVideoToLane?: (laneIndex: number) => void; // Add video to specific lane
+
+  // 📊 레인 관리 핸들러들
+  /** ➕ 새 사운드 레인 추가 */
+  onAddSoundLane?: () => void;
+  /** 🗑️ 사운드 레인 삭제 */
+  onDeleteSoundLane?: (laneIndex: number) => void;
+  /** ➕ 특정 사운드 레인에 클립 추가 */
+  onAddSoundToLane?: (laneIndex: number) => void;
+  /** ➕ 새 텍스트 레인 추가 */
+  onAddTextLane?: () => void;
+  /** 🗑️ 텍스트 레인 삭제 */
+  onDeleteTextLane?: (laneIndex: number) => void;
+  /** ➕ 특정 텍스트 레인에 클립 추가 */
+  onAddTextToLane?: (laneIndex: number) => void;
+  /** ➕ 새 비디오 레인 추가 */
+  onAddVideoLane?: () => void;
+  /** 🗑️ 비디오 레인 삭제 */
+  onDeleteVideoLane?: (laneIndex: number) => void;
+  /** ➕ 특정 비디오 레인에 클립 추가 */
+  onAddVideoToLane?: (laneIndex: number) => void;
+  // ✏️ 편집 관련 핸들러들
+  /** ✏️ 텍스트 클립 편집 (내용, 스타일 등) */
   onEditTextClip?: (clip: TextClipType) => void;
+  /** ✏️ 사운드 클립 편집 (볼륨, 페이드 등) */
   onEditSoundClip?: (clip: SoundClipType) => void;
+
+  // 🗑️ 삭제 관련 핸들러들
+  /** 🗑️ 텍스트 클립 삭제 */
   onDeleteTextClip?: (id: string) => void;
+  /** 🗑️ 사운드 클립 삭제 */
   onDeleteSoundClip?: (id: string) => void;
+  /** 🗑️ 비디오 클립 삭제 */
   onDeleteVideoClip?: (id: string) => void;
+
+  // 📋 복제 관련 핸들러들
+  /** 📋 비디오 클립 복제 */
   onDuplicateVideoClip?: (id: string) => void;
+  /** 📋 텍스트 클립 복제 */
   onDuplicateTextClip?: (id: string) => void;
+  /** 📋 사운드 클립 복제 */
   onDuplicateSoundClip?: (id: string) => void;
+
+  // ✂️ 분할 관련 핸들러들
+  /** ✂️ 비디오 클립 분할 (현재 재생 위치에서) */
   onSplitVideoClip?: (id: string) => void;
+  /** ✂️ 텍스트 클립 분할 */
   onSplitTextClip?: (id: string) => void;
+  /** ✂️ 사운드 클립 분할 */
   onSplitSoundClip?: (id: string) => void;
+
+  // 🔀 크기 조정 및 위치 변경 핸들러들
+  /** 🔀 텍스트 클립 크기 조정 */
   onResizeTextClip?: (id: string, newDuration: number) => void;
+  /** 🔀 사운드 클립 크기 조정 (좌/우 핸들 지원) */
   onResizeSoundClip?: (id: string, newDuration: number, handle?: 'left' | 'right', deltaPosition?: number) => void;
-  onReorderVideoClips?: (clips: VideoClipType[]) => void;
-  onUpdateVideoClipPosition?: (id: string, newPosition: number) => void;
-  onUpdateTextClipPosition?: (id: string, newPosition: number) => void;
-  onReorderTextClips?: (clips: TextClipType[]) => void;
-  onReorderSoundClips?: (clips: SoundClipType[]) => void;
+  /** 🔀 비디오 클립 크기 조정 (좌/우 핸들 지원) */
   onResizeVideoClip?: (id: string, newDuration: number, handle?: 'left' | 'right', deltaPosition?: number) => void;
+
+  // 📦 순서 변경 및 위치 업데이트 핸들러들
+  /** 📦 비디오 클립들 순서 변경 */
+  onReorderVideoClips?: (clips: VideoClipType[]) => void;
+  /** 📦 텍스트 클립들 순서 변경 */
+  onReorderTextClips?: (clips: TextClipType[]) => void;
+  /** 📦 사운드 클립들 순서 변경 */
+  onReorderSoundClips?: (clips: SoundClipType[]) => void;
+
+  // 📍 개별 클립 위치 업데이트 핸들러들
+  /** 📍 비디오 클립 위치 변경 */
+  onUpdateVideoClipPosition?: (id: string, newPosition: number) => void;
+  /** 📍 텍스트 클립 위치 변경 */
+  onUpdateTextClipPosition?: (id: string, newPosition: number) => void;
+  /** 📍 사운드 클립 위치 변경 */
   onUpdateSoundClipPosition?: (id: string, newPosition: number) => void;
+
+  // 🔄 전체 클립 배열 업데이트 핸들러들 (대량 변경 시 사용)
+  /** 🔄 모든 비디오 클립 업데이트 */
   onUpdateAllVideoClips?: (clips: VideoClipType[]) => void;
+  /** 🔄 모든 텍스트 클립 업데이트 */
   onUpdateAllTextClips?: (clips: TextClipType[]) => void;
+  /** 🔄 모든 사운드 클립 업데이트 */
   onUpdateAllSoundClips?: (clips: SoundClipType[]) => void;
+
+  // 🎵 사운드 특수 기능 핸들러들
+  /** 🎵 사운드 볼륨 조정 (0.0 ~ 1.0) */
   onUpdateSoundVolume?: (id: string, volume: number) => void;
+  /** 🎵 사운드 페이드 효과 설정 */
   onUpdateSoundFade?: (id: string, fadeType: 'fadeIn' | 'fadeOut', duration: number) => void;
-  onUpdateSoundClipLane?: (id: string, laneIndex: number) => void; // 사운드 클립 레인 변경
-  onUpdateTextClipLane?: (id: string, laneIndex: number) => void; // 텍스트 클립 레인 변경
-  onUpdateVideoClipLane?: (id: string, laneIndex: number) => void; // 비디오 클립 레인 변경
+
+  // 🛤️ 레인 변경 핸들러들
+  /** 🛤️ 사운드 클립 레인 변경 */
+  onUpdateSoundClipLane?: (id: string, laneIndex: number) => void;
+  /** 🛤️ 텍스트 클립 레인 변경 */
+  onUpdateTextClipLane?: (id: string, laneIndex: number) => void;
+  /** 🛤️ 비디오 클립 레인 변경 */
+  onUpdateVideoClipLane?: (id: string, laneIndex: number) => void;
+
+  // 🎮 재생 및 제어 관련
+  /** 📏 줌 레벨 - 1초당 픽셀 수 (예: 40 = 1초당 40픽셀) */
   pixelsPerSecond?: number;
+  /** ⏱️ 현재 재생 시간 (초) */
   currentTime?: number;
+  /** ⏱️ 총 영상 길이 (초) */
   totalDuration?: number;
+  /** ▶️ 재생 중 여부 */
   isPlaying?: boolean;
+  /** 🎯 시간 이동 핸들러 (초 단위) */
   onSeek?: (time: number) => void;
+  /** ⏯️ 재생/일시정지 토글 */
   onPlayPause?: () => void;
+
+  // 🔄 실행 취소/다시 실행
+  /** ↶ 실행 취소 */
   onUndo?: () => void;
+  /** ↷ 다시 실행 */
   onRedo?: () => void;
+  /** ↶ 실행 취소 가능 여부 */
   canUndo?: boolean;
+  /** ↷ 다시 실행 가능 여부 */
   canRedo?: boolean;
 }
 

@@ -293,7 +293,7 @@ function CanvasControls() {
 // ❌ 모든 상태 구독 (불필요한 리렌더링)
 const canvas = useCanvas();
 
-// ✅ 필요한 상태만 구독
+// 필요한 상태만 구독
 const { settings } = useSettings();
 const { modals } = useModals();
 ```
@@ -338,7 +338,7 @@ function MyComponent() {
   const { settings } = useSettings(); // 에러 발생
 }
 
-// ✅ Provider 내부에서 사용
+// Provider 내부에서 사용
 <SettingsProvider>
   <MyComponent />
 </SettingsProvider>

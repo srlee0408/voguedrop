@@ -195,7 +195,7 @@ npx remotion lambda functions deploy
 
 성공하면 다음과 같은 메시지가 나타납니다:
 ```
-✅ Deployed function "remotion-render-{region}"
+ Deployed function "remotion-render-{region}"
 ```
 
 ### 4.2 Remotion 사이트 배포
@@ -207,7 +207,7 @@ npx remotion lambda sites create src/remotion/index.ts --site-name=voguedrop
 
 성공하면 URL이 출력됩니다:
 ```
-✅ Site uploaded to: https://remotionlambda-{id}.s3.amazonaws.com/sites/voguedrop/index.html
+ Site uploaded to: https://remotionlambda-{id}.s3.amazonaws.com/sites/voguedrop/index.html
 ```
 
 ⚠️ **이 URL을 복사해서 저장하세요!**

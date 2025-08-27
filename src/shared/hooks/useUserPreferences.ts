@@ -1,3 +1,24 @@
+/**
+ * useUserPreferences - 사용자 환경설정 관리 훅
+ * 
+ * 주요 역할:
+ * 1. 사용자 프로필 정보 조회 및 환경설정 관리
+ * 2. 타임라인 겹침 대체 정책 설정 (ask, always_replace, never_replace)
+ * 3. React Query 기반 서버 상태 관리 및 캐싱
+ * 4. 환경설정 업데이트 시 즉시 캐시 무효화
+ * 
+ * 핵심 특징:
+ * - overlap_replace_preference 타입 안전성 보장
+ * - 프로필 로드/업데이트 분리된 API 통신
+ * - 업데이트 성공 시 자동 캐시 무효화
+ * - 에러 처리 및 로딩 상태 제공
+ * - 클라이언트 전용 훅
+ * 
+ * 주의사항:
+ * - /api/user/profile 엔드포인트와 연동
+ * - 캐시 정책은 no-store로 항상 최신 데이터 보장
+ * - 업데이트 실패 시 상세한 에러 메시지 제공
+ */
 'use client'
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'

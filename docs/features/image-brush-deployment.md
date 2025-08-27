@@ -141,7 +141,7 @@ npx supabase@latest functions logs image-brush --project-ref YOUR_PROJECT_REF --
 
 ## 트러블슈팅
 
-### 🔴 문제: BFL API 에러
+### 문제: BFL API 에러
 **증상**: "BFL API error: 401" 에러 발생
 
 **해결**:
@@ -151,7 +151,7 @@ npx supabase@latest functions logs image-brush --project-ref YOUR_PROJECT_REF --
 npx supabase@latest secrets set BFL_TOKEN=correct-token --project-ref YOUR_PROJECT_REF
 ```
 
-### 🔴 문제: CORS 에러
+### 문제: CORS 에러
 **증상**: 브라우저 콘솔에 CORS 에러 표시
 
 **해결**:
@@ -159,14 +159,14 @@ npx supabase@latest secrets set BFL_TOKEN=correct-token --project-ref YOUR_PROJE
 2. `supabase/functions/_shared/cors.ts` 파일 확인
 3. Edge Function 재배포
 
-### 🔴 문제: 이미지 크기 제한
+### 문제: 이미지 크기 제한
 **증상**: "이미지 크기는 10MB를 초과할 수 없습니다" 에러
 
 **해결**:
 1. 클라이언트에서 이미지 리사이징 (최대 1024x1024)
 2. Canvas 크기 제한 확인 (ImageBrushModal.tsx)
 
-### 🔴 문제: 처리 시간 초과
+### 문제: 처리 시간 초과
 **증상**: 2분 이상 처리 시 타임아웃
 
 **해결**:
@@ -174,7 +174,7 @@ npx supabase@latest secrets set BFL_TOKEN=correct-token --project-ref YOUR_PROJE
 2. 더 간단한 프롬프트 사용
 3. BFL API 상태 확인 (https://status.bfl.ai)
 
-### 🔴 문제: I2I 모드 실패
+### 문제: I2I 모드 실패
 **증상**: "I2I mode is not configured" 에러
 
 **해결**:
@@ -187,7 +187,7 @@ npx supabase secrets set RUNPOD_ENDPOINT_ID=correct-id --project-ref YOUR_PROJEC
 3. RunPod 크레딧 잔액 확인
 4. Endpoint 상태 확인 (RunPod 대시보드)
 
-### 🔴 문제: RunPod 타임아웃 / IN_QUEUE 상태 지속
+### 문제: RunPod 타임아웃 / IN_QUEUE 상태 지속
 **증상**: 
 - I2I 모드에서 5분 후에도 결과 없음
 - 계속 IN_QUEUE 상태에 머물러 있음
@@ -322,10 +322,10 @@ await fetch('/api/canvas/image-brush/history', {
 
 ## 구현 완료 기능
 
-1. ✅ **FLUX 모드**: BFL FLUX Fill API를 통한 이미지 인페인팅
-2. ✅ **I2I 모드**: RunPod ComfyUI를 통한 스타일 전송
-3. ✅ **히스토리 저장**: 모든 작업 이력을 DB에 저장
-4. ✅ **Supabase Storage 통합**: 이미지 파일 안전한 저장
+1.  **FLUX 모드**: BFL FLUX Fill API를 통한 이미지 인페인팅
+2.  **I2I 모드**: RunPod ComfyUI를 통한 스타일 전송
+3.  **히스토리 저장**: 모든 작업 이력을 DB에 저장
+4.  **Supabase Storage 통합**: 이미지 파일 안전한 저장
 
 ## 향후 개선사항
 

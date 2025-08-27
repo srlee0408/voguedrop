@@ -1,3 +1,25 @@
+/**
+ * TimelineSection - 타임라인 섹션 래퍼 컴포넌트 🎬
+ * 
+ * 📌 주요 역할:
+ * 1. Timeline 컴포넌트와 Context Provider들을 연결하는 중간 계층
+ * 2. 비디오 에디터의 모든 상태와 핸들러를 Timeline에 주입
+ * 3. 멀티레인 지원 (사운드/텍스트/비디오 각각 여러 레인 관리)
+ * 4. 클립 조작 이벤트들을 Context Hook으로 연결
+ * 
+ * 🎯 핵심 특징:
+ * - Context Providers (useClips, usePlayback, useHistory, useProject) 통합
+ * - 비디오/텍스트/사운드 클립별 CRUD 작업 핸들러 관리
+ * - 멀티레인 시스템 (soundLanes, textLanes, videoLanes)
+ * - 클립 분할, 복제, 리사이즈, 위치 변경 등 고급 편집 기능
+ * - 실행 취소/다시 실행 상태 연결
+ * 
+ * 🚧 주의사항:
+ * - Props로 받는 이벤트 핸들러들이 상위 컴포넌트와 일치해야 함
+ * - Timeline 높이는 useProject Hook을 통해 동적으로 관리
+ * - 모든 클립 타입(비디오/텍스트/사운드)에 대한 일관된 인터페이스 제공
+ * - 레인 인덱스 관리로 멀티트랙 편집 지원
+ */
 'use client';
 
 import Timeline from './Timeline';

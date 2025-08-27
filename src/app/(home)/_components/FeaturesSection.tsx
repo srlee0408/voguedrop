@@ -1,3 +1,23 @@
+/**
+ * FeaturesSection - 제품 주요 기능 소개 섹션 컴포넌트
+ * 
+ * 주요 역할:
+ * 1. VogueDrop의 핵심 기능들을 시각적으로 소개
+ * 2. 각 기능별 아이콘, 설명, 스크린샷 제공
+ * 3. 그리드 레이아웃으로 정돈된 정보 전달
+ * 4. 다국어 지원을 위한 텍스트 구조화
+ * 
+ * 핵심 특징:
+ * - 동적 아이콘 매핑으로 유연한 아이콘 선택
+ * - 기능별 컬러 테마로 시각적 구분
+ * - 반응형 그리드 레이아웃 (1열 → 2열 → 3열)
+ * - 각 기능의 스크린샷으로 직관적 이해 지원
+ * 
+ * 주의사항:
+ * - iconMap에 정의된 아이콘만 사용 가능
+ * - 이미지 경로 확인 및 최적화 필요
+ * - 기능 추가 시 iconColors 배열도 확장 고려
+ */
 import Image from "next/image"
 import { Target, Film, Circle, Monitor, Volume2, Sparkles } from "lucide-react"
 

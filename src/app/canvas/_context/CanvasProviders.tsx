@@ -171,7 +171,7 @@ export { useGeneration } from './GenerationContext';
  * 
  * @example
  * ```tsx
- * // ✅ 여러 Context가 필요한 경우
+ * // 여러 Context가 필요한 경우
  * function CanvasControls() {
  *   const { settings, effects, videoGeneration, slotManager } = useCanvas();
  *   

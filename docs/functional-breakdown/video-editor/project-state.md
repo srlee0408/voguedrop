@@ -336,7 +336,7 @@ useEffect(() => {
 
 **해결 방법**:
 ```typescript
-// ✅ 수정 후: project 파라미터 처리 및 상태 비교 로직 추가
+// 수정 후: project 파라미터 처리 및 상태 비교 로직 추가
 useEffect(() => {
   const projectParam = searchParams.get('project');
   

@@ -28,18 +28,18 @@ VideoLibraryModal과 LibraryModal 컴포넌트의 90% 이상 중복 코드를 �
 
 ## 작업 목록
 
-### 1. ✅ 새로운 library 폴더 구조 생성 및 타입 정의
+### 1.  새로운 library 폴더 구조 생성 및 타입 정의
 - [x] `/components/modals/library/` 폴더 생성
 - [x] `/types/library-modal.ts` 타입 정의 파일 생성
   - LibraryModalConfig 인터페이스
   - 모드별 설정 타입
 
-### 2. ✅ 공통 훅 useLibraryData 생성
+### 2.  공통 훅 useLibraryData 생성
 - [x] `/components/modals/library/hooks/useLibraryData.ts` 생성
 - [x] 데이터 페칭 로직 추출
 - [x] 에러 처리 및 로딩 상태 관리
 
-### 3. ✅ 공통 컴포넌트 생성
+### 3.  공통 컴포넌트 생성
 - [x] `/components/modals/library/components/LibraryCard.tsx`
   - 클립/프로젝트/업로드 카드 통합
   - 선택/즐겨찾기/다운로드 기능 조건부 렌더링
@@ -53,24 +53,24 @@ VideoLibraryModal과 LibraryModal 컴포넌트의 90% 이상 중복 코드를 �
   - CARD_CONTAINER_CLASS
   - getContentFitStyle 함수
 
-### 4. ✅ LibraryModalBase 베이스 컴포넌트 생성
+### 4.  LibraryModalBase 베이스 컴포넌트 생성
 - [x] `/components/modals/library/LibraryModalBase.tsx` 생성
 - [x] config 기반 조건부 렌더링
 - [x] 선택/즐겨찾기 모드 통합
 
-### 5. ✅ VideoLibraryModal을 래퍼 컴포넌트로 변경
+### 5.  VideoLibraryModal을 래퍼 컴포넌트로 변경
 - [x] 기존 코드를 28줄로 축소 (755줄 → 28줄, 96% 감소)
 - [x] LibraryModalBase 사용
 - [x] 선택 모드 config 전달
 
-### 6. ✅ LibraryModal을 래퍼 컴포넌트로 변경
+### 6.  LibraryModal을 래퍼 컴포넌트로 변경
 - [x] 기존 코드를 37줄로 축소 (810줄 → 37줄, 95% 감소)
 - [x] LibraryModalBase 사용
 - [x] 뷰 모드 config 전달
 
-### 7. ✅ 테스트 및 빌드 확인
-- [x] 타입 에러 확인 (`npm run build`) - ✅ 성공
-- [x] ESLint 검사 (`npm run lint`) - ✅ No warnings or errors
+### 7.  테스트 및 빌드 확인
+- [x] 타입 에러 확인 (`npm run build`) -  성공
+- [x] ESLint 검사 (`npm run lint`) -  No warnings or errors
 - [ ] 기능 테스트 (수동 테스트 필요)
   - VideoLibraryModal: 선택 및 타임라인 추가
   - LibraryModal: 즐겨찾기 및 다운로드

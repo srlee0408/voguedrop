@@ -1,8 +1,8 @@
 # Vercel 배포 후 Lambda 권한 에러 해결 가이드
 
-## 🔴 문제 상황
-- **로컬 환경**: 정상 작동 ✅
-- **Vercel 배포 후**: Lambda 권한 에러 발생 ❌
+## 문제 상황
+- **로컬 환경**: 정상 작동
+- **Vercel 배포 후**: Lambda 권한 에러 발생
 
 ```
 User: arn:aws:sts::367515020958:assumed-role/cloudwatch_logs_events_putter/...
@@ -10,7 +10,7 @@ is not authorized to perform: lambda:InvokeFunction
 on resource: arn:aws:lambda:us-east-1:367515020958:function:remotion-render-4-0-332-mem2048mb-disk2048mb-900sec
 ```
 
-## 🎯 해결 방법
+## 해결 방법
 
 ### 1. Vercel 환경 변수 확인 및 설정
 
@@ -130,7 +130,7 @@ console.log('Environment check:', {
 });
 ```
 
-## 🔍 확인 사항 체크리스트
+## 확인 사항 체크리스트
 
 - [ ] Vercel 환경 변수가 모두 설정되어 있는가?
 - [ ] AWS Access Key가 올바른가?
@@ -139,7 +139,7 @@ console.log('Environment check:', {
 - [ ] S3 버킷에 접근 권한이 있는가?
 - [ ] Vercel 재배포를 했는가?
 
-## 📊 테스트 방법
+## 테스트 방법
 
 1. **Vercel Functions 로그 확인**
    ```bash
@@ -159,14 +159,14 @@ console.log('Environment check:', {
      response.json
    ```
 
-## 🆘 추가 도움
+## 추가 도움
 
 문제가 계속되면 다음을 확인:
 1. AWS 계정 ID가 367515020958이 맞는지 확인
 2. us-east-1 리전이 올바른지 확인
 3. Remotion Lambda 함수가 정상적으로 배포되었는지 확인
 
-## 📝 참고사항
+## 참고사항
 
 - Vercel은 서버리스 환경이므로 AWS Credentials를 환경 변수로 전달해야 함
 - Lambda 함수 이름이 Remotion 버전에 따라 달라질 수 있음 (remotion-render-4-0-332-...)
