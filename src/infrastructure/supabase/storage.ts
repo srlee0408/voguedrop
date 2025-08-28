@@ -69,3 +69,17 @@ export async function uploadBase64Image(base64: string, userId: string = 'anonym
   // 업로드 (동일한 uploadImage 함수 사용으로 자동으로 새 경로 구조 적용)
   return uploadImage(file, userId);
 }
+
+/**
+ * 주어진 Storage 경로로부터 공개 URL을 생성합니다.
+ * - 절대 URL이면 그대로 반환
+ * - 그 외에는 Supabase 공개 오브젝트 URL 형식으로 조합
+ */
+export function getPublicUrl(path: string): string {
+  if (!path) return '';
+  if (path.startsWith('http://') || path.startsWith('https://')) return path;
+
+  const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+  return `${baseUrl}/storage/v1/object/public/${cleanPath}`;
+}

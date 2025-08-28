@@ -322,3 +322,20 @@ export const animateToComplete = (
 // 상수들
 export const PROGRESS_UPDATE_INTERVAL = 1000; // 1초마다 업데이트
 export const DEFAULT_MAX_AUTO_PROGRESS = 90; // 자동 증가 상한선
+
+/**
+ * Tailwind 클래스 병합 유틸리티 (shadcn 호환)
+ */
+export function cn(...classes: Array<string | false | null | undefined>): string {
+  return classes.filter(Boolean).join(' ');
+}
+
+/**
+ * UUID를 8자리 짧은 ID로 변환
+ */
+export function getShortId(uuid: string): string {
+  if (!uuid) return '';
+  // 제거 후 앞 8자리 사용
+  const compact = uuid.replace(/-/g, '');
+  return compact.slice(0, 8);
+}

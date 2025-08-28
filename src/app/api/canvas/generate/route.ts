@@ -291,8 +291,9 @@ export async function GET(request: NextRequest) {
     }
 
     // Supabase에서 생성 상태 조회
-    const { supabase } = await import('@/shared/lib/supabase');
-    const { data, error } = await supabase
+    const { createClient: createServerClient } = await import('@/infrastructure/supabase/server');
+    const serverSupabase = await createServerClient();
+    const { data, error } = await serverSupabase
       .from('video_generations')
       .select('*')
       .eq('id', generationId)

@@ -199,7 +199,7 @@ export function GenerationProvider({ children }: GenerationProviderProps) {
     setIsDownloading(true);
 
     try {
-      const { CanvasAPI } = await import('../_services/api');
+      const { CanvasAPI } = await import('@/features/canvas-generation/_api/api');
       const effectName = effects.selectedEffects[0]?.name;
       await CanvasAPI.downloadAndSaveVideo(slotManager.activeVideo, effectName);
     } catch (error) {

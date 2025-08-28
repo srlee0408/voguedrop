@@ -12,7 +12,7 @@
  * - 자동 가비지 컬렉션 (100MB 제한)
  */
 
-import { VideoMetadata } from '@/app/video-editor/_utils/video-metadata';
+import { VideoMetadata } from '@/features/video-editing/_utils/video-metadata';
 
 // IndexedDB 설정
 const DB_NAME = 'VogueDropMediaCache';
