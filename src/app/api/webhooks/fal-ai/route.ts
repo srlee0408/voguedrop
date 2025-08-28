@@ -20,8 +20,8 @@
  * - 페이로드 크기 제한 및 타임아웃 설정
  */
 import { NextRequest, NextResponse } from 'next/server';
-// import { createClient } from '@/shared/lib/supabase/server';
-import { verifyWebhookSignature, extractWebhookHeaders } from '@/lib/fal-webhook';
+// import { createClient } from '@/infrastructure/supabase/server';
+import { verifyWebhookSignature, extractWebhookHeaders } from '@/infrastructure/ai-services/fal-webhook';
 
 interface FalWebhookPayload {
   request_id: string;
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
     // Processing webhook payload
 
     // 6. Supabase에서 job 업데이트 (Service Role 사용)
-    const { createServiceClient } = await import('@/shared/lib/supabase/service');
+    const { createServiceClient } = await import('@/infrastructure/supabase/service');
     const supabase = createServiceClient();
     
     // 타입에 따라 다른 테이블 업데이트

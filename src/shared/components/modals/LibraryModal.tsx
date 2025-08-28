@@ -1,4 +1,4 @@
-import { LibraryModalBase } from '@/shared/components/modals/library/LibraryModalBase';
+import { LibraryModalBase } from '@/features/media-library/_components/LibraryModalBase';
 import { LibraryModalConfig } from '@/shared/types/library-modal';
 import { useFavorites } from '@/shared/hooks/useFavorites';
 

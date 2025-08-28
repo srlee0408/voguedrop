@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { useRouter } from 'next/navigation'
-import { getShortId } from '@/shared/lib/utils'
+import { getShortId } from '@/shared/lib/utils/generation-progress'
 import { LibraryModal } from '@/shared/components/modals/LibraryModal'
 import { EffectModal } from '@/shared/components/modals/EffectModal'
 import { PromptModal } from '@/shared/components/modals/PromptModal'

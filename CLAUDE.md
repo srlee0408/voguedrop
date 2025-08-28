@@ -6,6 +6,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 VogueDrop은 AI 기반 패션 콘텐츠 생성 플랫폼입니다. 패션 크리에이터들이 정적 이미지를 AI 영상으로 변환하고 편집할 수 있습니다.
 
+## 개발 환경 초기 설정
+```bash
+# 새로운 개발자를 위한 초기 설정
+npm install                           # 의존성 설치
+./scripts/download-all-fonts.sh      # 필수 폰트 다운로드
+npm run test:font-render             # 폰트 렌더링 확인
+```
+
+## 테스트 환경
+- **프레임워크**: Vitest + jsdom 환경
+- **테스팅 라이브러리**: @testing-library/react
+- **테스트 파일**: `*.test.ts` 또는 `*.test.tsx` 확장자 사용
+- **커버리지**: `npm run test -- --coverage`로 커버리지 확인
+
+## 개발 도구 통합
+- **Stagewise**: 개발 도구 통합 (포트 3100/3000)
+- **Sentry**: 프로덕션 에러 모니터링 설정
+- **Vercel**: 비디오 처리용 커스텀 함수 타임아웃 설정
+
 ## Note
 - Always answer in Korean.
 
@@ -105,29 +124,57 @@ npm run remotion:lambda:sites
 ### Feature-First Co-location
 ```
 
-  src/
-  ├── shared/                    # 📦 전역 공유 자원
-  │   ├── components/
-  │   │   ├── ui/               # 기본 UI 컴포넌트
-  │   │   ├── layout/           # 레이아웃 컴포넌트
-  │   │   └── modals/           # 공유 모달
-  │   ├── hooks/                # 전역 훅 (useTranslation)
-  │   ├── lib/                  # 유틸리티 및 헬퍼
-  │   │   ├── utils.ts          # cn() 함수
-  │   │   ├── supabase/         # Supabase 클라이언트
-  │   │   ├── auth/             # 인증 관련
-  │   │   ├── canvas-storage.ts # 캔버스 스토리지
-  │   │   └── session.ts        # 세션 관리
-  │   ├── types/                # 전역 타입 정의
-  │   └── constants/            # 전역 상수
-  └── app/                      # 🎯 기능별 디렉토리
-      ├── canvas/
-      │   ├── _components/      # Canvas 전용 컴포넌트
-      │   ├── _hooks/           # Canvas 전용 훅
-      │   └── _context/         # Canvas 전용 컨텍스트
-      └── video-editor/
-          ├── _components/      # Video Editor 전용 컴포넌트
-          └── _hooks/           # Video Editor 전용 훅
+ voguedrop/
+├── src/
+│   ├── app/                          # Next.js App Router
+│   │   ├── (auth)/                   # 인증 라우트 그룹
+│   │   │   ├── login/page.tsx
+│   │   │   └── signup/page.tsx
+│   │   ├── (home)/                   # 홈 라우트 그룹
+│   │   │   ├── _components/
+│   │   │   └── page.tsx
+│   │   ├── canvas/                   # Canvas AI 기능
+│   │   │   ├── _components/          # 기능별 컴포넌트
+│   │   │   ├── _context/            # Canvas 전용 Context
+│   │   │   ├── _hooks/              # Canvas 전용 훅
+│   │   │   └── page.tsx
+│   │   ├── video-editor/            # 비디오 에디터
+│   │   │   ├── _components/
+│   │   │   ├── _context/            # 에디터 전용 Context
+│   │   │   ├── _hooks/
+│   │   │   └── page.tsx
+│   │   ├── api/                     # API 라우트
+│   │   │   ├── auth/                # 인증 API
+│   │   │   ├── canvas/              # Canvas API
+│   │   │   ├── video/               # 비디오 API
+│   │   │   └── webhooks/            # 웹훅
+│   │   ├── globals.css
+│   │   ├── layout.tsx
+│   │   └── page.tsx
+│   ├── shared/                      # 공유 리소스
+│   │   ├── components/              # 재사용 가능한 UI
+│   │   │   ├── ui/                  # 기본 UI 컴포넌트
+│   │   │   └── modals/              # 모달 시스템
+│   │   ├── hooks/                   # 전역 훅
+│   │   ├── lib/                     # 유틸리티 및 설정
+│   │   ├── types/                   # 전역 타입 정의
+│   │   └── constants/               # 전역 상수
+│   ├── features/                    # 기능별 모듈
+│   │   ├── canvas-generation/       # Canvas 생성 기능
+│   │   ├── video-editing/           # 비디오 편집 기능
+│   │   ├── media-library/           # 미디어 라이브러리
+│   │   └── user-auth/               # 사용자 인증
+│   ├── infrastructure/              # 인프라 관련
+│   │   ├── supabase/               # Supabase 클라이언트
+│   │   ├── ai-services/            # AI 서비스 통합
+│   │   └── cache/                  # 캐싱 로직
+│   └── remotion/                   # Remotion 비디오 템플릿
+├── supabase/                       # Supabase 설정
+│   ├── functions/                  # Edge Functions
+│   ├── migrations/                 # DB 마이그레이션
+│   └── seeds/                      # 초기 데이터
+├── lambda/                         # AWS Lambda 함수
+└── docs/                          # 문서
 
 ```
 
@@ -203,10 +250,14 @@ const { data, error } = await supabase
 - `video_generation_logs`: 상세 로깅
 - `project_saves`: 비디오 에디터 프로젝트 저장
 - `sound_generations`: 사운드 생성 작업 추적
+- `user_uploaded_videos`: 사용자 업로드 비디오 관리
+- `user_uploaded_music`: 사용자 업로드 음악 파일
+- `image_brush_history`: 이미지 브러시 히스토리
 
-### migrations
-- 데이터베이스 스키마 변경 시 migrations 폴더에 파일 생성
-- 파일은 000 순번으로 생성 ex. 000_create_user_favorites_table
+### 마이그레이션 관리
+- 데이터베이스 스키마 변경 시 `supabase/migrations/` 폴더에 파일 생성
+- 파일명 형식: `000_create_table_name.sql` (순번 기반)
+- Supabase CLI를 통한 마이그레이션 적용: `npx supabase db push`
 
 ## 코딩 표준 및 에러 방지 가이드
 
@@ -485,7 +536,19 @@ REMOTION_AWS_SECRET_ACCESS_KEY=your-aws-secret
 AWS_S3_BUCKET_NAME=voguedrop-renders
 AWS_REGION=us-east-1
 LAMBDA_FUNCTION_NAME=voguedrop-render
+
+# Sentry 모니터링 (선택사항)
+SENTRY_DSN=your-sentry-dsn
+SENTRY_ORG=your-org
+SENTRY_PROJECT=your-project
 ```
+
+### 인증 및 라우팅 보안
+미들웨어(`middleware.ts`)가 다음 라우트 보안을 관리합니다:
+- **공개 라우트**: `/`, `/login`, `/signup`, `/auth`, `/marketing`
+- **보호된 라우트**: 로그인 필요, 미들웨어가 자동으로 `/login`으로 리다이렉트
+- **API 라우트**: 별도 인증 처리 (각 API에서 개별 확인)
+- **정적 파일**: `_next/static`, `_next/image`, `favicon.ico`, `public` 폴더는 제외
 
 ### Vercel 배포 설정
 ```json
@@ -684,14 +747,24 @@ try {
 - Lambda 함수 메모리: 3008MB (최대), 타임아웃: 15분 설정
 
 ## 추가 설정 파일
-- `remotion.config.ts` - Remotion 렌더링 설정 (코덱, 비트레이트, Lambda 설정)
-- `vitest.config.ts` - 테스트 환경 설정 (jsdom, React Testing Library)
-- `eslint.config.mjs` - ESLint 설정 (Next.js 코어 웹 바이탈 규칙)
-- `scripts/download-all-fonts.sh` - Google Fonts에서 프로젝트 폰트 다운로드
+- `remotion.config.ts` - Remotion 렌더링 설정 (H.264 코덱, 4M 비트레이트, 15분 타임아웃)
+- `vitest.config.ts` - 테스트 환경 설정 (jsdom, @testing-library/react)
+- `eslint.config.mjs` - ESLint 설정 (Next.js + TypeScript 엄격 모드)
+- `middleware.ts` - Next.js 미들웨어 (인증 보호 및 라우팅)
+- `scripts/download-all-fonts.sh` - 프로젝트 필수 폰트 자동 다운로드
+- `tailwind.config.ts` - 디자인 토큰 기반 Tailwind CSS 설정
+- `sentry.*.config.ts` - 프로덕션 에러 모니터링 설정
 
-## Cursor Rules 통합
-프로젝트는 다음 Cursor Rules를 포함합니다:
-- `.cursor/rules/canvas-implementation-guide.mdc` - Canvas 페이지 구현 가이드
-  - 4 슬롯 시스템 상태 관리
-  - 이미지 업로드 및 효과 선택 플로우
-  - Job 기반 비동기 영상 생성 패턴
+### 주요 스크립트 명령어
+```bash
+# 폰트 관리
+./scripts/download-all-fonts.sh         # 모든 필수 폰트 다운로드
+
+# 데이터베이스
+npx supabase db push                    # 마이그레이션 적용
+npx supabase inspect db                 # DB 스키마 확인
+
+# Remotion 개발
+npm run remotion:studio                 # 비디오 편집 개발 도구
+npm run remotion:lambda:deploy          # AWS Lambda 함수 배포
+```

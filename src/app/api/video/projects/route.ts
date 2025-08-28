@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/shared/lib/supabase/server';
+import { createClient } from '@/infrastructure/supabase/server';
 
 interface ProjectListItem {
   id: string; // number에서 string으로 변경

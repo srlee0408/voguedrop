@@ -1,8 +1,8 @@
 'use client';
 
 import { createContext, useContext, ReactNode } from 'react';
-import { useModalManager } from '../_hooks/useModalManager';
-import type { ModalManagerReturn } from '../_types';
+import { useModalManager } from '@/features/canvas-generation/_hooks/useModalManager';
+import type { ModalManagerReturn } from '@/features/canvas-generation/_types';
 
 /**
  * ModalContext - Canvas 모달 상태 관리

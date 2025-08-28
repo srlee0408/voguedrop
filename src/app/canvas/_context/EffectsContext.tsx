@@ -1,8 +1,8 @@
 'use client';
 
 import { createContext, useContext, ReactNode } from 'react';
-import { useEffectsManager } from '../_hooks/useEffectsManager';
-import type { EffectsManagerReturn } from '../_types';
+import { useEffectsManager } from '@/features/canvas-generation/_hooks/useEffectsManager';
+import type { EffectsManagerReturn } from '@/features/canvas-generation/_types';
 
 /**
  * EffectsContext - Canvas AI 효과 선택 및 관리

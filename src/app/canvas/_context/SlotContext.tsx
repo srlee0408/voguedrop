@@ -1,8 +1,8 @@
 'use client';
 
 import { createContext, useContext, ReactNode } from 'react';
-import { useSlotManager } from '../_hooks/useSlotManager';
-import type { SlotManagerReturn } from '../_types';
+import { useSlotManager } from '@/features/canvas-generation/_hooks/useSlotManager';
+import type { SlotManagerReturn } from '@/features/canvas-generation/_types';
 
 /**
  * SlotContext - Canvas 4개 슬롯 시스템 관리

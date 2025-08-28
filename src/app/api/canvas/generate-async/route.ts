@@ -20,12 +20,12 @@
  * - Webhook 서명 검증을 위한 시크릿 관리
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/api/auth';
-import { VideoGenerationService } from '@/lib/services/canvas/generation.service';
-import { generateVideoRequestSchema } from '@/lib/services/canvas/schemas';
+import { requireAuth } from '@/shared/lib/api/auth';
+import { VideoGenerationService } from '@/shared/lib/services/canvas/generation.service';
+import { generateVideoRequestSchema } from '@/shared/lib/services/canvas/schemas';
 import { ZodError } from 'zod';
-import { ApiTracker } from '@/lib/monitoring/api-tracker';
-import { getErrorMessage, createUserFriendlyError } from '@/lib/errors/user-friendly-errors';
+import { ApiTracker } from '@/shared/lib/monitoring/api-tracker';
+import { getErrorMessage, createUserFriendlyError } from '@/shared/lib/errors/user-friendly-errors';
 import * as Sentry from "@sentry/nextjs";
 
 export async function POST(request: NextRequest): Promise<NextResponse> {

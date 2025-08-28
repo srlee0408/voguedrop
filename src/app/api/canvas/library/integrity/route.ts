@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/shared/lib/supabase/server';
+import { createClient } from '@/infrastructure/supabase/server';
 
 /**
  * Library 데이터 정합성 검증 API

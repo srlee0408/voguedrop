@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/shared/lib/supabase/server';
-import { createServiceClient } from '@/shared/lib/supabase/service';
+import { createClient } from '@/infrastructure/supabase/server';
+import { createServiceClient } from '@/infrastructure/supabase/service';
 import { nanoid } from 'nanoid';
-import { extractJobIdPrefix } from '@/lib/sound/utils';
+import { extractJobIdPrefix } from '@/shared/lib/sound/utils';
 
 interface GenerateFromVideoRequest {
   video_job_id: string;

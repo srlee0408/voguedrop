@@ -44,8 +44,8 @@
 
 import { useCallback, useEffect } from 'react';
 import { VideoClip, TextClip, SoundClip } from '@/shared/types/video-editor';
-import { useSelectionState } from '@/app/video-editor/_hooks/useSelectionState';
-import { useDragAndDrop } from '@/app/video-editor/_hooks/useDragAndDrop';
+import { useSelectionState } from '@/features/video-editing/_hooks/useSelectionState';
+import { useDragAndDrop } from '@/features/video-editing/_hooks/useDragAndDrop';
 import { 
   getVideoClipsForLane, 
   getTextClipsForLane, 

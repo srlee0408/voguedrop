@@ -3,7 +3,7 @@
 import React from 'react'
 import { CanvasProviders } from './_context/CanvasProviders'
 import { CanvasLayout, AuthGuard } from './_components'
-import { EffectsDataProvider } from './_hooks/useEffectsData'
+import { EffectsDataProvider } from '@/features/canvas-generation/_hooks/useEffectsData'
 
 /**
  * Canvas 페이지 엔트리 포인트

@@ -23,7 +23,7 @@
 import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import type { LoginFormData } from '@/shared/types/auth'
-import { createClient } from '@/shared/lib/supabase/client'
+import { createClient } from '@/infrastructure/supabase/client'
 
 export function LoginForm() {
   const router = useRouter()

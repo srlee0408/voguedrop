@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServiceClient } from '@/shared/lib/supabase/service';
-import { requireAuth } from '@/lib/api/auth';
+import { createServiceClient } from '@/infrastructure/supabase/service';
+import { requireAuth } from '@/shared/lib/api/auth';
 import type { ImageBrushHistoryItem } from '@/shared/types/image-brush';
 
 /**

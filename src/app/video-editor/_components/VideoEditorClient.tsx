@@ -2,9 +2,9 @@
 
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { getShortId } from '@/shared/lib/utils';
+import { getShortId } from '@/shared/lib/utils/generation-progress';
 import { useClips, usePlayback, useProject, useHistory } from '../_context/Providers';
-import { getAllClipBoundaries, findPreviousBoundary, findNextBoundary } from '../_utils/common-clip-utils';
+import { getAllClipBoundaries, findPreviousBoundary, findNextBoundary } from '@/features/video-editing/_utils/common-clip-utils';
 import EditorLayout from './EditorLayout';
 import PreviewSection from './PreviewSection';
 import TimelineSection from './TimelineSection';

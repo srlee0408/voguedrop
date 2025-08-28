@@ -4,21 +4,21 @@ import { useState, useRef, useEffect, useContext } from 'react';
 import { useTranslation } from '@/shared/hooks/useTranslation';
 import { ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
 import { VideoClipSelector } from './VideoClipSelector';
-import { useVideoSoundGeneration } from '../_hooks/useVideoSoundGeneration';
+import { useVideoSoundGeneration } from '@/features/video-editing/_hooks/useVideoSoundGeneration';
 import { ClipContext } from '../_context/ClipContext';
-import { formatSoundDisplayTitle } from '@/lib/sound/utils';
+import { formatSoundDisplayTitle } from '@/shared/lib/sound/utils';
 import { SoundGenerationType } from '@/shared/types/sound';
-import { calculateSoundProgress } from '@/lib/utils/generation-progress';
+import { calculateSoundProgress } from '@/shared/lib/utils/generation-progress';
 import { 
   useSoundHistory, 
   useSoundGeneration
-} from '../_hooks/useSoundHistoryQuery';
+} from '@/features/video-editing/_hooks/useSoundHistoryQuery';
 import { 
   useUploadedMusic, 
   useUploadMusic,
   useDeleteUploadedMusic,
   type UploadedAudio
-} from '../_hooks/useUploadedMusicQuery';
+} from '@/features/video-editing/_hooks/useUploadedMusicQuery';
 
 interface SoundLibraryModalProps {
   onClose: () => void;

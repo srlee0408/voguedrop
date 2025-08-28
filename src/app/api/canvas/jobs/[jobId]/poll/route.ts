@@ -20,7 +20,7 @@
  * - 완료된 Job은 캐싱하여 중복 조회 방지
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/shared/lib/supabase/server';
+import { createClient } from '@/infrastructure/supabase/server';
 
 interface RouteParams {
   params: Promise<{
@@ -91,7 +91,7 @@ export async function GET(
       // Webhook timeout after 5 minutes
       
       // Service client로 webhook_status 업데이트
-      const { createServiceClient } = await import('@/shared/lib/supabase/service');
+      const { createServiceClient } = await import('@/infrastructure/supabase/service');
       const serviceSupabase = createServiceClient();
       
       await serviceSupabase
@@ -142,7 +142,7 @@ export async function GET(
               
               if (videoUrl) {
                 // Service client로 DB 업데이트
-                const { createServiceClient } = await import('@/shared/lib/supabase/service');
+                const { createServiceClient } = await import('@/infrastructure/supabase/service');
                 const serviceSupabase = createServiceClient();
                 
                 await serviceSupabase
@@ -171,7 +171,7 @@ export async function GET(
             }
           } else if (statusData.status === 'FAILED') {
             // 실패 처리
-            const { createServiceClient } = await import('@/shared/lib/supabase/service');
+            const { createServiceClient } = await import('@/infrastructure/supabase/service');
             const serviceSupabase = createServiceClient();
             
             await serviceSupabase

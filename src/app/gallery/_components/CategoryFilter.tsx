@@ -21,7 +21,7 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { cn } from "@/shared/lib/utils"
+import { cn } from "@/shared/lib/utils/generation-progress"
 import type { Category } from "@/shared/types/database"
 
 interface CategoryFilterProps {

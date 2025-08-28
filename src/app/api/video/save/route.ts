@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/api/auth';
-import { ProjectService } from '@/lib/services/video-editor/project.service';
-import { saveProjectRequestSchema, loadProjectRequestSchema } from '@/lib/services/video-editor/schemas';
+import { requireAuth } from '@/shared/lib/api/auth';
+import { ProjectService } from '@/shared/lib/services/video-editor/project.service';
+import { saveProjectRequestSchema, loadProjectRequestSchema } from '@/shared/lib/services/video-editor/schemas';
 import { ZodError } from 'zod';
 
 export async function POST(request: NextRequest): Promise<NextResponse> {

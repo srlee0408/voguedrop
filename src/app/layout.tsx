@@ -10,7 +10,7 @@ import "../styles/fonts.css"; // Google Fonts 직접 import
 import { StagewiseToolbar } from "@stagewise/toolbar-next";
 import ReactPlugin from "@stagewise-plugins/react";
 import { AuthProvider } from "@/features/user-auth/_context/AuthContext";
-import { QueryProvider } from "@/lib/providers/QueryProvider";
+import { QueryProvider } from "@/shared/lib/providers/QueryProvider";
 import { Toaster } from "sonner";
 
 const geistSans = Geist({

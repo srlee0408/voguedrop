@@ -11,7 +11,7 @@ import FullscreenPreviewModal from './FullscreenPreviewModal';
 import RenderingModal from './RenderingModal';
 import { BufferingSpinner } from './BufferingSpinner';
 import { ASPECT_RATIOS, CAROUSEL_CONFIG, STYLES, AspectRatioValue } from '../_constants';
-import { useMediaCache } from '../_hooks/useMediaCache';
+import { useMediaCache } from '@/features/video-editing/_hooks/useMediaCache';
 
 interface PreviewClip {
   id: string;

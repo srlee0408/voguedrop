@@ -1,7 +1,7 @@
 "use client"
 
 import { HomeHeader } from "@/app/(home)/_components/HomeHeader"
-import { useGalleryItems, useCategories, useGalleryRefresh } from '@/lib/hooks/useGalleryData'
+import { useGalleryItems, useCategories, useGalleryRefresh } from '@/shared/lib/hooks/useGalleryData'
 import type { EffectTemplateWithMedia, Category } from '@/shared/types/database'
 import React from 'react'
 

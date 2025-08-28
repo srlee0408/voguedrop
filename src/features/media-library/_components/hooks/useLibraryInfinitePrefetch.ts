@@ -1,8 +1,29 @@
+/**
+ * useLibraryInfinitePrefetch - 무한 스크롤 데이터 프리페칭 전용 훅
+ * 
+ * 주요 역할:
+ * 1. 무한 스크롤 쿼리의 첫 페이지 데이터 미리 로딩
+ * 2. 단계별 Progressive Enhancement로 점진적 데이터 로드
+ * 3. 스크롤 기반 지능형 다음 페이지 프리페칭
+ * 4. 클립 타입별 세분화된 프리페칭 (favorites/regular)
+ * 
+ * 핵심 특징:
+ * - 5단계 점진적 프리페칭 (counts → basic → full → favorites → regular)
+ * - InfiniteQuery 전용 prefetchInfiniteQuery 활용
+ * - 스크롤 80% 도달 시 자동 다음 페이지 프리페칭
+ * - requestIdleCallback 활용한 유휴 시간 백그라운드 로딩
+ * - 첫 페이지 캐시 기반 다음 페이지 cursor 추출 및 수동 캐시 추가
+ * 
+ * 주의사항:
+ * - useLibraryPrefetch와 다른 InfiniteQuery 전용 구현
+ * - 다음 페이지 프리페칭 시 cursor 존재 여부 반드시 확인
+ * - 백그라운드 프리페칭 타임아웃을 3초로 단축 (첫 페이지만)
+ */
 import { useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { LIBRARY_CACHE_KEYS } from '@/features/media-library/_components/constants/cache-keys';
+import { LIBRARY_CACHE_KEYS } from '../constants/cache-keys';
 import { useAuth } from '@/features/user-auth/_context/AuthContext';
-import { fetchLibraryCounts, fetchLibraryPage } from '@/features/media-library/_components/_services/api';
+import { fetchLibraryCounts, fetchLibraryPage } from '../_services/api';
 
 // 프리페칭 상태 추적을 위한 플래그
 interface InfinitePrefetchFlags {

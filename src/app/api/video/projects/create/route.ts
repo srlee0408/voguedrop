@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/api/auth';
-import { ProjectService } from '@/lib/services/video-editor/project.service';
+import { requireAuth } from '@/shared/lib/api/auth';
+import { ProjectService } from '@/shared/lib/services/video-editor/project.service';
 import { z } from 'zod';
 
 // 새 프로젝트 생성 요청 스키마

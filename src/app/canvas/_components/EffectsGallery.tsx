@@ -18,7 +18,7 @@
  * - 효과 클릭 시 상위 컴포넌트의 모달 상태 변경
  * - 비동기 데이터 로딩 상태 관리 중요
  */
-import { useEffectsData } from "@/app/canvas/_hooks/useEffectsData";
+import { useEffectsData } from "@/features/canvas-generation/_hooks/useEffectsData";
 import { HoverVideo } from "@/shared/components/ui/hover-video";
 
 interface EffectsGalleryProps {

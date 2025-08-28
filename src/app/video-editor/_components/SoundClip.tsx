@@ -24,7 +24,7 @@
 
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { SoundClip as SoundClipType } from '@/shared/types/video-editor';
-import { drawWaveformFinalCutStyle, resampleWaveform } from '../_utils/audio-analysis';
+import { drawWaveformFinalCutStyle, resampleWaveform } from '@/features/video-editing/_utils/audio-analysis';
 
 interface SoundClipProps {
   clip: SoundClipType;

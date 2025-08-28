@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, ReactNode, useState, useCallback } from 'react';
-import type { CanvasSettings, CanvasSettingsReturn } from '../_types';
+import type { CanvasSettings, CanvasSettingsReturn } from '@/features/canvas-generation/_types';
 
 /**
  * SettingsContext - Canvas AI 생성 설정 관리

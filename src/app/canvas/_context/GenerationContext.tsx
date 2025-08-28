@@ -5,7 +5,7 @@ import { useVideoGeneration } from '@/features/canvas-generation/_hooks/useVideo
 import { useSlot } from './SlotContext';
 import { useSettings } from './SettingsContext';
 import { useEffects } from './EffectsContext';
-import type { VideoGenerationReturn } from '../_types';
+import type { VideoGenerationReturn } from '@/features/canvas-generation/_types';
 import type { GeneratedVideo } from '@/shared/types/canvas';
 
 /**

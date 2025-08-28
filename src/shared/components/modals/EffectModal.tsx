@@ -1,6 +1,6 @@
 import { BaseModal } from "./BaseModal"
 import type { EffectTemplateWithMedia } from "@/shared/types/database"
-import { useEffectsData } from "@/app/canvas/_hooks/useEffectsData"
+import { useEffectsData } from "@/features/canvas-generation/_hooks/useEffectsData"
 import { HoverVideo } from "@/shared/components/ui/hover-video"
 
 interface EffectModalProps {

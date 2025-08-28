@@ -6,8 +6,8 @@ import { X, Brush, Eraser, RotateCcw, Loader2, Sliders, ArrowRight, Upload, Down
 import type { ImageBrushModalState, BrushTool, CanvasMouseEvent } from '@/shared/types/image-brush'
 import { 
   ProgressCalculator
-} from '@/lib/utils/generation-progress'
-import { useErrorHandler as useGenerationErrorHandler } from '@/lib/generation/error-handler'
+} from '@/shared/lib/utils/generation-progress'
+import { useErrorHandler as useGenerationErrorHandler } from '@/shared/lib/generation/error-handler'
 
 interface ImageBrushModalProps {
   isOpen: boolean

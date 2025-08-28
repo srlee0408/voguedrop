@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { generateVideo } from '@/lib/fal-ai';
+import { generateVideo } from '@/infrastructure/ai-services/fal-ai';
 import {
   checkDailyGenerationLimit
-} from '@/lib/db/video-generations';
-import { uploadBase64Image } from '@/shared/lib/supabase/storage';
-import { createClient } from '@/shared/lib/supabase/server';
+} from '@/shared/lib/db/video-generations';
+import { uploadBase64Image } from '@/infrastructure/supabase/storage';
+import { createClient } from '@/infrastructure/supabase/server';
 
 export const maxDuration = 60; // Vercel 함수 타임아웃 60초
 

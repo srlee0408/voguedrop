@@ -1,3 +1,24 @@
+/**
+ * useSmartCacheManager - 지능형 캐시 관리 훅
+ * 
+ * 주요 역할:
+ * 1. 사용자 액션에 따른 지능적인 캐시 무효화 전략 실행
+ * 2. 즉시/지연/낙관적 업데이트 조합으로 성능과 일관성 균형
+ * 3. 캐시 상태 진단 및 메모리 최적화 기능 제공
+ * 4. 데이터 정합성 검증 및 캐시 내 아이템 검색 지원
+ * 
+ * 핵심 특징:
+ * - 액션별 차별화된 캐시 무효화 전략 (upload, generate, favorite, delete, edit)
+ * - 즉시 무효화/지연 무효화/낙관적 업데이트의 3단계 처리
+ * - predicate 기반 패턴 매칭으로 가변 캐시 키 무효화
+ * - 캐시 헬스 체크 및 자동 메모리 정리
+ * - InfiniteData와 배열 모두 지원하는 범용 아이템 검색
+ * 
+ * 주의사항:
+ * - 지연 무효화는 2초 후 실행되어 네트워크 부하 분산
+ * - favorite 액션은 낙관적 업데이트만 사용하여 즉각성 확보
+ * - 캐시 정리는 5분 이상 미사용 쿼리 대상으로 제한
+ */
 import { useCallback, useMemo } from 'react';
 import { useQueryClient, InfiniteData } from '@tanstack/react-query';
 import { LIBRARY_CACHE_KEYS, CACHE_INVALIDATION_PREDICATES } from '../constants/cache-keys';

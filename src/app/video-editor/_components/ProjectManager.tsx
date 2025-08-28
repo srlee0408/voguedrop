@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation';
 import { ProjectSwitchConfirmModal } from '@/shared/components/modals/ProjectSwitchConfirmModal';
 import { useClips } from '../_context/Providers';
 import { useProject } from '../_context/Providers';
-import { useManualSave } from '../_hooks/useManualSave';
-import type { SaveStatus } from '../_hooks/useManualSave';
+import { useManualSave } from '@/features/video-editing/_hooks/useManualSave';
+import type { SaveStatus } from '@/features/video-editing/_hooks/useManualSave';
 import type { VideoClip, TextClip, SoundClip } from '@/shared/types/video-editor';
 
 interface ProjectManagerProps {

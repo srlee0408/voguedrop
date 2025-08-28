@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/shared/lib/supabase/server';
+import { createClient } from '@/infrastructure/supabase/server';
 
 /**
  * 활성 비디오 생성 작업 목록 조회 API

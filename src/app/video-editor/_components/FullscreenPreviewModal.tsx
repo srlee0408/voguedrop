@@ -5,7 +5,7 @@ import { Player, PlayerRef, RenderPoster } from '@remotion/player';
 import { CompositePreview } from './remotion/CompositePreview';
 import { PlayerControls } from './PlayerControls';
 import { BufferingSpinner } from './BufferingSpinner';
-import { useRemotionPlayer } from '../_hooks/useRemotionPlayer';
+import { useRemotionPlayer } from '@/features/video-editing/_hooks/useRemotionPlayer';
 import { TextClip as TextClipType, SoundClip as SoundClipType } from '@/shared/types/video-editor';
 
 interface PreviewClip {

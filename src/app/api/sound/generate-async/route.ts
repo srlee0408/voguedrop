@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/shared/lib/supabase/server';
-import { createServiceClient } from '@/shared/lib/supabase/service';
-import { requireAuth } from '@/lib/api/auth';
+import { createClient } from '@/infrastructure/supabase/server';
+import { createServiceClient } from '@/infrastructure/supabase/service';
+import { requireAuth } from '@/shared/lib/api/auth';
 import { nanoid } from 'nanoid';
-import { processSoundTitle } from '@/lib/sound/utils';
+import { processSoundTitle } from '@/shared/lib/sound/utils';
 import { SoundGenerationType } from '@/shared/types/sound';
-import { getErrorMessage, createUserFriendlyError } from '@/lib/errors/user-friendly-errors';
+import { getErrorMessage, createUserFriendlyError } from '@/shared/lib/errors/user-friendly-errors';
 import * as Sentry from "@sentry/nextjs";
 
 interface GenerateSoundRequest {

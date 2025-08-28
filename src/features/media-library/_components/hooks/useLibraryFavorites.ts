@@ -52,14 +52,14 @@ export function useLibraryFavorites({
     [string, string, string, string, number],
     string | undefined
   >({
-    // 통합 키 규칙과 동일하게 사용 (clips/favorites)
+    // 캐시 키를 통합 키 규칙과 맞춤 (clips/favorites)
     queryKey: ['library', 'clips', 'favorites', 'infinite', limit],
     queryFn: ({ pageParam }) => fetchFavoritesPage({ limit, cursor: pageParam }),
     initialPageParam: undefined,
     getNextPageParam: (lastPage) => 
       lastPage.pagination?.hasNextPage ? lastPage.pagination.nextCursor : undefined,
     enabled,
-    // 모달 재오픈 시 항상 최신화
+    // 모달을 열 때마다 실제 값을 보장하기 위해 즉시 stale 처리
     staleTime: 0,
     // 모달 첫 진입 시 0에서 점진 로딩되도록 캐시를 짧게 유지
     gcTime: 0,

@@ -1,6 +1,6 @@
 import { toast } from 'sonner';
 import * as Sentry from "@sentry/nextjs";
-import { getErrorMessage } from '@/lib/errors/user-friendly-errors';
+import { getErrorMessage } from '@/shared/lib/errors/user-friendly-errors';
 
 export const toastError = (error: unknown, context?: string) => {
   // 기술적 에러는 Sentry로 전송 (클라이언트 사이드에서만)

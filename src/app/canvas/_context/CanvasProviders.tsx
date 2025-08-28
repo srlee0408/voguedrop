@@ -7,7 +7,7 @@ import { ModalProvider } from './ModalContext';
 import { FavoritesProvider } from './FavoritesContext';
 import { EffectsProvider } from './EffectsContext';
 import { GenerationProvider } from './GenerationContext';
-import { useCanvasPersistence } from '../_hooks/useCanvasPersistence';
+import { useCanvasPersistence } from '@/features/canvas-generation/_hooks/useCanvasPersistence';
 import { useSlot } from './SlotContext';
 import { useSettings } from './SettingsContext';
 import { useModals } from './ModalContext';

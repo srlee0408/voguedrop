@@ -1,13 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables')
-}
-
-const supabase = createClient(supabaseUrl, supabaseAnonKey)
+import { supabase } from './client';
 
 /**
  * Supabase Storage에 이미지를 업로드하고 공개 URL을 반환합니다.
@@ -77,26 +68,4 @@ export async function uploadBase64Image(base64: string, userId: string = 'anonym
   
   // 업로드 (동일한 uploadImage 함수 사용으로 자동으로 새 경로 구조 적용)
   return uploadImage(file, userId);
-}
-
-/**
- * Storage 경로를 공개 URL로 변환합니다.
- */
-export function getPublicUrl(path: string): string {
-  if (!path) return ''
-  
-  // If it's already a full URL, return as is
-  if (path.startsWith('http://') || path.startsWith('https://')) {
-    return path
-  }
-  
-  // If path doesn't start with a bucket name, assume it's a relative path
-  // Storage path format: bucket_name/path/to/file.ext
-  const cleanPath = path.startsWith('/') ? path.slice(1) : path
-  
-  // Add media-asset bucket prefix if not already present
-  const fullPath = cleanPath.startsWith('media-asset/') ? cleanPath : `media-asset/${cleanPath}`
-  
-  // Construct the full URL
-  return `${supabaseUrl}/storage/v1/object/public/${fullPath}`
 }

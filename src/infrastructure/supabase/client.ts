@@ -6,3 +6,6 @@ export function createClient() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
 }
+
+// Default client instance for backward compatibility
+export const supabase = createClient()

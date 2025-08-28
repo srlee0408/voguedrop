@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/shared/lib/supabase'
+import { supabase } from '@/infrastructure/supabase/client'
 
 interface EffectWithRelations {
   id: string

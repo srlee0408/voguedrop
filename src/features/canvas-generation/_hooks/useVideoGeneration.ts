@@ -24,9 +24,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { GeneratedVideo } from "@/shared/types/canvas";
 import type { SlotContent } from "../_types";
 import type { EffectTemplateWithMedia } from "@/shared/types/database";
-import { calculateVideoProgress, animateToComplete } from "@/lib/utils/generation-progress";
+import { calculateVideoProgress, animateToComplete } from "@/shared/lib/utils/generation-progress";
 import { upsert_active_job, update_active_job, remove_active_job, get_active_jobs } from '@/shared/lib/active-jobs';
-import { useErrorHandler } from "@/lib/generation/error-handler";
+import { useErrorHandler } from "@/shared/lib/generation/error-handler";
 
 // 통합 Progress 유틸리티 사용으로 기존 함수 제거됨
 

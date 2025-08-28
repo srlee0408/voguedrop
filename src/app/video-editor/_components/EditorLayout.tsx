@@ -3,7 +3,7 @@
 import { ReactNode } from 'react';
 import { Header } from '@/shared/components/layout/Header';
 import { useProject } from '../_context/Providers';
-import type { SaveStatus } from '../_hooks/useManualSave';
+import type { SaveStatus } from '@/features/video-editing/_hooks/useManualSave';
 
 interface EditorLayoutProps {
   previewSection: ReactNode;

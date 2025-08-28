@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/shared/lib/supabase/server';
-import { createServiceClient } from '@/shared/lib/supabase/service';
+import { createClient } from '@/infrastructure/supabase/server';
+import { createServiceClient } from '@/infrastructure/supabase/service';
 
 interface RouteParams {
   params: Promise<{

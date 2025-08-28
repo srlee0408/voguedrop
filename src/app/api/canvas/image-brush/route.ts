@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/shared/lib/supabase/server';
+import { createClient } from '@/infrastructure/supabase/server';
 import type { ImageBrushRequest, ImageBrushResponse } from '@/shared/types/image-brush';
-import { getErrorMessage, createUserFriendlyError } from '@/lib/errors/user-friendly-errors';
+import { getErrorMessage, createUserFriendlyError } from '@/shared/lib/errors/user-friendly-errors';
 import * as Sentry from "@sentry/nextjs";
 
 /**

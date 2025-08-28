@@ -13,9 +13,9 @@ import {
   useEffects,
   useGeneration
 } from '../_context/CanvasProviders'
-import { useBeforeUnload } from '../_hooks/useBeforeUnload'
+import { useBeforeUnload } from '@/features/canvas-generation/_hooks/useBeforeUnload'
 import { ProjectSelectorModal } from '@/shared/components/modals/ProjectSelectorModal'
-import { useLibraryInfinitePrefetch } from '@/shared/components/modals/library/hooks/useLibraryInfinitePrefetch'
+import { useLibraryInfinitePrefetch } from '@/features/media-library/_components/hooks/useLibraryInfinitePrefetch'
 import type { GeneratedVideo } from '@/shared/types/canvas'
 
 /**

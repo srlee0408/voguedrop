@@ -1,7 +1,7 @@
 import { Bell, Edit2, Check, Loader2, AlertCircle, User } from "lucide-react"
 import Link from "next/link"
 import { useState, useEffect, useRef } from "react"
-import { useLibraryInfinitePrefetch } from "@/shared/components/modals/library/hooks/useLibraryInfinitePrefetch"
+import { useLibraryInfinitePrefetch } from "@/features/media-library/_components/hooks/useLibraryInfinitePrefetch"
 import { SettingsModal } from '@/shared/components/modals/SettingsModal'
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'

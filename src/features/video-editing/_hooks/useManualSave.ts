@@ -1,5 +1,5 @@
 import { useCallback, useState, useRef, useEffect } from 'react';
-import { saveProject } from '@/lib/api/projects';
+import { saveProject } from '@/shared/lib/api/projects';
 import { VideoClip, TextClip, SoundClip } from '@/shared/types/video-editor';
 import { toast } from 'sonner';
 

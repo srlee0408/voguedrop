@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { X, Loader2 } from "lucide-react"
-import { createNewProject } from "@/lib/api/projects"
-import { getShortId } from "@/shared/lib/utils"
+import { createNewProject } from "@/shared/lib/api/projects"
+import { getShortId } from "@/shared/lib/utils/generation-progress"
 import { toast } from "sonner"
 
 interface ProjectTitleModalProps {

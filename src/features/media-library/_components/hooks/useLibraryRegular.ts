@@ -1,3 +1,24 @@
+/**
+ * useLibraryRegular - 일반 클립 무한 스크롤 데이터 관리 훅
+ * 
+ * 주요 역할:
+ * 1. 즐겨찾기가 아닌 일반 클립들의 무한 스크롤 페이지네이션
+ * 2. cursor 기반 페이지네이션으로 성능 최적화된 데이터 로딩
+ * 3. 캐시 우선 정책으로 프리페칭된 데이터 활용 극대화
+ * 4. 에러 처리 및 재시도 로직 포함한 안정적인 데이터 페칭
+ * 
+ * 핵심 특징:
+ * - useInfiniteQuery 기반 React Query 패턴 준수
+ * - 15분 캐시 유지로 프리페칭 효율성 극대화
+ * - backward compatibility를 위한 API 응답 형태 지원
+ * - fetchNextPage/refetch 래퍼 함수로 타입 안전성 보장
+ * - 플래튼 데이터와 총 개수 계산 자동 처리
+ * 
+ * 주의사항:
+ * - 일반 클립만 대상으로 하며 즐겨찾기는 별도 훅 사용
+ * - cursor 페이지네이션이므로 nextCursor 관리 중요
+ * - 캐시 우선 정책으로 네트워크 요청 최소화
+ */
 import { useInfiniteQuery, InfiniteData } from '@tanstack/react-query';
 import { LibraryResponse } from '@/shared/types/library-modal';
 import { LibraryVideo } from '@/shared/types/video-editor';

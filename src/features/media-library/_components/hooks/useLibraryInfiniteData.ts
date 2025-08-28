@@ -1,3 +1,24 @@
+/**
+ * useLibraryInfiniteData - 무한 스크롤 라이브러리 데이터 통합 관리 훅
+ * 
+ * 주요 역할:
+ * 1. 무한 스크롤과 프리페칭을 결합한 최적화된 데이터 로딩
+ * 2. Intersection Observer 기반 자동 페이지 로드 및 스크롤 감지
+ * 3. 통합/개별 카테고리별 무한 스크롤 데이터 제공
+ * 4. 플래튼된 데이터와 로딩 상태 관리 통합
+ * 
+ * 핵심 특징:
+ * - useCombinedLibraryInfinite + useLibraryInfinitePrefetch 조합
+ * - Progressive Enhancement로 모달 오픈 시 즉시 데이터 제공
+ * - Intersection Observer 기반 lastElementRef 자동 페이지 로드
+ * - 스크롤 위치 기반 지능형 다음 페이지 프리페칭
+ * - 개별 카테고리별 전용 훅 (Clips, Projects, Uploads) 제공
+ * 
+ * 주의사항:
+ * - Intersection Observer는 100px rootMargin으로 미리 트리거
+ * - 스크롤 기반 프리페칭은 화면 하단 근접도로 계산
+ * - 개별 카테고리 훅들은 동일한 combined 쿼리 재사용
+ */
 import { useCallback, useEffect, useMemo } from 'react';
 import { LibraryVideo, LibraryProject, UserUploadedVideo } from '@/shared/types/video-editor';
 import { LibraryCounts } from '@/shared/types/library-modal';

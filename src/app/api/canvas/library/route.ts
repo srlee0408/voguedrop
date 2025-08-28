@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/shared/lib/supabase/server';
-import { createServiceClient } from '@/shared/lib/supabase/service';
-import { requireAuth } from '@/lib/api/auth';
+import { createClient } from '@/infrastructure/supabase/server';
+import { createServiceClient } from '@/infrastructure/supabase/service';
+import { requireAuth } from '@/shared/lib/api/auth';
 
 export async function GET(request: NextRequest) {
   try {

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getCategories } from '@/lib/api/gallery'
+import { getCategories } from '@/shared/lib/api/gallery'
 
 /**
  * 카테고리 API

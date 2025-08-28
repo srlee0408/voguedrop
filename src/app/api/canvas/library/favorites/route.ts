@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/api/auth';
+import { requireAuth } from '@/shared/lib/api/auth';
 
 /**
  * 즐겨찾기 클립 전용 API 엔드포인트

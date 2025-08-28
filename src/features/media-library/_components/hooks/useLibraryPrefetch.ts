@@ -1,8 +1,29 @@
+/**
+ * useLibraryPrefetch - 라이브러리 데이터 프리페칭 관리 훅
+ * 
+ * 주요 역할:
+ * 1. 사용자 인터랙션을 예측한 미리 데이터 캐시 로드
+ * 2. Progressive Enhancement 방식 3단계 프리페칭 구현
+ * 3. 호버, 백그라운드, 점진적 로딩 시나리오별 최적화
+ * 4. 프리페칭 상태 추적 및 중복 요청 방지
+ * 
+ * 핵심 특징:
+ * - 1단계: 카운트 정보 (가장 가벼운 데이터)
+ * - 2단계: 기본 데이터 (첫 20개 아이템)
+ * - 3단계: 전체 데이터 (모든 아이템)
+ * - requestIdleCallback 활용한 유휴 시간 프리페칭
+ * - 플래그 기반 중복 방지 및 상태 추적
+ * 
+ * 주의사항:
+ * - 인증된 사용자에게만 프리페칭 실행
+ * - 프리페칭 실패 시 경고만 출력하고 앱 실행 중단하지 않음
+ * - 사용자 로그아웃 시 프리페칭 플래그 리셋 필요
+ */
 import { useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { LIBRARY_CACHE_KEYS } from '@/features/media-library/_components/constants/cache-keys';
+import { LIBRARY_CACHE_KEYS } from '../constants/cache-keys';
 import { useAuth } from '@/features/user-auth/_context/AuthContext';
-import { fetchLibraryCounts } from '@/features/media-library/_components/_services/api';
+import { fetchLibraryCounts } from '../_services/api';
 
 // 프리페칭 상태 추적을 위한 플래그
 interface PrefetchFlags {

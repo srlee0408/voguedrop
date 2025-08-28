@@ -7,12 +7,12 @@ import TimelineTrack from './TimelineTrack';
 import TimelinePlayhead from './TimelinePlayhead';
 import TimelineSelectionBox from './TimelineSelectionBox';
 import TimelineGrid from './TimelineGrid';
-import { useDragAndDrop } from '../_hooks/useDragAndDrop';
-import { useSelectionState } from '../_hooks/useSelectionState';
+import { useDragAndDrop } from '@/features/video-editing/_hooks/useDragAndDrop';
+import { useSelectionState } from '@/features/video-editing/_hooks/useSelectionState';
 import { useClips } from '../_context/Providers';
-import { calculateTimelineDuration, generateTimeMarkers, magneticPositioning, getMaxOverlapRatio, OVERLAP_REPLACE_THRESHOLD, getMaxOverlapTarget } from '../_utils/common-clip-utils';
+import { calculateTimelineDuration, generateTimeMarkers, magneticPositioning, getMaxOverlapRatio, OVERLAP_REPLACE_THRESHOLD, getMaxOverlapTarget } from '@/features/video-editing/_utils/common-clip-utils';
 import { useUserPreferences } from '@/shared/hooks/useUserPreferences';
-import { getClipsForLane, canAddNewLane, getTextClipsForLane, canAddNewTextLane, getVideoClipsForLane, canAddNewVideoLane } from '../_utils/lane-arrangement';
+import { getClipsForLane, canAddNewLane, getTextClipsForLane, canAddNewTextLane, getVideoClipsForLane, canAddNewVideoLane } from '@/features/video-editing/_utils/lane-arrangement';
 
 interface TimelineProps {
   clips: VideoClipType[];
@@ -1029,7 +1029,7 @@ export default function Timeline({
 
           
           if (hasMulti) {
-            import('../_utils/common-clip-utils').then(({ handleClipDrag }) => {
+            import('@/features/video-editing/_utils/common-clip-utils').then(({ handleClipDrag }) => {
               // 겹침 임계치 충족 여부 사전 계산 (선택된 모든 클립 기준)
               const anyNeedsReplacement = (() => {
                 // 비디오 선택 클립 검사
@@ -1201,7 +1201,7 @@ export default function Timeline({
             });
           } else {
             // 단일 이동 (기존 동작)
-            import('../_utils/common-clip-utils').then(({ handleClipDrag }) => {
+            import('@/features/video-editing/_utils/common-clip-utils').then(({ handleClipDrag }) => {
               if (activeClipType === 'video') {
                 // 교체 임계치 확인
                 const clip = clips.find(c => c.id === activeClip);
@@ -1299,7 +1299,7 @@ export default function Timeline({
           const finalWidth = finalResizeWidth || startWidth;
           const finalPosition = resizeHandle === 'left' ? finalResizePosition : startPosition;
           
-          import('../_utils/common-clip-utils').then(({ handleClipResize }) => {
+          import('@/features/video-editing/_utils/common-clip-utils').then(({ handleClipResize }) => {
             if (activeClipType === 'video') {
               handleClipResize(
                 activeClip, 

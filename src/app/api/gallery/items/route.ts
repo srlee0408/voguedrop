@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getGalleryItems } from '@/lib/api/gallery'
+import { getGalleryItems } from '@/shared/lib/api/gallery'
 
 /**
  * 갤러리 아이템 API

@@ -1,7 +1,7 @@
 import { Plus, X } from "lucide-react";
 import Image from "next/image";
 import { useState, useCallback, useRef, useEffect } from "react";
-import { ERROR_MESSAGES } from "@/lib/constants/errors";
+import { ERROR_MESSAGES } from "@/shared/lib/constants/errors";
 
 interface ImageSectionProps {
   uploadedImage?: string | null;

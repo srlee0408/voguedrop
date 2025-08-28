@@ -2,9 +2,9 @@
 
 import { createContext, useContext, useState, useCallback, useMemo, ReactNode, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { loadProject, createNewProject } from '@/lib/api/projects';
-import { getShortId } from '@/shared/lib/utils';
-import type { SaveStatus } from '../_hooks/useManualSave';
+import { loadProject, createNewProject } from '@/shared/lib/api/projects';
+import { getShortId } from '@/shared/lib/utils/generation-progress';
+import type { SaveStatus } from '@/features/video-editing/_hooks/useManualSave';
 
 /**
  * 프로젝트 관리 Context의 타입 정의

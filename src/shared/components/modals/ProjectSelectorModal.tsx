@@ -4,8 +4,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { X, Plus, Film, Clock, Trash2 } from 'lucide-react';
 import Image from 'next/image';
-import { fetchUserProjects, deleteProject, formatRelativeTime, formatDuration } from '@/lib/api/projects';
-import type { ProjectListItem } from '@/lib/api/projects';
+import { fetchUserProjects, deleteProject, formatRelativeTime, formatDuration } from '@/shared/lib/api/projects';
+import type { ProjectListItem } from '@/shared/lib/api/projects';
 
 interface ProjectSelectorModalProps {
   isOpen: boolean;
