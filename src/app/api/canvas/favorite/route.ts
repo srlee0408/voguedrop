@@ -10,7 +10,7 @@ export async function PATCH(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json(
-        { error: '로그인이 필요합니다.' },
+        { error: 'Login required.' },
         { status: 401 }
       );
     }

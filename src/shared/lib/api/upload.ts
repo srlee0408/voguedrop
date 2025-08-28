@@ -37,7 +37,7 @@ export async function uploadVideo({
     if (!session?.access_token) {
       return {
         success: false,
-        error: '로그인이 필요합니다.'
+        error: 'Login required.'
       };
     }
 

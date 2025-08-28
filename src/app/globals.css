@@ -556,12 +556,12 @@
   
   /* Modal backdrop */
   .modal-backdrop {
-    @apply fixed inset-0 bg-black/50 backdrop-blur-sm z-40;
+    @apply fixed inset-0 bg-black/50 backdrop-blur-sm z-[9998];
   }
   
   /* Modal container */
   .modal-container {
-    @apply fixed inset-0 z-50 flex items-center justify-center p-4;
+    @apply fixed inset-0 z-[9999] flex items-center justify-center p-4;
   }
   
   /* Modal content */

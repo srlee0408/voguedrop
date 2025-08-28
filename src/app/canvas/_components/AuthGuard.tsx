@@ -60,8 +60,8 @@ export function AuthGuard({ children, fallback }: AuthGuardProps): React.ReactEl
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-900">
         <div className="text-center">
-          <p className="text-white text-lg mb-4">로그인이 필요합니다.</p>
-          <p className="text-gray-400">잠시 후 로그인 페이지로 이동합니다...</p>
+          <p className="text-white text-lg mb-4">Login required.</p>
+          <p className="text-gray-400">Redirecting to login page...</p>
         </div>
       </div>
     )

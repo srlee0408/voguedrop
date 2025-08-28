@@ -63,48 +63,48 @@ export class GenerationError extends Error {
  */
 function getDefaultMessage(code: GenerationErrorCode, type: 'video' | 'image' | 'sound'): string {
   const typeNames = {
-    video: '비디오',
-    image: '이미지',
-    sound: '사운드'
+    video: 'video',
+    image: 'image',
+    sound: 'sound'
   };
   const typeName = typeNames[type];
 
   switch (code) {
     case 'TIMEOUT':
-      return `${typeName} 생성 시간이 초과되었습니다. 다시 시도해주세요.`;
+      return `${typeName} generation timed out. Please try again.`;
     
     case 'RATE_LIMIT':
-      return '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.';
+      return 'Too many requests. Please try again later.';
     
     case 'INVALID_INPUT':
-      return '입력 데이터가 올바르지 않습니다. 내용을 확인해주세요.';
+      return 'Invalid input data. Please check your content.';
     
     case 'API_ERROR':
-      return `${typeName} 생성 서비스에 문제가 발생했습니다. 잠시 후 다시 시도해주세요.`;
+      return `${typeName} generation service encountered an error. Please try again later.`;
     
     case 'NETWORK_ERROR':
-      return '네트워크 연결을 확인해주세요.';
+      return 'Please check your network connection.';
     
     case 'AUTH_ERROR':
-      return '로그인이 필요합니다. 다시 로그인해주세요.';
+      return 'Login required. Please sign in again.';
     
     case 'QUOTA_EXCEEDED':
-      return '일일 생성 한도를 초과했습니다. 내일 다시 시도해주세요.';
+      return 'Daily generation limit exceeded. Please try again tomorrow.';
     
     case 'WEBHOOK_TIMEOUT':
-      return `${typeName} 생성이 지연되고 있습니다. 계속 기다리거나 다시 시도해주세요.`;
+      return `${typeName} generation is taking longer than expected. Please wait or try again.`;
     
     case 'PROCESSING_FAILED':
-      return `${typeName} 생성 중 오류가 발생했습니다. 다시 시도해주세요.`;
+      return `An error occurred during ${typeName} generation. Please try again.`;
     
     case 'FILE_TOO_LARGE':
-      return '파일 크기가 너무 큽니다. 더 작은 파일을 사용해주세요.';
+      return 'File size is too large. Please use a smaller file.';
     
     case 'UNSUPPORTED_FORMAT':
-      return '지원하지 않는 파일 형식입니다. 다른 형식을 사용해주세요.';
+      return 'Unsupported file format. Please use a different format.';
     
     default:
-      return `${typeName} 생성 중 예상치 못한 오류가 발생했습니다.`;
+      return `An unexpected error occurred during ${typeName} generation.`;
   }
 }
 
@@ -226,17 +226,17 @@ function analyzeGeneralError(
   let code: GenerationErrorCode;
 
   // 메시지 패턴 매칭
-  if (message.includes('timeout') || message.includes('시간 초과')) {
+  if (message.includes('timeout')) {
     code = 'TIMEOUT';
   } else if (message.includes('network') || message.includes('fetch')) {
     code = 'NETWORK_ERROR';
-  } else if (message.includes('limit') || message.includes('한도')) {
+  } else if (message.includes('limit')) {
     code = 'QUOTA_EXCEEDED';
-  } else if (message.includes('auth') || message.includes('로그인') || message.includes('unauthorized')) {
+  } else if (message.includes('auth') || message.includes('unauthorized')) {
     code = 'AUTH_ERROR';
-  } else if (message.includes('file too large') || message.includes('파일 크기')) {
+  } else if (message.includes('file too large')) {
     code = 'FILE_TOO_LARGE';
-  } else if (message.includes('unsupported') || message.includes('지원하지 않는')) {
+  } else if (message.includes('unsupported')) {
     code = 'UNSUPPORTED_FORMAT';
   } else if (message.includes('webhook')) {
     code = 'WEBHOOK_TIMEOUT';
@@ -290,20 +290,20 @@ export function createUserErrorMessage(error: GenerationError): {
   retryable: boolean;
 } {
   const typeNames = {
-    video: '비디오 생성',
-    image: '이미지 편집',  
-    sound: '사운드 생성'
+    video: 'Video Generation',
+    image: 'Image Editing',  
+    sound: 'Sound Generation'
   };
 
-  const title = `${typeNames[error.context.generationType]} 실패`;
+  const title = `${typeNames[error.context.generationType]} Failed`;
   
   let action: string | undefined;
   if (error.retryable) {
-    action = '다시 시도';
+    action = 'Try Again';
   } else if (error.code === 'AUTH_ERROR') {
-    action = '로그인';
+    action = 'Sign In';
   } else if (error.code === 'QUOTA_EXCEEDED') {
-    action = '요금제 업그레이드';
+    action = 'Upgrade Plan';
   }
 
   return {

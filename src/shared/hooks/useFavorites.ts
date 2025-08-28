@@ -256,7 +256,7 @@ export function useFavorites(): FavoritesReturn {
   // 즐겨찾기 토글 (debounce 적용)
   const toggleFavorite = useCallback(async (videoId: string): Promise<void> => {
     if (!user) {
-      throw new Error('로그인이 필요합니다.')
+      throw new Error('Login required.')
     }
 
     // 이미 진행 중인 경우 중복 실행 방지

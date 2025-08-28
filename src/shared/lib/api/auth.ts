@@ -19,7 +19,7 @@ export async function requireAuth(request: NextRequest): Promise<{
     return {
       user: null,
       error: NextResponse.json(
-        { error: '로그인이 필요합니다.' },
+        { error: 'Login required.' },
         { status: 401 }
       )
     };

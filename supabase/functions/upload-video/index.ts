@@ -59,7 +59,7 @@ serve(async (req) => {
 
     if (authError || !user) {
       return new Response(
-        JSON.stringify({ error: '로그인이 필요합니다.' }),
+        JSON.stringify({ error: 'Login required.' }),
         { 
           status: 401,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }

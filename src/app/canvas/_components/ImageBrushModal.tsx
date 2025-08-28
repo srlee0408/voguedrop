@@ -611,7 +611,7 @@ export function ImageBrushModal({
           background: #6b7280;
         }
       `}</style>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4">
       {/* Main Modal with integrated Before/After */}
       <div className="bg-gray-800 rounded-xl w-full max-w-[1400px] max-h-[95vh] flex flex-col">
         {/* Header */}

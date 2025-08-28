@@ -251,7 +251,7 @@ export default function TextEditorModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center">
       <div className="bg-gray-800 rounded-lg w-[1000px] max-w-[90vw] h-[700px] max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-700">

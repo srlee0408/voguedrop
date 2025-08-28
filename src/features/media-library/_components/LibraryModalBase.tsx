@@ -451,7 +451,7 @@ export function LibraryModalBase({ isOpen, onClose, config }: LibraryModalBasePr
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center p-4">
       <div className="bg-gray-800 rounded-xl w-full max-w-[1200px] max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex justify-between items-center p-6 pb-2">

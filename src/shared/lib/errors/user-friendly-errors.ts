@@ -46,37 +46,37 @@ export const ERROR_CODES = {
 
 export const errorMessages = {
   // Video Generation
-  [ERROR_CODES.VIDEO_GENERATION_FAILED]: '영상 생성에 실패했습니다. 잠시 후 다시 시도해주세요.',
-  [ERROR_CODES.VIDEO_GENERATION_TIMEOUT]: '영상 생성 시간이 초과되었습니다. 더 간단한 효과로 시도해보세요.',
-  [ERROR_CODES.VIDEO_INVALID_EFFECTS]: '선택한 효과가 올바르지 않습니다. 다시 선택해주세요.',
-  [ERROR_CODES.VIDEO_IMAGE_TOO_LARGE]: '이미지 크기가 너무 큽니다. 10MB 이하의 이미지를 사용해주세요.',
-  [ERROR_CODES.VIDEO_INVALID_FORMAT]: '지원하지 않는 이미지 형식입니다. JPG, PNG 형식을 사용해주세요.',
+  [ERROR_CODES.VIDEO_GENERATION_FAILED]: 'Video generation failed. Please try again later.',
+  [ERROR_CODES.VIDEO_GENERATION_TIMEOUT]: 'Video generation timed out. Try using simpler effects.',
+  [ERROR_CODES.VIDEO_INVALID_EFFECTS]: 'Selected effects are invalid. Please choose again.',
+  [ERROR_CODES.VIDEO_IMAGE_TOO_LARGE]: 'Image size is too large. Please use images under 10MB.',
+  [ERROR_CODES.VIDEO_INVALID_FORMAT]: 'Unsupported image format. Please use JPG or PNG format.',
   
   // Image Brush
-  [ERROR_CODES.IMAGE_PROCESSING_FAILED]: '이미지 처리에 실패했습니다. 다른 이미지로 시도해주세요.',
-  [ERROR_CODES.IMAGE_TOO_LARGE]: '이미지 크기가 너무 큽니다. 10MB 이하의 이미지를 사용해주세요.',
-  [ERROR_CODES.INVALID_IMAGE_FORMAT]: '지원하지 않는 이미지 형식입니다. JPG, PNG 형식을 사용해주세요.',
-  [ERROR_CODES.IMAGE_MASK_REQUIRED]: '마스크 이미지가 필요합니다.',
-  [ERROR_CODES.IMAGE_REFERENCE_REQUIRED]: '참조 이미지가 필요합니다.',
-  [ERROR_CODES.IMAGE_PROMPT_REQUIRED]: '이미지 설명이 필요합니다.',
-  [ERROR_CODES.IMAGE_PROMPT_TOO_LONG]: '이미지 설명이 너무 깁니다. 500자 이내로 작성해주세요.',
+  [ERROR_CODES.IMAGE_PROCESSING_FAILED]: 'Image processing failed. Please try with a different image.',
+  [ERROR_CODES.IMAGE_TOO_LARGE]: 'Image size is too large. Please use images under 10MB.',
+  [ERROR_CODES.INVALID_IMAGE_FORMAT]: 'Unsupported image format. Please use JPG or PNG format.',
+  [ERROR_CODES.IMAGE_MASK_REQUIRED]: 'Mask image is required.',
+  [ERROR_CODES.IMAGE_REFERENCE_REQUIRED]: 'Reference image is required.',
+  [ERROR_CODES.IMAGE_PROMPT_REQUIRED]: 'Image description is required.',
+  [ERROR_CODES.IMAGE_PROMPT_TOO_LONG]: 'Image description is too long. Please keep it under 500 characters.',
   
   // Sound Generation
-  [ERROR_CODES.SOUND_GENERATION_FAILED]: '사운드 생성에 실패했습니다. 설명을 수정해보세요.',
-  [ERROR_CODES.SOUND_PROMPT_REQUIRED]: '사운드 설명을 입력해주세요.',
-  [ERROR_CODES.SOUND_PROMPT_TOO_LONG]: '설명이 너무 깁니다. 450자 이내로 작성해주세요.',
-  [ERROR_CODES.SOUND_DURATION_INVALID]: '길이는 1초에서 22초 사이여야 합니다.',
+  [ERROR_CODES.SOUND_GENERATION_FAILED]: 'Sound generation failed. Please try modifying the description.',
+  [ERROR_CODES.SOUND_PROMPT_REQUIRED]: 'Please enter a sound description.',
+  [ERROR_CODES.SOUND_PROMPT_TOO_LONG]: 'Description is too long. Please keep it under 450 characters.',
+  [ERROR_CODES.SOUND_DURATION_INVALID]: 'Duration must be between 1 and 22 seconds.',
   
   // Common
-  [ERROR_CODES.AUTH_REQUIRED]: '로그인이 필요한 서비스입니다.',
-  [ERROR_CODES.RATE_LIMIT_EXCEEDED]: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.',
-  [ERROR_CODES.NETWORK_ERROR]: '네트워크 연결을 확인해주세요.',
-  [ERROR_CODES.SERVER_ERROR]: '서버에 일시적인 문제가 발생했습니다.',
-  [ERROR_CODES.TIMEOUT_ERROR]: '처리 시간이 초과되었습니다. 잠시 후 다시 시도해주세요.',
-  [ERROR_CODES.VALIDATION_ERROR]: '입력된 정보가 올바르지 않습니다.',
+  [ERROR_CODES.AUTH_REQUIRED]: 'Login is required for this service.',
+  [ERROR_CODES.RATE_LIMIT_EXCEEDED]: 'Too many requests. Please try again later.',
+  [ERROR_CODES.NETWORK_ERROR]: 'Please check your network connection.',
+  [ERROR_CODES.SERVER_ERROR]: 'A temporary server issue has occurred.',
+  [ERROR_CODES.TIMEOUT_ERROR]: 'Processing time exceeded. Please try again later.',
+  [ERROR_CODES.VALIDATION_ERROR]: 'The entered information is not valid.',
   
   // Default
-  [ERROR_CODES.DEFAULT]: '작업을 처리하는 중 문제가 발생했습니다. 잠시 후 다시 시도해주세요.',
+  [ERROR_CODES.DEFAULT]: 'An error occurred while processing. Please try again later.',
 };
 
 export function getErrorMessage(error: unknown): string {

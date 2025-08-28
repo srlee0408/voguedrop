@@ -116,7 +116,7 @@ export async function generateVideo({
     // 401 에러의 경우 더 명확한 메시지
     const errorWithStatus = error as { status?: number };
     if (errorWithStatus?.status === 401) {
-      throw new Error('fal.ai API 인증 실패. API 키를 확인해주세요.');
+      throw new Error('fal.ai API authentication failed. Please check your API key.');
     }
     
     throw new Error(
@@ -213,7 +213,7 @@ export async function generateSound({
     // 401 에러의 경우 더 명확한 메시지
     const errorWithStatus = error as { status?: number };
     if (errorWithStatus?.status === 401) {
-      throw new Error('fal.ai API 인증 실패. API 키를 확인해주세요.');
+      throw new Error('fal.ai API authentication failed. Please check your API key.');
     }
     
     throw new Error(
