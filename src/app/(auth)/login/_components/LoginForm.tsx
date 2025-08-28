@@ -96,13 +96,13 @@ export function LoginForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {error && (
-        <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-4">
-          <p className="text-sm text-destructive">{error}</p>
+        <div className="status-error">
+          <p className="text-sm">{error}</p>
         </div>
       )}
 
       <div>
-        <label htmlFor="email" className="block text-sm font-medium text-foreground mb-2">
+        <label htmlFor="email" className="text-label mb-2 block">
           Email
         </label>
         <input
@@ -119,7 +119,7 @@ export function LoginForm() {
       </div>
 
       <div>
-        <label htmlFor="password" className="block text-sm font-medium text-foreground mb-2">
+        <label htmlFor="password" className="text-label mb-2 block">
           Password
         </label>
         <input
@@ -138,7 +138,7 @@ export function LoginForm() {
       <button
         type="submit"
         disabled={isLoading}
-        className="w-full rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg shadow-primary/20"
+        className="btn-primary w-full shadow-lg shadow-primary/20"
       >
         {isLoading ? 'Signing in...' : 'Sign in'}
       </button>

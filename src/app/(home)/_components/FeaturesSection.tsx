@@ -47,9 +47,9 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
 }
 
 const iconColors = [
-  "bg-green-500/20 text-green-400",
-  "bg-blue-500/20 text-blue-400",
-  "bg-yellow-500/20 text-yellow-400",
+  "status-success",
+  "status-info", 
+  "status-warning",
   "bg-purple-500/20 text-purple-400",
   "bg-pink-500/20 text-pink-400",
   "bg-indigo-500/20 text-indigo-400"
@@ -72,22 +72,22 @@ export function FeaturesSection({ texts }: FeaturesSectionProps) {
         </div>
 
         <div className="flex flex-wrap justify-center gap-3 mb-12">
-          <div className="flex items-center gap-2 px-4 py-2 bg-gray-800/50 rounded-full">
+          <div className="flex-center gap-2 px-4 py-2 bg-gray-800/50 rounded-full">
             <Target className="w-4 h-4 text-green-400" />
-            <span className="text-sm text-gray-300">Zooms & Pans</span>
+            <span className="text-body text-gray-300">Zooms & Pans</span>
           </div>
-          <div className="flex items-center gap-2 px-4 py-2 bg-gray-800/50 rounded-full">
+          <div className="flex-center gap-2 px-4 py-2 bg-gray-800/50 rounded-full">
             <Film className="w-4 h-4 text-blue-400" />
-            <span className="text-sm text-gray-300">Retro Filters</span>
+            <span className="text-body text-gray-300">Retro Filters</span>
           </div>
-          <div className="flex items-center gap-2 px-4 py-2 bg-gray-800/50 rounded-full">
+          <div className="flex-center gap-2 px-4 py-2 bg-gray-800/50 rounded-full">
             <Volume2 className="w-4 h-4 text-purple-400" />
-            <span className="text-sm text-gray-300">AI Sound</span>
+            <span className="text-body text-gray-300">AI Sound</span>
           </div>
         </div>
 
         {texts.tagline && (
-          <p className="text-center text-gray-400 mb-12">
+          <p className="text-center text-body-secondary mb-12">
             {texts.tagline}
           </p>
         )}
@@ -100,17 +100,17 @@ export function FeaturesSection({ texts }: FeaturesSectionProps) {
             return (
               <div
                 key={index}
-                className="group relative bg-gradient-to-b from-gray-900/90 to-gray-950/90 backdrop-blur rounded-2xl border border-gray-800 hover:border-gray-700 hover:shadow-2xl hover:shadow-white/5 hover:-translate-y-1 transition-all duration-300 overflow-hidden"
+                className="group relative surface-card hover:border-gray-700 hover:shadow-2xl hover:shadow-white/5 hover-lift transition-all duration-300 overflow-hidden"
               >
                 <div className="p-6">
-                  <div className={`w-10 h-10 rounded-lg ${iconColorClass} flex items-center justify-center mb-4`}>
+                  <div className={`w-10 h-10 rounded-lg ${iconColorClass} flex-center mb-4`}>
                     <Icon className="w-5 h-5" />
                   </div>
                   
-                  <h3 className="text-xl font-semibold mb-2 text-white">
+                  <h3 className="text-heading-2 mb-2 text-white">
                     {feature.title}
                   </h3>
-                  <p className="text-gray-400 text-sm mb-4">
+                  <p className="text-body-secondary mb-4">
                     {feature.description}
                   </p>
                 </div>

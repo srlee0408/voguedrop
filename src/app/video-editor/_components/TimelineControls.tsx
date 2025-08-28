@@ -87,7 +87,7 @@ export default function TimelineControls({
       {/* 좌측: Undo/Redo 버튼 */}
       <div className="flex items-center gap-2">
         <button
-          className={`w-8 h-8 flex items-center justify-center rounded transition-colors relative group ${
+          className={`btn-icon transition-colors relative group ${
             canUndo 
               ? 'hover:bg-gray-800 text-gray-400 hover:text-white cursor-pointer' 
               : 'text-gray-600 cursor-not-allowed opacity-50'
@@ -105,7 +105,7 @@ export default function TimelineControls({
           </span>
         </button>
         <button
-          className={`w-8 h-8 flex items-center justify-center rounded transition-colors relative group ${
+          className={`btn-icon transition-colors relative group ${
             canRedo 
               ? 'hover:bg-gray-800 text-gray-400 hover:text-white cursor-pointer' 
               : 'text-gray-600 cursor-not-allowed opacity-50'
@@ -128,7 +128,7 @@ export default function TimelineControls({
       <div className="flex items-center gap-3">
         {/* 처음으로 버튼 */}
         <button
-          className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-800 transition-colors text-gray-400 hover:text-white relative group"
+          className="btn-icon hover:bg-gray-800 transition-colors text-gray-400 hover:text-white relative group"
           onClick={() => onSeek(0)}
           title="처음으로 (Skip to Start)"
         >
@@ -141,7 +141,7 @@ export default function TimelineControls({
 
         {/* 재생/일시정지 버튼 */}
         <button
-          className="w-10 h-10 flex items-center justify-center rounded-full bg-[#38f47cf9] hover:bg-[#38f47c] transition-colors text-black relative group"
+          className="w-10 h-10 flex-center rounded-full bg-[#38f47cf9] hover:bg-[#38f47c] transition-colors text-black relative group"
           onClick={onPlayPause}
           title={isPlaying ? '일시정지 (Pause)' : '재생 (Play)'}
         >
@@ -156,7 +156,7 @@ export default function TimelineControls({
         <div className="flex items-center gap-1 ml-2 font-mono text-xs">
           <span className="text-white">{displayTime}</span>
           <span className="text-gray-500">/</span>
-          <span className={totalDuration > 180 ? "text-red-400" : "text-gray-400"}>{displayDuration}</span>
+          <span className={totalDuration > 180 ? "text-red-400" : "text-body-secondary"}>{displayDuration}</span>
           {totalDuration > 180 && (
             <span className="text-red-400 ml-2 text-[14px] font-sans">
               (Exceeds 3:00 limit)

@@ -70,7 +70,7 @@ export function HeroSection({ texts }: HeroSectionProps) {
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
               <Link href={user ? "/canvas" : "/login"}>
-                <Button size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground group w-full sm:w-auto shadow-lg shadow-primary/20 px-8 py-4 text-lg font-semibold">
+                <Button size="lg" className="btn-primary btn-lg group w-full sm:w-auto shadow-lg shadow-primary/20">
                   {user ? "Go to Canvas" : texts.cta.primary}
                   <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </Button>

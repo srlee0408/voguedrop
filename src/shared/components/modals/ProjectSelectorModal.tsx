@@ -40,11 +40,11 @@ function ProjectCard({ project, isNew, onClick, onDelete }: ProjectCardProps) {
     return (
       <button
         onClick={onClick}
-        className="relative aspect-video bg-gray-800 rounded-lg border-2 border-dashed border-gray-600 hover:border-blue-500 transition-colors group"
+        className="relative aspect-video bg-gray-800 rounded-lg border-2 border-dashed border-border hover:border-primary transition-colors group"
       >
-        <div className="flex flex-col items-center justify-center h-full gap-2">
-          <Plus className="w-12 h-12 text-gray-400 group-hover:text-blue-500" />
-          <span className="text-gray-400 group-hover:text-blue-500 font-medium">
+        <div className="flex-center flex-col h-full gap-2">
+          <Plus className="w-12 h-12 text-muted-foreground group-hover:text-primary" />
+          <span className="text-muted-foreground group-hover:text-primary font-medium">
             New Project
           </span>
         </div>
@@ -72,14 +72,14 @@ function ProjectCard({ project, isNew, onClick, onDelete }: ProjectCardProps) {
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           />
         ) : (
-          <div className="flex items-center justify-center h-full bg-gradient-to-br from-gray-800 to-gray-900">
+          <div className="flex-center h-full bg-gradient-to-br from-gray-800 to-gray-900">
             <Film className="w-12 h-12 text-gray-600" />
           </div>
         )}
         
         {/* 호버 오버레이 */}
         {isHovered && (
-          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50 flex-center">
             <div className="text-white text-center">
               <p className="text-sm font-medium mb-1">Click to edit</p>
               {project.duration_frames && (
@@ -95,7 +95,7 @@ function ProjectCard({ project, isNew, onClick, onDelete }: ProjectCardProps) {
         {isHovered && !showDeleteConfirm && (
           <button
             onClick={handleDelete}
-            className="absolute top-2 right-2 p-1.5 bg-red-500/80 hover:bg-red-500 rounded-full transition-colors"
+            className="absolute top-2 right-2 p-1.5 bg-destructive/80 hover:bg-destructive rounded-full transition-colors"
           >
             <Trash2 className="w-4 h-4 text-white" />
           </button>

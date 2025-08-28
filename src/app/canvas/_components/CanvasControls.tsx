@@ -52,7 +52,7 @@ export function CanvasControls({
   return (
     <div className="flex items-center gap-2 bg-surface-secondary p-2 rounded-lg border border-border">
       <Button
-        className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-button hover:bg-primary/90 disabled:bg-primary/50 disabled:cursor-not-allowed transition-colors"
+        className="btn-primary"
         onClick={onGenerateClick || onPromptModalOpen}
         disabled={!canGenerate}
       >
@@ -62,7 +62,7 @@ export function CanvasControls({
 
       <div className="relative">
         <select 
-          className="appearance-none bg-primary text-primary-foreground text-sm font-medium rounded-button px-4 py-2 pr-8 hover:bg-primary/90 transition-colors cursor-pointer"
+          className="appearance-none btn-primary pr-8 cursor-pointer"
           value={selectedDuration}
           onChange={(e) => onDurationChange?.(e.target.value)}
         >
@@ -77,7 +77,7 @@ export function CanvasControls({
       <div className="w-px h-6 bg-border"></div>
 
       <Button
-        className="flex items-center gap-2 px-3 h-10 bg-surface-secondary hover:bg-surface-tertiary text-text-secondary hover:text-text-primary rounded-button text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className="btn-ghost"
         onClick={onImageBrushOpen}
         disabled={!hasUploadedImage}
         variant="ghost"
@@ -88,7 +88,7 @@ export function CanvasControls({
       </Button>
 
       <button 
-        className="w-10 h-10 flex items-center justify-center text-text-secondary hover:text-text-primary rounded-button disabled:opacity-50 disabled:cursor-not-allowed"
+        className="btn-icon"
         onClick={onDownloadClick}
         disabled={!activeVideo || isDownloading}
         title={!activeVideo ? "Select a video to download" : "Download video"}

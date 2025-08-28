@@ -37,18 +37,18 @@ export function HowItWorksSection() {
                   <div className={`relative w-full md:w-2/5 lg:w-5/12 ${isEven ? 'md:mr-auto' : 'md:ml-auto'}`}>
                     {/* Connection dot - positioned at card edge */}
                     <div className={`hidden md:block absolute top-1/2 w-4 h-4 bg-primary rounded-full -translate-y-1/2 z-10 ${isEven ? '-right-2' : '-left-2'}`} />
-                    <div className="bg-black border border-gray-800 rounded-2xl p-6 sm:p-8">
+                    <div className="surface-card p-6 sm:p-8">
                       <div className="flex items-start gap-4">
-                        <div className="flex-shrink-0 w-14 h-14 bg-green-500 rounded-xl flex items-center justify-center">
+                        <div className="flex-shrink-0 w-14 h-14 bg-primary rounded-xl flex-center">
                           <Icon className="w-7 h-7 text-white" />
                         </div>
                         
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
                             <span className="text-sm font-medium text-primary">Step {index + 1}</span>
-                            <h3 className="text-xl font-semibold text-white">{step.title}</h3>
+                            <h3 className="text-heading-2 text-white">{step.title}</h3>
                           </div>
-                          <p className="text-gray-400">{step.description}</p>
+                          <p className="text-body-secondary">{step.description}</p>
                         </div>
                       </div>
                     </div>
